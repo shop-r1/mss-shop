@@ -20,11 +20,19 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
    narrower `mss-thin-host` Skill, edit specifications/business-owned files,
    and run the MSS validations it requires.
 5. Treat `/app/v1` as the storefront boundary. Update the authoritative
-   contract before implementation and coordinate a versioned snapshot in
-   `mss-shop-mobile`; Admin endpoints are never a mobile fallback.
+   `contracts/app-v1` contract before implementation. Refresh every changed
+   file as a byte-for-byte snapshot in `mss-shop-mobile`, record the committed
+   backend source revision and SHA-256 values, then update the typed client;
+   Admin endpoints are never a mobile fallback.
 6. Follow `docs/architecture/internationalization.md` for every user-visible
    feature. Keep `zh-CN` and `en-US` complete, keep locale/currency/timezone/
    tenant independent, and use stable message and error keys.
 7. Use `references/change-checklist.md` to determine the minimum evidence and
    documentation set. Never run a production write without explicit approval
    for the exact action.
+8. For repository-wide platform work, keep root services in the root Go module
+   and the generated Admin hosts in their nested modules. Validate services
+   with `GOWORK=off`, validate each host from its own root with the official
+   MSS 1.3.6 binary, and run `scripts/check-platform-boundaries.sh`. The
+   phase-one reconciler/worker are local simulations; do not present them as
+   production drivers.

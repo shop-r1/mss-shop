@@ -24,3 +24,15 @@ decisions:
     date: 2026-08-27
     path: DEC-0004-internationalization-baseline.md
     applies_to: [mss-shop, mss-shop-mobile]
+  - id: DEC-0005
+    title: Resolve public storefronts from exact server-owned bindings
+    status: accepted
+    date: 2026-08-28
+    path: DEC-0005-exact-public-tenant-bindings.md
+    applies_to: [mss-shop, mss-shop-mobile]
+  - id: DEC-0006
+    title: Reconcile tenant desired and observed state
+    status: accepted
+    date: 2026-08-28
+    path: DEC-0006-desired-observed-reconciliation.md
+    applies_to: [mss-shop]

@@ -23,6 +23,21 @@ Last verified: 2026-08-28
 ## Present in this repository
 
 - A runnable MSS 1.3.6 Thin Host proof of concept at the repository root.
+- Final MSS 1.3.6 Thin Hosts under `apps/tenant-platform` and
+  `apps/mall-platform`, each with its backend and Admin Web in one directory.
+- A generated tenant desired-state Admin module with bilingual UI. Its delete
+  action is a soft archive and never destroys tenant resources.
+- A handwritten forward constraint migration that permits repeated empty
+  optional WeChat AppIDs but rejects duplicate configured AppIDs before the
+  tenant migration is marked ready.
+- The authoritative `/app/v1` OpenAPI, JSON schemas and bilingual bootstrap
+  examples.
+- A runnable storefront API vertical slice with strict static configuration,
+  exact Host/AppID bindings, weighted locale negotiation, stable errors and
+  public-only response DTOs.
+- In-memory lifecycle/reconciler and worker inbox implementations covering
+  idempotent convergence, retry, suspend/resume, CAS and tenant-scoped message
+  deduplication. They are simulation/test code, not production drivers.
 - MSS-generated project contracts and seven MSS workflow Skills.
 - Versioned target architecture, migration plan, i18n policy and project Skill.
 - A project-scoped `mss-mcp` connection whose wrapper rejects any version other
@@ -30,20 +45,24 @@ Last verified: 2026-08-28
 
 ## Not implemented yet
 
-- The final `apps/tenant-platform` and `apps/mall-platform` Thin Hosts.
-- Tenant lifecycle control tables and the reconciler.
-- Per-tenant PostgreSQL schema roles and credentials.
-- The `/app/v1` OpenAPI contract and storefront service.
-- Legacy business data migration or any production cutover.
+- A persistent control-plane repository, leases or observed-status integration
+  between the tenant Admin module and reconciler.
+- The authoritative normalized Host/AppID binding repository between raw Admin
+  desired state and storefront serving. The current static serving directory
+  already normalizes exact bindings and fails closed on duplicates.
+- Real PostgreSQL role/schema drivers, secret storage, Kubernetes resources or
+  a persistent worker queue/inbox.
+- Mall commerce modules, customer authentication, catalog, cart, checkout,
+  payments or legacy business data migration.
+- Any development-cluster rollout, production migration or cutover.
 
 ## Next milestone and acceptance criteria
 
-Create clean Thin Hosts in `apps/tenant-platform` and `apps/mall-platform` with
-the MSS generator, keeping frontend and backend together in each app directory.
-Acceptance requires both hosts to pass `mss doctor --strict` and
-`mss verify --all`, use exact Distribution 1.3.6 dependencies, and contain no
-copied MSS core source. The proof-of-concept root can be retired only after the
-new hosts reproduce its login and authorization checks.
+Rehearse one tenant in a dedicated development database: persist desired and
+observed state, implement the reconciler's PostgreSQL schema/role steps, and
+bind one mall runtime to its fixed core/business schema pair. Acceptance needs
+idempotent retry and isolation tests in disposable Kubernetes Pods. No
+production write is part of that milestone.
 
 ## Verification evidence
 
@@ -53,7 +72,16 @@ Verified locally on 2026-08-28:
   Go, Node and pnpm versions.
 - `GOTOOLCHAIN=go1.26.6 mss verify --all` completed successfully, including
   Thin Host boundaries, backend build/tests, frontend lint/tests/build and Git
-  text checks.
+  text checks for the phase-zero proof before final hosts were added. MSS 1.3.6
+  recursively treats nested generated modules as root modules, so current full
+  verification is intentionally run once per final host instead of at the
+  monorepo root.
+- Root platform tests, race checks, vet, storefront build and architecture
+  boundary checks passed.
+- Both final MSS hosts passed their independent strict doctor and full verify
+  workflows; the tenant module also passed deterministic generation check.
+- The mobile repository's locked contract check, TypeScript check and both H5
+  and `mp-weixin` builds passed against this implementation.
 - The repository-scoped MCP wrapper completed a stdio EOF smoke test against
   the official `mss-mcp v1.3.6` binary.
 

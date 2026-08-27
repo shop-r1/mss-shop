@@ -3,7 +3,7 @@
 This is a staged rebuild, not a big-bang rewrite. Production remains read-only
 through design, local development and development-environment rehearsal.
 
-## Phase 0 — foundation proof (current)
+## Phase 0 — foundation proof (complete)
 
 - Keep the generated MSS 1.3.6 Thin Host at the repository root runnable.
 - Verify login, roles, permissions, bilingual catalogs and the exact Go/npm
@@ -13,21 +13,25 @@ through design, local development and development-environment rehearsal.
 Exit: the root proof passes `mss doctor --strict` and `mss verify --all` with an
 official 1.3.6 tool installation.
 
-## Phase 1 — clean platform shells and contracts
+## Phase 1 — clean platform shells and contracts (in progress)
 
 - Generate `apps/tenant-platform` and `apps/mall-platform` independently with
   MSS 1.3.6. Each directory contains its backend and `web/` frontend.
 - Establish the authoritative `/app/v1` OpenAPI contract and tenant bootstrap
   JSON schema under `contracts/app-v1`.
-- Inventory the old `shop-go`, `shop-admin-ui` and `shop-m-cli` capabilities.
-  The 14 `copymall` administration pages move to mall-platform, not mobile.
-- Classify every legacy table by owner, retention, translation needs and
-  migration risk.
+- Complete the code-level boundary audit of `shop-go`, `shop-admin-ui` and
+  `shop-m-cli`. The 14 `copymall` administration pages move to mall-platform,
+  not mobile.
+- Produce the table-level inventory and classify every legacy table by owner,
+  retention, translation needs and migration risk before any data migration.
 
 Exit: both hosts validate independently; contract compatibility tests exist;
-no copied MSS source is present.
+no copied MSS source is present; the table-level migration inventory is
+reviewed and committed. The host and contract work is complete. The table-level
+inventory remains open and blocks data migration, but not the isolated
+bootstrap implementation.
 
-## Phase 2 — control plane and reconciler
+## Phase 2 — control plane and reconciler (in progress)
 
 - Implement tenant desired/observed state, immutable tenant keys, domain/AppID
   bindings and lifecycle transitions.
@@ -38,6 +42,10 @@ no copied MSS source is present.
 
 Exit: create, retry, suspend and resume work in the development environment;
 failure injection converges without duplicate resources or leaked credentials.
+
+The in-memory domain/controller, fault injection and tenant-scoped worker inbox
+are implemented. Persistent state, real drivers, least-privilege database roles
+and development-cluster rehearsal remain before the exit criteria are met.
 
 ## Phase 3 — first mall runtime
 
@@ -50,7 +58,7 @@ failure injection converges without duplicate resources or leaked credentials.
 Exit: one development tenant operates end-to-end with fixed connections and
 passes isolation tests in disposable Kubernetes Pods.
 
-## Phase 4 — storefront and mobile
+## Phase 4 — storefront and mobile (bootstrap slice complete)
 
 - Implement `/app/v1` vertical slices in business priority order.
 - Generate or lock the TypeScript client in `mss-shop-mobile` from the contract.
@@ -59,6 +67,9 @@ passes isolation tests in disposable Kubernetes Pods.
 
 Exit: browse, customer login, cart and an agreed non-production checkout path
 work in both targets with contract and locale tests.
+
+The contract-first bootstrap slice is implemented and consumed by both mobile
+build targets. Catalog browsing, customer login, cart and checkout remain.
 
 ## Phase 5 — rehearsal and cutover
 

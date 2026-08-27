@@ -1,0 +1,60 @@
+name: Platform CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+permissions:
+  contents: read
+
+jobs:
+  services:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: 1.26.6
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.13.1
+      - run: GOWORK=off go test ./...
+      - run: GOWORK=off go test -race ./internal/platform/... ./services/...
+      - run: GOWORK=off go vet ./...
+      - run: GOWORK=off go build ./...
+      - run: sh scripts/check-platform-boundaries.sh
+
+  mss-hosts:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - apps/tenant-platform
+          - apps/mall-platform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: 1.26.6
+          cache-dependency-path: ${{ matrix.app }}/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24.13.1
+      - run: corepack enable
+      - run: corepack pnpm@10.34.5 --dir "${{ matrix.app }}/web" install --frozen-lockfile
+      - name: Install exact mss release tools
+        run: |
+          curl --fail --location --silent --show-error \
+            --output "${RUNNER_TEMP}/install-mss.sh" \
+            https://github.com/mss-boot-io/mss-boot-admin/releases/download/v1.3.6/install-mss.sh
+          bash "${RUNNER_TEMP}/install-mss.sh" \
+            --version v1.3.6 \
+            --install-dir "${RUNNER_TEMP}/mss-bin"
+          echo "${RUNNER_TEMP}/mss-bin" >> "${GITHUB_PATH}"
+      - run: mss --root "${{ matrix.app }}" doctor --strict
+      - run: mss --root "${{ matrix.app }}" verify --all

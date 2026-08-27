@@ -1,0 +1,34 @@
+{
+  "data": {
+    "contract_version": 1,
+    "configuration_version": "demo-1",
+    "tenant": {
+      "public_id": "demo-shop",
+      "display_name": "R1Shop 演示商城"
+    },
+    "branding": {
+      "logo_url": null,
+      "primary_color": "#1677FF",
+      "customer_service_qr_url": null
+    },
+    "regional": {
+      "locale": "zh-CN",
+      "enabled_locales": ["zh-CN", "en-US"],
+      "fallback_locale": "en-US",
+      "currency": "AUD",
+      "enabled_currencies": ["AUD", "CNY"],
+      "time_zone": "Australia/Sydney",
+      "direction": "ltr"
+    },
+    "channel": {
+      "type": "h5",
+      "app_id": null
+    },
+    "features": {
+      "popup_enabled": false
+    }
+  },
+  "meta": {
+    "request_id": "req_example_zh"
+  }
+}

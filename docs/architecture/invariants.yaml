@@ -10,11 +10,21 @@ invariants:
     owner: mall-platform
     decision: DEC-0002
     enforced_by: [runtime-config-validation, readiness-check]
+  - id: TEN-003
+    statement: Public Host or AppID bindings can select public bootstrap data but never authenticate a caller or select a schema.
+    owner: storefront-api
+    decision: DEC-0005
+    enforced_by: [exact-binding-directory, bootstrap-negative-tests, customer-session-verification]
   - id: REC-001
     statement: Only the reconciler mutates tenant schemas, roles, credentials, or runtime resources.
     owner: reconciler
     decision: DEC-0001
     enforced_by: [database-roles, deployment-rbac, audit-log]
+  - id: REC-002
+    statement: Tenant lifecycle convergence is idempotent and destruction is absent from the phase-one desired state model.
+    owner: reconciler
+    decision: DEC-0006
+    enforced_by: [ensure-step-tests, generation-cas, simulation-mode-guard]
   - id: API-001
     statement: Storefront clients use /app/v1 and never use the MSS Admin API.
     owner: storefront-api

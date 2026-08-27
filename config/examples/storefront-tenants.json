@@ -1,0 +1,37 @@
+{
+  "listenAddress": "127.0.0.1:8090",
+  "allowedOrigins": [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+  ],
+  "tenants": [
+    {
+      "id": "tenant-demo",
+      "publicId": "demo-shop",
+      "state": "active",
+      "configurationVersion": "demo-1",
+      "hosts": ["localhost", "127.0.0.1"],
+      "wechatAppIds": ["wx0000000000000000"],
+      "displayNames": {
+        "zh-CN": "R1Shop 演示商城",
+        "en-US": "R1Shop Demo Shop"
+      },
+      "branding": {
+        "logoUrl": "",
+        "primaryColor": "#1677FF",
+        "customerServiceQrUrl": ""
+      },
+      "regional": {
+        "enabledLocales": ["zh-CN", "en-US"],
+        "defaultLocale": "zh-CN",
+        "fallbackLocale": "en-US",
+        "enabledCurrencies": ["AUD", "CNY"],
+        "defaultCurrency": "AUD",
+        "timeZone": "Australia/Sydney"
+      },
+      "features": {
+        "popupEnabled": false
+      }
+    }
+  ]
+}

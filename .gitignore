@@ -1,5 +1,6 @@
 bin/
 /server
+/storefront-api
 *.db
 *.out
 *.log

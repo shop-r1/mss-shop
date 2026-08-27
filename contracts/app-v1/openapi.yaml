@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: R1Shop Storefront API
+  version: 1.0.0
+  description: Public API for the R1Shop H5 and WeChat Mini Program storefronts.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Process liveness
+      responses:
+        "200":
+          description: The process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /readyz:
+    get:
+      operationId: getReadiness
+      summary: Storefront directory readiness
+      responses:
+        "200":
+          description: Tenant bindings and public configuration are valid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+  /app/v1/bootstrap:
+    get:
+      operationId: getStorefrontBootstrap
+      summary: Resolve a storefront and return its public bootstrap configuration
+      description: |
+        H5 requests are resolved exclusively from the exact request Host.
+        WeChat Mini Program requests set X-R1-Client-Platform to mp-weixin and
+        send their public AppID in X-R1-Client-App-Id. The AppID selects only
+        anonymous public configuration and is never accepted as proof of user
+        identity. Client-supplied tenant IDs, schema names and database selectors
+        are not part of this contract.
+      parameters:
+        - $ref: "#/components/parameters/AcceptLanguage"
+        - $ref: "#/components/parameters/ClientPlatform"
+        - $ref: "#/components/parameters/ClientAppID"
+      responses:
+        "200":
+          description: Public storefront configuration
+          headers:
+            Content-Language:
+              description: Canonical selected BCP 47 locale.
+              schema:
+                $ref: "#/components/schemas/Locale"
+            ETag:
+              description: Configuration version validator.
+              schema:
+                type: string
+            Vary:
+              schema:
+                type: string
+              example: Accept-Language, X-R1-Client-Platform, X-R1-Client-App-Id
+          content:
+            application/json:
+              schema:
+                $ref: "./schemas/bootstrap-response.schema.json"
+              examples:
+                zh-CN:
+                  externalValue: ./examples/bootstrap.zh-CN.json
+                en-US:
+                  externalValue: ./examples/bootstrap.en-US.json
+        "400":
+          description: Invalid channel selection
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./schemas/problem.schema.json"
+        "404":
+          description: No enabled tenant binding matched
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./schemas/problem.schema.json"
+        "503":
+          description: The matched tenant is not serving storefront traffic
+          content:
+            application/problem+json:
+              schema:
+                $ref: "./schemas/problem.schema.json"
+      security: []
+components:
+  parameters:
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      description: Weighted BCP 47 language preferences.
+      schema:
+        type: string
+      example: zh-CN,zh;q=0.9,en-US;q=0.8
+    ClientPlatform:
+      name: X-R1-Client-Platform
+      in: header
+      required: false
+      description: Defaults to h5 when omitted.
+      schema:
+        type: string
+        enum: [h5, mp-weixin]
+    ClientAppID:
+      name: X-R1-Client-App-Id
+      in: header
+      required: false
+      description: Required only for mp-weixin; a public selector, never an identity credential.
+      schema:
+        type: string
+        maxLength: 64
+  schemas:
+    Locale:
+      type: string
+      enum: [zh-CN, en-US]
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: ok

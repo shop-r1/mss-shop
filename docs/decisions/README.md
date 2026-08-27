@@ -11,3 +11,7 @@ in the same change.
   schema pair per tenant
 - [DEC-0003](DEC-0003-dedicated-storefront-api.md): dedicated `/app/v1`
 - [DEC-0004](DEC-0004-internationalization-baseline.md): i18n from day one
+- [DEC-0005](DEC-0005-exact-public-tenant-bindings.md): exact public Host and
+  AppID bindings
+- [DEC-0006](DEC-0006-desired-observed-reconciliation.md): desired/observed
+  tenant reconciliation

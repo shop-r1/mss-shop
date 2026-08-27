@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.r1shop.net/app/v1/problem.schema.json",
+  "title": "Storefront problem",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "status", "code", "message_key", "args", "request_id"],
+  "properties": {
+    "type": { "type": "string", "format": "uri-reference" },
+    "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+    "code": {
+      "type": "string",
+      "enum": ["INVALID_CHANNEL", "TENANT_NOT_FOUND", "TENANT_UNAVAILABLE", "INTERNAL_ERROR"]
+    },
+    "message_key": { "type": "string", "pattern": "^error\\.[a-z0-9_]+$" },
+    "args": { "type": "object", "additionalProperties": { "type": "string" } },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+  }
+}

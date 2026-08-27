@@ -33,11 +33,67 @@ Inspect with `mss dev status` and `mss dev logs <service>`. Stop with
 `mss dev stop`. SQLite files, logs, run locks, dependencies and builds are local
 artifacts and remain ignored.
 
-## Verify
+## Verify the final layout
 
 ```shell
-mss verify --all
+mss doctor --strict
+GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform verify --all
+GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform verify --all
 ```
 
-Successful verification is evidence for the proof only. It does not prove the
-future tenant isolation or legacy data migration.
+MSS 1.3.6 recursively treats nested generated modules as root modules, so do
+not use a current root `mss verify --all` result as final-host evidence. The
+root doctor covers the historical proof and each final host owns its full
+verification. These checks still do not prove future tenant isolation or
+legacy data migration.
+
+## Final Admin hosts
+
+The final hosts are independent MSS projects. Run only one natively at a time
+because both intentionally keep the generated backend/Admin Web ports
+`8080/8001`:
+
+```shell
+GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform doctor --strict
+GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform setup
+GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform dev
+
+GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform doctor --strict
+GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform setup
+GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform dev
+```
+
+Each first setup prompts for its own local administrator password and creates
+an ignored SQLite file in that app. Do not invent or commit a default password.
+Container deployments may use the same internal ports because they have
+separate network namespaces.
+
+## Storefront bootstrap and mobile H5
+
+Terminal one, from `mss-shop`:
+
+```shell
+GOWORK=off go run ./services/storefront-api/cmd/storefront-api
+```
+
+Terminal two, from sibling `mss-shop-mobile`:
+
+```shell
+corepack pnpm@10.30.1 dev:h5
+```
+
+Vite proxies `/app` to `127.0.0.1:8090`. The API resolves the tenant from the
+actual Host and ignores client tenant/schema inputs. For `mp-weixin`, configure
+an approved HTTPS API base URL and a private development AppID outside Git.
+
+## Platform verification
+
+```shell
+GOWORK=off GOTOOLCHAIN=go1.26.6 go test ./...
+GOWORK=off GOTOOLCHAIN=go1.26.6 go test -race ./internal/platform/... ./services/...
+GOWORK=off GOTOOLCHAIN=go1.26.6 go vet ./...
+GOTOOLCHAIN=go1.26.6 sh scripts/check-platform-boundaries.sh
+```
+
+These commands use local simulations only. They do not create PostgreSQL
+schemas, Kubernetes resources or deployments.

@@ -1,10 +1,21 @@
 # Mss Shop
 
-> This root Thin Host is the runnable MSS 1.3.6 phase-zero proof. The accepted
-> control-plane, per-tenant mall runtime, storefront and mobile solution is
-> indexed in [`docs/README.md`](docs/README.md). Final Thin Hosts will be
-> generated in their target app directories; managed files are not moved by
-> hand.
+R1Shop's new platform implementation lives in this monorepo:
+
+- `apps/tenant-platform`: MSS 1.3.6 tenant control-plane Admin backend + web;
+- `apps/mall-platform`: MSS 1.3.6 per-tenant mall Admin backend + web;
+- `services/storefront-api`: customer bootstrap API under `/app/v1`;
+- `services/reconciler` and `services/worker`: phase-one, in-memory lifecycle
+  and delivery simulations;
+- `contracts/app-v1`: authoritative mobile-facing contract.
+
+The generated Thin Host at the repository root remains the runnable phase-zero
+login proof until the two final hosts reproduce its setup/login checks. It is
+not the final deployment entrypoint. Because MSS 1.3.6 scans nested generated
+modules during root verification, run full MSS verification from each final app
+directory; the root proof keeps a strict doctor plus its backend/frontend CI.
+Architecture and current limits are indexed in
+[`docs/README.md`](docs/README.md).
 
 This repository is a Thin Host for `mss-boot-admin`
 `v1.3.6`. It imports the complete Admin backend and
@@ -37,10 +48,28 @@ logs with `mss dev logs <service>`, and stop them with `mss dev stop`.
 Sign in to Admin Web as `admin` with the password supplied during the first
 setup. There is no default password.
 
-Before every pull request, run:
+The two final Admin hosts use the same container-internal ports and are normally
+run one at a time locally. From the repository root, start the public bootstrap
+slice independently with:
 
 ```shell
-mss verify --all
+GOWORK=off go run ./services/storefront-api/cmd/storefront-api
+```
+
+It listens on `http://127.0.0.1:8090`; the checked-in configuration contains
+public demo values only and recognizes `localhost`/`127.0.0.1`.
+
+Before every pull request, verify the historical root proof and both final
+hosts independently, then run the platform checks:
+
+```shell
+mss doctor --strict
+GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform verify --all
+GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform verify --all
+GOWORK=off GOTOOLCHAIN=go1.26.6 go test ./...
+GOWORK=off GOTOOLCHAIN=go1.26.6 go test -race ./internal/platform/... ./services/...
+GOWORK=off GOTOOLCHAIN=go1.26.6 go vet ./...
+sh scripts/check-platform-boundaries.sh
 ```
 
 ## Add business capabilities
