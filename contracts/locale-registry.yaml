@@ -1,0 +1,24 @@
+version: 1
+schemaLocale: en-US
+systemDefaultLocale: zh-CN
+locales:
+  - tag: zh-CN
+    selfName: 简体中文
+    direction: ltr
+    fallback: [en-US]
+    adapters:
+      mssAdmin: zh-CN
+      uniApp: zh-Hans
+      antDesign: zh_CN
+      dayjs: zh-cn
+    surfaces: [tenant-platform, mall-platform, h5, mp-weixin]
+  - tag: en-US
+    selfName: English
+    direction: ltr
+    fallback: []
+    adapters:
+      mssAdmin: en-US
+      uniApp: en
+      antDesign: en_US
+      dayjs: en
+    surfaces: [tenant-platform, mall-platform, h5, mp-weixin]

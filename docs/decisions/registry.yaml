@@ -1,0 +1,26 @@
+version: 1
+decisions:
+  - id: DEC-0001
+    title: Separate control plane from per-tenant mall runtimes
+    status: accepted
+    date: 2026-08-27
+    path: DEC-0001-control-plane-and-tenant-runtimes.md
+    applies_to: [mss-shop]
+  - id: DEC-0002
+    title: Bind each mall runtime to a fixed core/business schema pair
+    status: accepted
+    date: 2026-08-27
+    path: DEC-0002-fixed-schema-pair-per-tenant.md
+    applies_to: [mss-shop]
+  - id: DEC-0003
+    title: Serve storefront clients through a dedicated versioned API
+    status: accepted
+    date: 2026-08-27
+    path: DEC-0003-dedicated-storefront-api.md
+    applies_to: [mss-shop, mss-shop-mobile]
+  - id: DEC-0004
+    title: Make internationalization a cross-platform baseline
+    status: accepted
+    date: 2026-08-27
+    path: DEC-0004-internationalization-baseline.md
+    applies_to: [mss-shop, mss-shop-mobile]

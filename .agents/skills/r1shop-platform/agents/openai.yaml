@@ -1,0 +1,3 @@
+interface:
+  display_name: "R1Shop Platform Architecture"
+  short_description: "Apply R1Shop tenancy, API, migration, and i18n invariants"

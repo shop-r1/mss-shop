@@ -1,0 +1,32 @@
+version: 1
+invariants:
+  - id: TEN-001
+    statement: A client cannot select or provide a database schema.
+    owner: platform
+    decision: DEC-0002
+    enforced_by: [tenant-resolver, connection-registry, security-tests]
+  - id: TEN-002
+    statement: A mall runtime is bound at startup to one tenant and one core/business schema pair.
+    owner: mall-platform
+    decision: DEC-0002
+    enforced_by: [runtime-config-validation, readiness-check]
+  - id: REC-001
+    statement: Only the reconciler mutates tenant schemas, roles, credentials, or runtime resources.
+    owner: reconciler
+    decision: DEC-0001
+    enforced_by: [database-roles, deployment-rbac, audit-log]
+  - id: API-001
+    statement: Storefront clients use /app/v1 and never use the MSS Admin API.
+    owner: storefront-api
+    decision: DEC-0003
+    enforced_by: [openapi-contract, gateway-routes, client-build]
+  - id: I18N-001
+    statement: User-visible text is selected by a locale key, never used as a business or error code.
+    owner: all-ui
+    decision: DEC-0004
+    enforced_by: [locale-catalog-check, review]
+  - id: OPS-001
+    statement: Production writes require explicit approval for the exact action.
+    owner: platform-operations
+    decision: null
+    enforced_by: [AGENTS.md, review]

@@ -1,0 +1,47 @@
+bin/
+/server
+*.db
+*.out
+*.log
+*.pid
+.mss/reports/
+.mss/run/
+.mss/cache/
+.mss/logs/
+.mss/output/
+logs/
+web/node_modules/
+web/.pnpm-store/
+web/dist/
+web/.turbopack/
+web/.umi/
+web/.umi-production/
+web/src/.umi/
+web/src/.umi-production/
+web/test-results/
+web/playwright-report/
+coverage/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+config/application-*.yml
+config/application-*.yaml
+
+# Editors and local operating-system state
+.DS_Store
+.idea/
+.vscode/
+
+# Signing and private key material
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision

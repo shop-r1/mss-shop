@@ -1,0 +1,30 @@
+---
+name: r1shop-platform
+description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation, storefront-contract, migration, and cross-platform i18n decisions when changing mss-shop architecture or business code.
+---
+
+# R1shop Platform
+
+1. Read `AGENTS.md`, `docs/project/status.md`,
+   `docs/architecture/overall-solution.md`, and
+   `docs/architecture/invariants.yaml` before changing a service boundary,
+   tenant lifecycle, database access, storefront contract, or locale behavior.
+2. Identify the affected invariant and accepted decision. If the requested
+   design contradicts one, add a superseding ADR and update the registry,
+   architecture, invariants, migration plan and status in the same change.
+3. Keep the tenant platform as desired-state control plane and the reconciler
+   as the sole tenant-resource writer. Bind every mall runtime to one immutable
+   tenant and fixed core/business schema pair at startup; never accept a schema
+   selector from a client.
+4. Keep MSS core unchanged. For a Thin Host business change also follow the
+   narrower `mss-thin-host` Skill, edit specifications/business-owned files,
+   and run the MSS validations it requires.
+5. Treat `/app/v1` as the storefront boundary. Update the authoritative
+   contract before implementation and coordinate a versioned snapshot in
+   `mss-shop-mobile`; Admin endpoints are never a mobile fallback.
+6. Follow `docs/architecture/internationalization.md` for every user-visible
+   feature. Keep `zh-CN` and `en-US` complete, keep locale/currency/timezone/
+   tenant independent, and use stable message and error keys.
+7. Use `references/change-checklist.md` to determine the minimum evidence and
+   documentation set. Never run a production write without explicit approval
+   for the exact action.

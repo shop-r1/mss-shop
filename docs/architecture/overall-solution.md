@@ -1,0 +1,157 @@
+# Overall solution
+
+## Outcome
+
+R1Shop becomes a small control plane plus isolated tenant runtimes. MSS remains
+an unmodified Admin foundation inside two separate Thin Hosts. The storefront
+API and mobile application are independent of the Admin API.
+
+```text
+Platform operator
+    |
+    v
+Tenant platform (one control-plane deployment)
+    | desired state
+    v
+Reconciler -----------------------> tenant database roles/schemas/runtime
+                                      |
+Tenant administrator                v
+    +--------------------------> Mall platform (one deployment per tenant)
+                                      |
+Customer H5 / WeChat Mini Program    v
+    +--------------------------> Storefront API /app/v1
+                                      |
+                                      v
+                              tenant business schema
+```
+
+## Repository topology
+
+```text
+mss-shop/
+  apps/
+    tenant-platform/       # MSS Thin Host: control-plane admin backend + web
+    mall-platform/         # MSS Thin Host: mall admin backend + web
+  services/
+    reconciler/            # desired/observed-state convergence and DDL owner
+    storefront-api/        # public/member API under /app/v1
+    worker/                # asynchronous commerce jobs
+  contracts/
+    app-v1/                # authoritative OpenAPI and JSON schemas
+  deploy/                  # environment-neutral deployment definitions
+  docs/                    # architecture, ADRs, runbooks and current status
+
+mss-shop-mobile/           # separate repository
+  src/                     # uni-app Vue3/Vite application
+  contracts/               # locked snapshots consumed from mss-shop
+```
+
+The repository root currently contains a generated MSS Thin Host used to prove
+the Distribution and local login. It is a phase-zero artifact, not the target
+monorepo layout. Generate the two final hosts directly in their destination
+directories; do not move or copy managed files because the MSS Blueprint
+manifest and generated paths must stay coherent.
+
+## Component boundaries
+
+### Tenant platform
+
+- Owns tenant records, subscriptions, domain/AppID bindings, locale/currency/
+  timezone defaults and desired lifecycle state.
+- Lets platform operators request provision, suspend, resume and upgrade.
+- Does not run DDL, create credentials, or mutate Kubernetes resources from an
+  HTTP request.
+- Uses its own control-plane storage. If it consumes MSS, keep MSS core tables
+  isolated from control business tables so an MSS migration cannot rewrite
+  application-owned columns.
+
+### Reconciler
+
+- Is the sole writer for tenant schemas, database roles, generated credentials
+  and mall runtime resources.
+- Converts desired state into observed state through idempotent steps, leases,
+  retries and recorded checkpoints.
+- Produces auditable status without returning secret values to the control
+  plane UI.
+- Applies MSS core migrations only to a core schema and R1Shop migrations only
+  to the matching business schema.
+
+### Mall platform
+
+- Is one build/image deployed once per tenant.
+- Starts with an immutable tenant identifier and fixed database connections.
+- Uses MSS for administrator identity, roles, menus, Casbin policies, sessions
+  and Admin UI composition.
+- Uses an explicitly injected business database handle for commerce modules.
+- Never chooses a tenant or schema from a request header, route, JWT claim sent
+  by an untrusted client, or UI selector.
+
+### Storefront API
+
+- Owns `/app/v1` for anonymous browsing, customer identity, cart, checkout,
+  orders and payment callbacks.
+- Resolves the tenant server-side from an allow-listed Host mapping (H5) or a
+  trusted mini-program identity/bootstrap flow.
+- Returns stable error codes and parameters; clients localize the presentation.
+- Does not expose or proxy the MSS Admin API.
+
+### Worker
+
+- Runs asynchronous, retryable commerce work such as inventory release,
+  notification dispatch and order state reconciliation.
+- Carries a server-issued tenant identity and uses the same fixed tenant
+  connection registry as the storefront service.
+
+## Data isolation
+
+Each tenant owns an immutable identifier such as a UUID. Human-readable names
+and domains may change and therefore never form schema names directly. The
+reconciler derives a short collision-checked key and creates:
+
+```text
+r1_m_<tenant-key>_core   MSS users, roles, menus, Casbin, sessions, MSS ledger
+r1_m_<tenant-key>_biz    products, inventory, carts, orders and translations
+```
+
+This pair is one tenant isolation unit. Separate database roles receive only
+the privileges required by the mall runtime and migration job. A runtime may
+have two pools, but both are fixed at startup and validated against the same
+tenant record. Cross-tenant reporting belongs in an explicit platform service,
+not in schema switching inside the mall request path.
+
+The split is required because MSS 1.3.6 includes a legacy migration that scans
+tables in `CURRENT_SCHEMA` and relaxes `tenant_id NOT NULL`. Keeping commerce
+tables outside the MSS core schema prevents that framework migration from
+changing R1Shop-owned table semantics while leaving MSS itself untouched.
+
+## Authentication and sessions
+
+- Tenant-platform administrators and mall administrators have separate realms,
+  keys, cookies and Redis namespaces.
+- A platform operator may manage the lifecycle of a mall runtime but does not
+  inherit an active mall session. Cross-platform support access must be a
+  separately designed, audited capability.
+- H5 and mini-program customer sessions belong to storefront identity, not MSS
+  Admin identity.
+- Cookies are host-scoped and keys are never shared merely to simulate SSO.
+
+## Deployment shape
+
+The first tenant needs one tenant-platform deployment, one reconciler,
+one mall-platform deployment, one storefront API and optional workers. More
+tenants add mall runtime/schema pairs without changing the image. This trades
+some resource overhead for clear blast-radius, migration and rollback
+boundaries.
+
+No GitHub Actions workflow auto-deploys Kubernetes resources. Image build and
+validation may run on `codex/**`; development rollout remains a deliberate
+manual action, and every production write needs explicit approval.
+
+## Mobile boundary
+
+`mss-shop-mobile` uses classic uni-app Vue3/Vite/TypeScript/Pinia. Phase one
+ships H5 and WeChat Mini Program from the same feature code, with platform-only
+behavior behind adapters. App is not in the initial manifest, build matrix or
+release procedure. If an App later becomes necessary, first evaluate whether
+uni-app's hybrid target meets the product requirements; a native React Native
+or other client may instead share OpenAPI, domain rules and design tokens.

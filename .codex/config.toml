@@ -1,0 +1,9 @@
+# Project-scoped MCP configuration. Codex loads this only for a trusted project.
+# Durable architecture memory remains in docs and .agents/skills.
+
+[mcp_servers.mss]
+command = "bash"
+args = ["tools/run-mss-mcp.sh"]
+enabled = true
+startup_timeout_sec = 20
+tool_timeout_sec = 60
