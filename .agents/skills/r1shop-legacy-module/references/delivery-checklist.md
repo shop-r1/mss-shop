@@ -47,6 +47,18 @@
 
 ## Frontend
 
+- Treat mss-boot-admin Admin Web as the UI baseline. Reuse its layout, tokens,
+  table/form conventions, feedback and state patterns; do not reproduce the
+  old Vue page structure or introduce a second Admin design system.
+- Keep pages, hooks, services and typed domain models focused. Prefer small
+  stable reuse over a configuration-driven mega page, duplicated route/API
+  adapters, raw field maps, magic status strings or scattered compatibility
+  branches. A legacy-specific adapter must have one owner and a clear removal
+  condition.
+- Keep the generic compatibility viewer read-only. When a qualified operation
+  has workflow-specific validation, state or cross-table effects, implement a
+  focused MSS-native business surface rather than extending the viewer into a
+  universal editor.
 - Register handwritten routes and server-path projections in business-owned
   files only. Do not infer backend authorization from a visible menu.
 - Keep direct MenuSearch keys and hierarchical ProLayout `menu.*` keys complete
@@ -65,6 +77,9 @@
   React or Ant Design message APIs.
 - Keep Simplified Chinese and English message keys complete and keep business
   values independent from labels.
+- Review the resulting page for clear ownership, removable compatibility code,
+  duplicate transport normalization and avoidable abstractions; old visual
+  parity is not an acceptance criterion.
 
 ## Verification
 

@@ -90,6 +90,17 @@ Last verified: 2026-09-01
   business acceptance scenarios open.
   Its create/update step was exploratory evidence against the superseded
   writable implementation and is not evidence of a current write capability.
+- A single, intentionally small CI workflow covering backend and Admin Web unit
+  tests for all three modules, exact MSS/project-memory and architecture
+  contracts, followed by Buildx verification. Push builds publish only the two
+  delivery Host images to GHCR with full-SHA tags; pull requests build without
+  pushing and no workflow deploys them. See
+  `docs/runbooks/ci-images.md`.
+- A versioned gap assessment that keeps “complete legacy restoration” distinct
+  from the current read-only compatibility surface. It records the P0/P1/P2
+  work and dependency order in
+  `docs/project/legacy-restoration-gap.md`; accepted business scenarios remain
+  0/31.
 
 ## Not implemented yet
 
@@ -112,6 +123,8 @@ Last verified: 2026-09-01
 - Legacy identity conversion (`tenants`, `users`, `roles`), warehouse data
   scopes, or any legacy business data migration.
 - Any development-cluster rollout, production migration or cutover.
+- A storefront API image or production reconciler/worker image. Those
+  components do not yet own complete production entrypoints and Dockerfiles.
 
 ## Next milestone and acceptance criteria
 

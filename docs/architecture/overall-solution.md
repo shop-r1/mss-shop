@@ -89,6 +89,26 @@ manifest and generated paths must stay coherent.
 - Never chooses a tenant or schema from a request header, route, JWT claim sent
   by an untrusted client, or UI selector.
 
+### Admin UI design and code quality
+
+- Preserve legacy business operations, data semantics, permissions and audit
+  behavior; do not reproduce the old Vue pages, DOM structure or visual style.
+- Use the mss-boot-admin Admin Web layout, design tokens, tables, forms,
+  feedback, loading/empty/error states and permission interaction as the visual
+  and behavioral baseline. Do not introduce a parallel Admin design system.
+- Keep domain workflows explicit and typed in business-owned components,
+  hooks and services. Reuse small stable primitives, but avoid a single
+  configuration-driven mega page, duplicated route/API adapters, raw field
+  dictionaries, magic status values and compatibility branches spread across
+  presentation code.
+- The generic read-only compatibility viewer is a migration aid. A qualified
+  write workflow should receive a focused MSS-native page and domain model
+  when its validation, state transitions or cross-table effects cannot be
+  expressed clearly by the viewer.
+- Code review favors clear ownership, deletable compatibility layers and tests
+  around domain behavior over clever abstraction or line-for-line similarity
+  with the old frontend.
+
 ### Storefront API
 
 - Owns `/app/v1` for anonymous browsing, customer identity, cart, checkout,
@@ -165,9 +185,14 @@ tenants add mall runtime/schema pairs without changing the image. This trades
 some resource overhead for clear blast-radius, migration and rollback
 boundaries.
 
-No GitHub Actions workflow auto-deploys Kubernetes resources. Image build and
-validation may run on `codex/**`; development rollout remains a deliberate
-manual action, and every production write needs explicit approval.
+No GitHub Actions workflow auto-deploys Kubernetes resources. Pull requests
+run unit and contract validation and prove both delivery Dockerfiles without
+pushing. Pushes to `codex/**` and `main` publish only the tenant-platform and
+mall-platform `linux/amd64` images to GHCR, tagged by the complete immutable Git
+SHA. The root proof, storefront API, reconciler and worker are not delivery
+images. Development rollout remains a deliberate manual action, and every
+production write needs explicit approval. The exact package, permission and
+rollback policy is in [`ci-images.md`](../runbooks/ci-images.md).
 
 ## Mobile boundary
 

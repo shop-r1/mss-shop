@@ -37,6 +37,7 @@ spec:
       tenantPlatform: pending
     kubernetesSystemAcceptance: pending
     productionMigration: forbidden-without-explicit-approval
+    deliveryCI: implemented-awaiting-first-remote-run
   acceptance:
     closedScenarios: 0
     rule: A local build or generic read-only record viewer cannot close a business scenario.
@@ -114,6 +115,16 @@ spec:
     memoryContracts:
       command: tools/check-project-memory.sh
       result: passed
+    deliveryImages:
+      workflow: .github/workflows/ci.yml
+      pullRequestMode: build-without-push
+      pushBranches: [main, "codex/**"]
+      platform: linux/amd64
+      immutableTag: full-git-sha
+      packages:
+        - ghcr.io/shop-r1/mss-shop-tenant-platform
+        - ghcr.io/shop-r1/mss-shop-mall-platform
+      autoDeploy: false
   sourcesOfTruth:
     architecture: docs/architecture/overall-solution.md
     invariants: docs/architecture/invariants.yaml
@@ -130,6 +141,8 @@ spec:
     mcpConfiguration: .codex/config.toml
     mss137GenerationNotes: docs/tooling/mss-1.3.7-generation-notes.md
     localDevelopmentRunbook: docs/runbooks/local-development.md
+    ciImageRunbook: docs/runbooks/ci-images.md
+    legacyRestorationGap: docs/project/legacy-restoration-gap.md
   safety:
     productionReadOnly: true
     productionOrderRowsToDevelopment: false

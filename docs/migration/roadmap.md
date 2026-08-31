@@ -2,6 +2,8 @@
 
 This is a staged rebuild, not a big-bang rewrite. Production remains read-only
 through design, local development and development-environment rehearsal.
+The current P0/P1/P2 gap and dependency order are maintained in
+[`legacy-restoration-gap.md`](../project/legacy-restoration-gap.md).
 
 ## Phase 0 — foundation proof (complete)
 

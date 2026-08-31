@@ -11,10 +11,12 @@ for memory_file in \
   tools/run-mss-mcp.sh \
   docs/project/status.md \
   docs/project/legacy-rebuild-status.yaml \
+  docs/project/legacy-restoration-gap.md \
   docs/governance/memory.md \
   docs/migration/legacy-tables.yaml \
   docs/migration/legacy-admin-acceptance-matrix.md \
   docs/acceptance/mall-local-browser-acceptance.md \
+  docs/runbooks/ci-images.md \
   .agents/skills/r1shop-legacy-module/SKILL.md
 do
   if [ ! -s "$memory_file" ]; then

@@ -8,18 +8,20 @@ local runtime state.
 
 1. [Current status](project/status.md) and
    [machine-readable rebuild status](project/legacy-rebuild-status.yaml)
-2. [Overall solution](architecture/overall-solution.md)
-3. [Architecture invariants](architecture/invariants.yaml)
-4. [Internationalization](architecture/internationalization.md)
-5. [Migration roadmap](migration/roadmap.md)
-6. [Legacy data contract](migration/legacy-data-contract.md)
-7. [Legacy table manifest](migration/legacy-tables.yaml)
-8. [Legacy Admin acceptance matrix](migration/legacy-admin-acceptance-matrix.md)
-9. [Mall local browser compatibility acceptance](acceptance/mall-local-browser-acceptance.md)
-10. [Decision records](decisions/README.md)
-11. [Memory governance](governance/memory.md)
-12. [MCP integration](tooling/mcp.md)
-13. [MSS 1.3.7 generation qualification notes](tooling/mss-1.3.7-generation-notes.md)
+2. [Remaining work for complete legacy restoration](project/legacy-restoration-gap.md)
+3. [Overall solution](architecture/overall-solution.md)
+4. [Architecture invariants](architecture/invariants.yaml)
+5. [Internationalization](architecture/internationalization.md)
+6. [Migration roadmap](migration/roadmap.md)
+7. [Legacy data contract](migration/legacy-data-contract.md)
+8. [Legacy table manifest](migration/legacy-tables.yaml)
+9. [Legacy Admin acceptance matrix](migration/legacy-admin-acceptance-matrix.md)
+10. [Mall local browser compatibility acceptance](acceptance/mall-local-browser-acceptance.md)
+11. [CI and delivery image runbook](runbooks/ci-images.md)
+12. [Decision records](decisions/README.md)
+13. [Memory governance](governance/memory.md)
+14. [MCP integration](tooling/mcp.md)
+15. [MSS 1.3.7 generation qualification notes](tooling/mss-1.3.7-generation-notes.md)
 
 After changing an invariant, migration contract, acceptance claim, Skill or
 tool connection, run `tools/check-project-memory.sh` before committing.

@@ -68,9 +68,13 @@ description: Implement or review R1Shop Admin business capabilities that must pr
    compatibility rollout the frontend may accept an older nested envelope,
    but it must reduce every transport value to a string before rendering.
 10. Use [references/delivery-checklist.md](references/delivery-checklist.md) for
-   implementation and evidence. Keep `zh-CN` and `en-US` complete. Update the
-   manifest, acceptance matrix, architecture/status and runbooks in the same
-   change when verified behavior or a boundary changes.
+   implementation and evidence. Preserve the old business behavior, not the
+   old Vue presentation. Build Admin pages with mss-boot-admin patterns and
+   focused typed business components; do not add a parallel design system,
+   copy old page structure, or hide workflows inside a configuration-driven
+   mega component. Keep `zh-CN` and `en-US` complete. Update the manifest,
+   acceptance matrix, architecture/status and runbooks in the same change when
+   verified behavior or a boundary changes.
 11. Production remains read-only without explicit approval for the exact
     action. Database system acceptance runs in disposable Kubernetes Pods
     against an isolated development copy; production order rows are not copied
