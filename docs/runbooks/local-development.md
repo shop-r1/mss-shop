@@ -74,6 +74,64 @@ an ignored SQLite file in that app. Do not invent or commit a default password.
 Container deployments may use the same internal ports because they have
 separate network namespaces.
 
+## Mall Admin local legacy UI fixture
+
+This fixture exists only to make the 43 reviewed mall Admin resource pages
+visible during local browser acceptance. It is not a legacy data migration,
+does not copy production data, does not prove tenant/schema isolation and does
+not close a system or business acceptance scenario. It never contacts
+Kubernetes or PostgreSQL and does not use GORM `AutoMigrate`.
+
+Run `mss setup` for `apps/mall-platform` first and choose the local
+administrator password through its hidden prompt. The fixture creates no user
+and has no default password. Stop the local backend before preparing the file,
+then run the following from the `apps/mall-platform` directory:
+
+```shell
+GOWORK=off GOTOOLCHAIN=go1.26.6 go run ./cmd/local-legacy-fixture \
+  --db "$PWD/mss-boot-admin-local.db" \
+  --legacy-tenant-id local-demo \
+  --confirm-local-ui-fixture
+```
+
+The command accepts only the existing `mss-boot-admin-local.db` regular file
+created by setup in the current mall-platform module root; it never creates the
+database file itself. The database path, demo tenant value and confirmation
+flag are all mandatory. Database URLs, DSNs, directories, symbolic links,
+files outside this module and non-SQLite files are rejected before database
+work. Existing reviewed tables must already contain
+the compiled columns; the command never alters them. Missing tables use
+forward-only `CREATE TABLE IF NOT EXISTS`, while demo rows use fixed primary
+keys and `ON CONFLICT DO NOTHING`, so rerunning the command neither replaces
+nor deletes existing rows.
+
+The fixture inserts non-sensitive examples for `function_circles`,
+`message_events`, `message_templates` and `show_categories`, plus examples
+covering goods, members, warehouses, orders and inventory. These seeded rows
+exist only to exercise lists, details and empty states: all 43 compatibility
+resources are read-only in the current Host. The other reviewed tables remain
+empty but structurally available for empty-state UI checks.
+
+Use the same fixed row scope when starting the local Host:
+
+```shell
+export R1SHOP_TENANT_ID=local-ui-control
+export R1SHOP_ADMIN_TENANT_ID=default
+export R1SHOP_LEGACY_TENANT_ID=local-demo
+export R1SHOP_BIZ_SCHEMA=main
+export R1SHOP_SHARED_SCHEMA=shared_demo
+GOWORK=off GOTOOLCHAIN=go1.26.6 mss dev
+```
+
+`shared_demo` is deliberately distinct in the immutable binding, but it is not
+an attached SQLite database. The mall compatibility repository reads only the
+business schema, so local SQLite readiness validates `main` and makes no claim
+about shared-schema isolation. Deployed PostgreSQL readiness still requires
+the MSS core, mall business and shared catalogue schemas to be distinct and
+available. Use disposable in-cluster tests against development PostgreSQL for
+system verification; never point this local command at a migration source or
+any production database.
+
 ## Storefront bootstrap and mobile H5
 
 Terminal one, from `mss-shop`:

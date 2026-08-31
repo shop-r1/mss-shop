@@ -18,6 +18,17 @@
 - User-visible behavior is internationalized from the first change. Keep
   `zh-CN` and `en-US` complete today, use stable message/error keys, and follow
   `docs/architecture/internationalization.md` before adding a locale.
+- For legacy Admin work, treat `docs/migration/legacy-tables.yaml` as the
+  authoritative 54-table inventory and
+  `docs/migration/legacy-admin-acceptance-matrix.md` as the business coverage
+  baseline. Follow `.agents/skills/r1shop-legacy-module/SKILL.md`; never use a
+  generic editor as a substitute for order, inventory, payment, wallet,
+  promotion or import workflows.
+- The current legacy compatibility surface is read-only for all 43 mall and
+  eight shared-catalog resources. Do not enable generic mutation until one
+  resource and operation has restored and proved its legacy semantics. Never
+  search, filter or sort a JSON column with declared nested secrets, including
+  `system_configs.metadata`.
 - `r1shop-prod` and its TimescaleDB/Redis are live. Production writes require
   explicit approval for the exact action in the current conversation. System
   verification runs in disposable Kubernetes Pods; never migrate production
@@ -71,8 +82,13 @@ configuration, deployment, tests, and generated composition glue.
   boundary.
 - Use the scoped `.agents/skills/mss-thin-host/SKILL.md` workflow for business
   changes.
+- Use `.agents/skills/r1shop-legacy-module/SKILL.md` in addition for a module
+  that reads or writes a legacy business table.
 - Run `mss doctor --strict` after setup and `mss verify --all` before opening a
   pull request.
+- Run `tools/check-project-memory.sh` whenever implementation status,
+  architecture, migration contracts, acceptance evidence, Skills or MCP
+  configuration change; documentation drift is a failing deliverable.
 
 ## Admin Web package
 

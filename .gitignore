@@ -11,6 +11,7 @@ bin/
 .mss/logs/
 .mss/output/
 logs/
+/node_modules/
 web/node_modules/
 web/.pnpm-store/
 web/dist/

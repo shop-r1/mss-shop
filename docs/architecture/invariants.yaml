@@ -30,11 +30,26 @@ invariants:
     owner: storefront-api
     decision: DEC-0003
     enforced_by: [openapi-contract, gateway-routes, client-build]
+  - id: DATA-001
+    statement: Legacy business tables are accessed only through startup-bound schema-qualified repositories and never through a request-selected or unqualified table name.
+    owner: mall-platform
+    decision: DEC-0007
+    enforced_by: [legacy-manifest, qualified-repository, readiness-fingerprint, schema-negative-tests]
+  - id: DATA-002
+    statement: The authoritative legacy compatibility inventory contains 54 tables and includes shipping_warehouses.
+    owner: data-migration
+    decision: DEC-0007
+    enforced_by: [legacy-manifest, schema-inventory-test, row-count-check]
+  - id: DATA-003
+    statement: All current legacy Admin compatibility resources are read-only, and JSON documents with declared nested secrets cannot be searched, filtered, or sorted.
+    owner: tenant-platform-and-mall-platform
+    decision: DEC-0007
+    enforced_by: [capability-manifest, mutation-negative-tests, nested-secret-query-negative-tests]
   - id: I18N-001
-    statement: User-visible text is selected by a locale key, never used as a business or error code.
+    statement: User-visible text, including authorized dynamic menus, is selected by a locale key and never used as a business or error code.
     owner: all-ui
     decision: DEC-0004
-    enforced_by: [locale-catalog-check, review]
+    enforced_by: [locale-catalog-check, menu-runtime-contract, in-app-browser-review]
   - id: OPS-001
     statement: Production writes require explicit approval for the exact action.
     owner: platform-operations

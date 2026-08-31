@@ -77,7 +77,7 @@ func TestCustomModulesIncludeTenantBindingConstraints(t *testing.T) {
 	t.Parallel()
 
 	modules := Modules()
-	if len(modules) != 1 || modules[0].Name() != "tenant-binding-constraints" {
+	if len(modules) != 2 || modules[0].Name() != "tenant-binding-constraints" || modules[1].Name() != "sharedcatalog" {
 		t.Fatalf("Modules() = %#v", modules)
 	}
 }

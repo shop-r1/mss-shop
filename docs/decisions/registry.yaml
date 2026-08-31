@@ -36,3 +36,9 @@ decisions:
     date: 2026-08-28
     path: DEC-0006-desired-observed-reconciliation.md
     applies_to: [mss-shop]
+  - id: DEC-0007
+    title: Access legacy business data through a qualified schema contract
+    status: accepted
+    date: 2026-09-01
+    path: DEC-0007-qualified-legacy-business-contract.md
+    applies_to: [mss-shop]

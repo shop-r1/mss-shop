@@ -1,0 +1,136 @@
+apiVersion: r1shop.io/v1alpha1
+kind: LegacyRebuildStatus
+metadata:
+  name: r1shop-admin-rebuild
+  lastVerified: "2026-09-01"
+spec:
+  foundation:
+    distribution: mss-boot-admin
+    version: v1.3.7
+    releaseCommit: 77b53d41092741eac62fa6418c0bdbf87413c7cd
+  sourceRevisions:
+    purpose: frozen-legacy-inventory-sources
+    shopGo: 82b970fa675a21e75ebec2926e62614131c65319
+    shopAdminUI: ccf1c668bc044eeebec9fd8ba83e9287fd422e62
+    shopMCli: a12b605057b82c61ffd9f592f674ebf52c2eec70
+  verifiedInventory:
+    legacyTables: 54
+    tenantPlatformTables: 11
+    mallPlatformTables: 43
+    adminBusinessViews: 54
+    legacyHTTPRequests: 185
+    legacyButtonPermissions: 171
+    requiredAcceptanceScenarios: 31
+  evidenceState:
+    modelTableInventory: verified
+    developmentColumnsAndPrimaryKeys: verified-read-only
+    indexesConstraintsAndRowCounts: pending-disposable-pod
+    genericCompatibilityAPI: verified-local-read-only
+    mallCompatibilityBackend: verified-local-read-only
+    tenantSharedCatalogBackend: verified-local-read-only
+    mallAdminBusinessUI: verified-local-browser-compatibility-surface
+    tenantSharedCatalogUI: verified-local-build
+    localMallBrowserFixture: verified-local
+    domainWorkflows: pending
+    inAppBrowserAcceptance:
+      mallPlatform: verified-local-compatibility-surface
+      tenantPlatform: pending
+    kubernetesSystemAcceptance: pending
+    productionMigration: forbidden-without-explicit-approval
+  acceptance:
+    closedScenarios: 0
+    rule: A local build or generic read-only record viewer cannot close a business scenario.
+  localEvidence:
+    mallAdminWeb:
+      resourceRoutes: 43
+      testFilesPassed: 9
+      testsPassed: 33
+      lint: passed-with-one-generated-warning
+      productionBuild: passed
+    tenantAdminWeb:
+      resourceRoutes: 8
+      testFilesPassed: 7
+      testsPassed: 26
+      lint: passed-with-one-generated-warning
+      productionBuild: passed
+    mallCompatibilityBackend:
+      manifestResources: 43
+      readOnlyResources: 43
+      writableResources: 0
+      mutationMode: fail-closed-authorization-and-repository
+      writeQualification: pending-per-resource-legacy-semantics
+      fullTests: passed
+      vet: passed
+      focusedRace: passed
+    tenantSharedCatalogBackend:
+      manifestResources: 8
+      readOnlyResources: 8
+      writableResources: 0
+      mutationMode: fail-closed-authorization-and-repository
+      writeQualification: pending-per-resource-legacy-semantics
+      fullTests: passed
+      vet: passed
+      focusedRace: passed
+    compatibilityErrorContract:
+      envelope: flat-errorCode-errorMessage-messageKey-params
+      bilingualCatalogs: passed
+      malformedResponseStringSafety: passed
+    mssContracts:
+      generatedModuleDryRun: unchanged
+      featurePlan: passed
+      strictDoctorMall: passed
+      strictDoctorTenant: passed
+      fullVerifyMall: passed
+      fullVerifyTenant: passed
+    localMallBrowserFixture:
+      reviewedTables: 43
+      nonSensitiveRows: 10
+      idempotency: passed
+      dangerousTargetRejection: passed
+      systemAcceptanceClaim: false
+    mallBrowserCompatibility:
+      report: docs/acceptance/mall-local-browser-acceptance.md
+      pagesSampled: [goods, show_categories, inventories, function_circles, message_events, message_templates]
+      currentOperations: [login, list, detail, empty-search, locale-switch]
+      supersededExploration: [create, update]
+      supersededExplorationIsCurrentWriteEvidence: false
+      currentSourceMutationCapability: read-only
+      postCorrectionMutationUIBrowserRecheck: passed-for-four-formerly-writable-mall-resources
+      freshConsoleWarningsOrErrors: 0
+      delete: not-executed
+      tenantPlatformBrowser: pending
+      businessAcceptanceScenariosClosed: 0
+    querySafety:
+      nestedSecretDocuments: response-redacted
+      systemConfigsMetadataSearchFilterSort: forbidden
+    authorizedMenuLocalization:
+      mallRootToken: legacyBusiness
+      tenantRootToken: sharedCatalog
+      mallForwardMigration: "66966149766801"
+      tenantForwardMigration: "20260901120001"
+      mallCapabilityLockdownMigration: "66966149766802"
+      tenantCapabilityLockdownMigration: "20260901120002"
+      hostFacadeContractTests: passed
+    memoryContracts:
+      command: tools/check-project-memory.sh
+      result: passed
+  sourcesOfTruth:
+    architecture: docs/architecture/overall-solution.md
+    invariants: docs/architecture/invariants.yaml
+    decision: docs/decisions/DEC-0007-qualified-legacy-business-contract.md
+    dataContract: docs/migration/legacy-data-contract.md
+    tableManifest: docs/migration/legacy-tables.yaml
+    acceptanceMatrix: docs/migration/legacy-admin-acceptance-matrix.md
+    localBrowserAcceptance: docs/acceptance/mall-local-browser-acceptance.md
+    implementationSkill: .agents/skills/r1shop-legacy-module/SKILL.md
+    deliveryChecklist: .agents/skills/r1shop-legacy-module/references/delivery-checklist.md
+    memoryGovernance: docs/governance/memory.md
+    memoryCheck: tools/check-project-memory.sh
+    mcpIntegration: docs/tooling/mcp.md
+    mcpConfiguration: .codex/config.toml
+    mss137GenerationNotes: docs/tooling/mss-1.3.7-generation-notes.md
+    localDevelopmentRunbook: docs/runbooks/local-development.md
+  safety:
+    productionReadOnly: true
+    productionOrderRowsToDevelopment: false
+    systemTestsUseDisposableKubernetesPods: true

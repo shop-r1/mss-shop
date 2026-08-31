@@ -18,7 +18,9 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
    selector from a client.
 4. Keep MSS core unchanged. For a Thin Host business change also follow the
    narrower `mss-thin-host` Skill, edit specifications/business-owned files,
-   and run the MSS validations it requires.
+   and run the MSS validations it requires. If the change reads, writes,
+   exposes or migrates one of the 54 legacy tables, also follow the narrower
+   `r1shop-legacy-module` Skill and its delivery checklist.
 5. Treat `/app/v1` as the storefront boundary. Update the authoritative
    `contracts/app-v1` contract before implementation. Refresh every changed
    file as a byte-for-byte snapshot in `mss-shop-mobile`, record the committed

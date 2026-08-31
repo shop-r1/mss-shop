@@ -15,3 +15,5 @@ in the same change.
   AppID bindings
 - [DEC-0006](DEC-0006-desired-observed-reconciliation.md): desired/observed
   tenant reconciliation
+- [DEC-0007](DEC-0007-qualified-legacy-business-contract.md): qualified
+  legacy business schemas and compatibility views

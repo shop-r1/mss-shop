@@ -1,0 +1,124 @@
+apiVersion: mss.io/v1alpha1
+kind: Feature
+metadata:
+  name: legacy-admin-compatibility
+  displayName: Legacy Admin compatibility
+  description: Preserve the legacy mall administration data contract through fixed, schema-qualified, permission-enforced business modules.
+  owner: product-engineering
+spec:
+  problem: The legacy Admin surface spans 43 tenant-owned tables and workflow side effects that cannot be represented safely by generated CRUD or by copying data into replacement tables.
+  goals:
+    - Read every approved legacy mall resource through one immutable tenant and schema binding.
+    - Preserve primary keys, soft deletes, sensitive fields and historical values while enforcing backend permissions.
+    - Replace order, inventory, payment, wallet, promotion and import side effects with explicit transactional workflows.
+  nonGoals:
+    - Do not modify MSS core or accept a schema or tenant selector from a request.
+    - Do not treat generic record access as completion of a domain workflow.
+    - Do not write or migrate production data without explicit approval for the exact action.
+  actors:
+    - id: mall-administrator
+      displayName: Mall administrator
+      description: Operates one tenant mall within exact backend permissions and warehouse scopes.
+    - id: platform-operator
+      displayName: Platform operator
+      description: Reconciles the tenant-owned business schema and validates its legacy fingerprint.
+  modules:
+    - name: legacycheckpoint
+      kind: admin-module
+      operation: create
+      specPath: .mss/modules/legacy-migration-checkpoints.yaml
+      description: Reviewable implementation ledger; it never stores business rows and never replaces fingerprint or policy readiness checks.
+  requirements:
+    - id: fixed-legacy-binding
+      title: Bind legacy data at startup
+      description: Every business query uses a validated startup binding and fully qualified table from the checked 43-table mall allow-list.
+      priority: must
+      actor: platform-operator
+      module: legacycheckpoint
+      permission: legacy-resources:read
+      rules:
+        - Headers, routes, query parameters, tokens and request bodies cannot alter the tenant, core schema, business schema or shared schema.
+        - The mall registry excludes every control or shared-catalog table, including courier_links.
+        - Editable checkpoint records are informational and cannot make an unready schema or policy ready.
+    - id: permissioned-resource-access
+      title: Enforce record access on the backend
+      description: An authenticated mall administrator can use only declared read capabilities for an approved resource at this checkpoint.
+      priority: must
+      actor: mall-administrator
+      module: legacycheckpoint
+      permission: legacy-resources:read
+      rules:
+        - Every handler enforces its exact persisted API permission and returns a stable forbidden error when it is absent.
+        - All 43 resources remain read-only until one resource and operation restores legacy validation, relationships, tenant constraints, hooks, authorization and deletion semantics in a dedicated domain contract.
+        - Secret fields are never returned in plaintext, and a JSON column with nested secrets cannot be searched, filtered or sorted.
+    - id: explicit-domain-workflows
+      title: Implement historical side effects explicitly
+      description: Stateful commerce actions preserve historical semantics with transactions, preconditions and idempotency.
+      priority: must
+      actor: mall-administrator
+      module: legacycheckpoint
+      permission: legacy-workflows:execute
+      rules:
+        - Order, inventory, payment, wallet, promotion and import actions use dedicated domain services rather than generic CRUD.
+        - State, money, inventory, companion rows and audit evidence commit atomically or roll back together.
+  constraints:
+    - id: backend-authorization
+      type: security
+      statement: Frontend visibility is not authorization; every protected operation is enforced on the backend.
+    - id: legacy-schema-compatibility
+      type: compatibility
+      statement: Legacy table names, keys and bytes remain authoritative until a separately accepted migration replaces them without permanent dual write.
+    - id: compatibility-read-only
+      type: security
+      statement: All current mall compatibility resources reject generic create, update and delete; system_configs.metadata is also excluded from search, filtering and sorting.
+    - id: production-read-only
+      type: compatibility
+      statement: Production databases and runtime resources remain read-only until the user approves an exact migration or deployment action.
+  acceptance:
+    - id: fixed-binding-negative-tests
+      requirement: fixed-legacy-binding
+      statement: Forged tenant or schema input cannot change the resolved qualified table and the mall registry contains exactly 43 approved tables.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/platform/fixedbinding ./internal/platform/legacydb ./internal/modules/legacycompat
+    - id: permission-matrix-tests
+      requirement: permissioned-resource-access
+      statement: Root, allowed role, denied role and missing identity tests prove persisted backend policy enforcement and secret redaction.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/legacycompat
+    - id: business-acceptance-matrix
+      requirement: explicit-domain-workflows
+      statement: Every resource remains read-only at this checkpoint until a dedicated domain workflow and its positive, negative, relationship, tenant-scope, hook, deletion and idempotency tests are added.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/legacycompat
+  risks:
+    - id: generic-editor-overreach
+      description: A generic data editor could bypass model-hook side effects or expose a mutation that is unsafe for money, stock or state machines.
+      severity: high
+      mitigation: Keep every compatibility resource read-only and require per-resource, per-operation qualification before enabling writes.
+    - id: schema-escape
+      description: An unqualified or request-controlled table name could cross tenant or bind to a temporary schema.
+      severity: high
+      mitigation: Validate and freeze startup identifiers, qualify every table and test request-forgery paths.
+    - id: acceptance-drift
+      description: Pages may appear complete while legacy actions, data semantics or negative authorization remain unverified.
+      severity: high
+      mitigation: Keep the 31-scenario matrix and machine-readable status synchronized with executed evidence.
+  validation:
+    changed: mss verify --changed
+    all: mss verify --all
+  rollout:
+    strategy: phased
+    migration: Rehearse against an isolated development schema using disposable Kubernetes Pods; do not copy production order rows.
+    rollback: Disable the business routes and restore the last compatible runtime while leaving legacy data unchanged.

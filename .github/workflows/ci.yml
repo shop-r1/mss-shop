@@ -35,6 +35,7 @@ jobs:
             --install-dir "${RUNNER_TEMP}/mss-bin"
           echo "${RUNNER_TEMP}/mss-bin" >> "${GITHUB_PATH}"
       - run: mss doctor --strict
+      - run: tools/check-project-memory.sh
       # MSS 1.3.7 still discovers generated modules below nested Thin Hosts as
       # root modules. Full verification therefore runs per final host in
       # platform.yml; this historical root proof keeps strict contract checks

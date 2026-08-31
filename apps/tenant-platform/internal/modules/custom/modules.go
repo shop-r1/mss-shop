@@ -2,10 +2,13 @@
 // from an AdminModule specification.
 package custom
 
-import "github.com/mss-boot-io/mss-boot-admin/admin/business"
+import (
+	"github.com/mss-boot-io/mss-boot-admin/admin/business"
+	"github.com/shop-r1/mss-shop/apps/tenant-platform/internal/modules/sharedcatalog"
+)
 
 // Modules returns a fresh slice of explicitly registered custom modules. Each
 // module owns its forward authorization migration, readiness, and handler checks.
 func Modules() []business.Module {
-	return []business.Module{tenantBindingConstraintsModule{}}
+	return []business.Module{tenantBindingConstraintsModule{}, sharedcatalog.Module()}
 }

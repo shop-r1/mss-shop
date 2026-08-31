@@ -13,7 +13,7 @@ through design, local development and development-environment rehearsal.
 Exit: the root proof passes `mss doctor --strict` and `mss verify --all` with an
 official 1.3.7 tool installation.
 
-## Phase 1 — clean platform shells and contracts (in progress)
+## Phase 1 — clean platform shells and contracts (complete)
 
 - Generate `apps/tenant-platform` and `apps/mall-platform` independently with
   MSS 1.3.7. Each directory contains its backend and `web/` frontend.
@@ -27,9 +27,10 @@ official 1.3.7 tool installation.
 
 Exit: both hosts validate independently; contract compatibility tests exist;
 no copied MSS source is present; the table-level migration inventory is
-reviewed and committed. The host and contract work is complete. The table-level
-inventory remains open and blocks data migration, but not the isolated
-bootstrap implementation.
+reviewed and committed. The 54-table manifest, 11/43 owner split, backend route
+inventory and Admin acceptance matrix now satisfy this exit. Indexes,
+constraints and row-count evidence intentionally remain a Phase 5 development
+migration rehearsal gate rather than a Phase 1 source-contract blocker.
 
 ## Phase 2 — control plane and reconciler (in progress)
 
@@ -57,6 +58,16 @@ and development-cluster rehearsal remain before the exit criteria are met.
 
 Exit: one development tenant operates end-to-end with fixed connections and
 passes isolation tests in disposable Kubernetes Pods.
+
+The fixed-binding 43-resource mall compatibility backend and Admin UI are
+implemented and pass local backend tests/vet/race plus frontend tests/lint/
+production build. The eight-resource tenant shared catalog has the same local
+verification level. All 51 compatibility resources are read-only. Generic
+create, update and delete fail closed until each resource independently restores
+and proves its legacy validation, relationship/tenant constraints, model hooks,
+authorization and deletion semantics. Dedicated business workflows,
+development database evidence and disposable-Pod system acceptance remain
+open, so Phase 3 is not complete.
 
 ## Phase 4 — storefront and mobile (bootstrap slice complete)
 

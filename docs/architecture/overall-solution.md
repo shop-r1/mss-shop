@@ -83,6 +83,9 @@ manifest and generated paths must stay coherent.
 - Uses MSS for administrator identity, roles, menus, Casbin policies, sessions
   and Admin UI composition.
 - Uses an explicitly injected business database handle for commerce modules.
+- Keeps the MSS connection's current schema limited to the fixed core schema;
+  every legacy commerce query uses a startup-bound, validated, fully qualified
+  business or shared-catalog object name.
 - Never chooses a tenant or schema from a request header, route, JWT claim sent
   by an untrusted client, or UI selector.
 
@@ -124,6 +127,24 @@ migration that scans
 tables in `CURRENT_SCHEMA` and relaxes `tenant_id NOT NULL`. Keeping commerce
 tables outside the MSS core schema prevents that framework migration from
 changing R1Shop-owned table semantics while leaving MSS itself untouched.
+
+### Legacy compatibility window
+
+The old database contains 54 business tables in shared storage and filters
+most tenant data by `tenant_id`. It is not safe to make that schema the MSS
+current schema because legacy `users`, `roles` and `tenants` collide with Admin
+names and the framework migration above inspects `CURRENT_SCHEMA`.
+
+During migration, the reconciler may project old rows into the fixed tenant
+business schema through security-barrier compatibility views. Tenant-owned
+views have an immutable tenant predicate. In the current phase all 43 mall and
+eight shared-catalog Admin compatibility resources are read-only. A future
+writable view requires per-resource workflow qualification and `WITH CHECK
+OPTION` where PostgreSQL supports it; table shape alone is never sufficient.
+The mall role has no permission to select an arbitrary legacy schema or base
+table. A verified isolated copy can replace a view behind the same qualified
+repository contract; permanent dual write is forbidden. See DEC-0007 and
+`docs/migration/legacy-tables.yaml`.
 
 ## Authentication and sessions
 
