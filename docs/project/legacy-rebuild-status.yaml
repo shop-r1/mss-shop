@@ -37,7 +37,7 @@ spec:
       tenantPlatform: pending
     kubernetesSystemAcceptance: pending
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: implemented-awaiting-first-remote-run
+    deliveryCI: verified-branch-push
   acceptance:
     closedScenarios: 0
     rule: A local build or generic read-only record viewer cannot close a business scenario.
@@ -121,6 +121,12 @@ spec:
       pushBranches: [main, "codex/**"]
       platform: linux/amd64
       immutableTag: full-git-sha
+      verifiedRun:
+        id: 33451906040
+        revision: ac74347cbbd6cd24f731dadd239c1044ff132e38
+        conclusion: success
+        tenantDigest: sha256:c4d0e651553263f8cf8127351ee3d14d13076c0b23052f64ecb017d8cd2dbef0
+        mallDigest: sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e
       packages:
         - ghcr.io/shop-r1/mss-shop-tenant-platform
         - ghcr.io/shop-r1/mss-shop-mall-platform

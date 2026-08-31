@@ -37,6 +37,15 @@ Every published image has one immutable tag: the complete Git commit SHA.
 There is no mutable `latest`, branch or environment tag. The OCI labels record
 the repository source and exact revision.
 
+The first verified branch publication is GitHub Actions run
+[`33451906040`](https://github.com/shop-r1/mss-shop/actions/runs/33451906040)
+for revision `ac74347cbbd6cd24f731dadd239c1044ff132e38`:
+
+| Runtime | Immutable image | Manifest digest |
+| --- | --- | --- |
+| Tenant control plane | `ghcr.io/shop-r1/mss-shop-tenant-platform:ac74347cbbd6cd24f731dadd239c1044ff132e38` | `sha256:c4d0e651553263f8cf8127351ee3d14d13076c0b23052f64ecb017d8cd2dbef0` |
+| Mall management platform | `ghcr.io/shop-r1/mss-shop-mall-platform:ac74347cbbd6cd24f731dadd239c1044ff132e38` | `sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e` |
+
 The root Dockerfile remains a phase-zero MSS proof and is not a delivery
 runtime. Storefront API, reconciler and worker images are not published until
 those components own production entrypoints and Dockerfiles; an empty or

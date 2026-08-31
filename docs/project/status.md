@@ -166,6 +166,14 @@ Verified locally on 2026-09-01:
   43-resource mall plus eight-resource tenant frontend projections.
 - `tools/check-project-memory.sh` passed the executable memory contracts,
   repository Skill validation and whitespace check.
+- GitHub Actions run
+  [`33451906040`](https://github.com/shop-r1/mss-shop/actions/runs/33451906040)
+  passed the contract, three Go-unit and three Admin-Web-unit jobs, then
+  published both delivery images for revision
+  `ac74347cbbd6cd24f731dadd239c1044ff132e38`. The tenant image digest is
+  `sha256:c4d0e651553263f8cf8127351ee3d14d13076c0b23052f64ecb017d8cd2dbef0`;
+  the mall image digest is
+  `sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e`.
 - The local mall UI fixture passed full Host backend tests/vet and focused race
   checks; its tests prove 43-table completeness, ten-row idempotent seeding,
   readiness and rejection of DSNs, escaped paths, symlinks, non-SQLite files
