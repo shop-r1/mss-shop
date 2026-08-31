@@ -29,15 +29,16 @@ jobs:
         run: |
           curl --fail --location --silent --show-error \
             --output "${RUNNER_TEMP}/install-mss.sh" \
-            https://github.com/mss-boot-io/mss-boot-admin/releases/download/v1.3.6/install-mss.sh
+            https://github.com/mss-boot-io/mss-boot-admin/releases/download/v1.3.7/install-mss.sh
           bash "${RUNNER_TEMP}/install-mss.sh" \
-            --version v1.3.6 \
+            --version v1.3.7 \
             --install-dir "${RUNNER_TEMP}/mss-bin"
           echo "${RUNNER_TEMP}/mss-bin" >> "${GITHUB_PATH}"
       - run: mss doctor --strict
-      # MSS 1.3.6 recursively interprets generated modules in nested Thin
-      # Hosts as if they belonged to this historical root proof. Full module
-      # verification therefore runs per final host in platform.yml.
+      # MSS 1.3.7 still discovers generated modules below nested Thin Hosts as
+      # root modules. Full verification therefore runs per final host in
+      # platform.yml; this historical root proof keeps strict contract checks
+      # plus the backend/frontend jobs below.
 
   backend:
     runs-on: ubuntu-24.04

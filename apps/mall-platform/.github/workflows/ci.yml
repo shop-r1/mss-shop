@@ -27,9 +27,9 @@ jobs:
         run: |
           curl --fail --location --silent --show-error \
             --output "${RUNNER_TEMP}/install-mss.sh" \
-            https://github.com/mss-boot-io/mss-boot-admin/releases/download/v1.3.6/install-mss.sh
+            https://github.com/mss-boot-io/mss-boot-admin/releases/download/v1.3.7/install-mss.sh
           bash "${RUNNER_TEMP}/install-mss.sh" \
-            --version v1.3.6 \
+            --version v1.3.7 \
             --install-dir "${RUNNER_TEMP}/mss-bin"
           echo "${RUNNER_TEMP}/mss-bin" >> "${GITHUB_PATH}"
       - run: mss doctor --strict

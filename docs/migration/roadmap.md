@@ -5,18 +5,18 @@ through design, local development and development-environment rehearsal.
 
 ## Phase 0 — foundation proof (complete)
 
-- Keep the generated MSS 1.3.6 Thin Host at the repository root runnable.
+- Keep the generated MSS 1.3.7 Thin Host at the repository root runnable.
 - Verify login, roles, permissions, bilingual catalogs and the exact Go/npm
   dependency chain.
 - Commit no SQLite database, local password, log, build output or package cache.
 
 Exit: the root proof passes `mss doctor --strict` and `mss verify --all` with an
-official 1.3.6 tool installation.
+official 1.3.7 tool installation.
 
 ## Phase 1 — clean platform shells and contracts (in progress)
 
 - Generate `apps/tenant-platform` and `apps/mall-platform` independently with
-  MSS 1.3.6. Each directory contains its backend and `web/` frontend.
+  MSS 1.3.7. Each directory contains its backend and `web/` frontend.
 - Establish the authoritative `/app/v1` OpenAPI contract and tenant bootstrap
   JSON schema under `contracts/app-v1`.
 - Complete the code-level boundary audit of `shop-go`, `shop-admin-ui` and

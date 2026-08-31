@@ -4,7 +4,7 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd -- "${script_dir}/.." && pwd)"
 mss_mcp_binary="${MSS_MCP_BIN:-mss-mcp}"
-required_version="v1.3.6"
+required_version="v1.3.7"
 
 if ! command -v "${mss_mcp_binary}" >/dev/null 2>&1; then
   echo "mss-mcp is not installed; install the official ${required_version} release bundle" >&2

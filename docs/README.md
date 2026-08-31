@@ -15,7 +15,7 @@ local runtime state.
 7. [Memory governance](governance/memory.md)
 8. [MCP integration](tooling/mcp.md)
 
-The current root application is a clean MSS 1.3.6 Thin Host proof of concept.
+The current root application is an MSS 1.3.7 Thin Host proof of concept.
 It remains runnable while the two production Thin Hosts are generated into the
 target layout described by the overall solution. Do not move generated files
 by hand; regenerate and migrate only business-owned files.

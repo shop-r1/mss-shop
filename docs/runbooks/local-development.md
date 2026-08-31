@@ -6,7 +6,7 @@ database or deployment writes.
 ## Prerequisites
 
 - Go and Node versions declared by `.mss/project.yaml`.
-- Official `mss` and `mss-mcp` release binaries at `v1.3.6`.
+- Official `mss` and `mss-mcp` release binaries at `v1.3.7`.
 - pnpm version locked by `web/package.json`.
 
 ## Start the phase-zero Thin Host
@@ -41,11 +41,17 @@ GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform verify --all
 GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform verify --all
 ```
 
-MSS 1.3.6 recursively treats nested generated modules as root modules, so do
-not use a current root `mss verify --all` result as final-host evidence. The
-root doctor covers the historical proof and each final host owns its full
-verification. These checks still do not prove future tenant isolation or
-legacy data migration.
+MSS 1.3.7 still discovers generated modules below nested Thin Hosts as root
+modules, so a root `mss verify --all` reports those files against the wrong
+specification root. The root proof uses strict doctor plus its explicit
+backend/frontend CI jobs; each final Host owns its complete verification.
+Success in one does not substitute for either of the others. These checks still
+do not prove future tenant isolation or legacy data migration.
+
+The 1.3.7 source upgrade does not authorize a database migration. Before any
+existing 1.3.3-1.3.6 database is migrated, stop writers, take a restorable
+backup, and complete the documented permission-collision review required by
+forward guard `20260830193000`. Never bypass or pre-mark that guard.
 
 ## Final Admin hosts
 

@@ -33,6 +33,6 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
 8. For repository-wide platform work, keep root services in the root Go module
    and the generated Admin hosts in their nested modules. Validate services
    with `GOWORK=off`, validate each host from its own root with the official
-   MSS 1.3.6 binary, and run `scripts/check-platform-boundaries.sh`. The
+   MSS 1.3.7 binary, and run `scripts/check-platform-boundaries.sh`. The
    phase-one reconciler/worker are local simulations; do not present them as
    production drivers.

@@ -119,7 +119,8 @@ have two pools, but both are fixed at startup and validated against the same
 tenant record. Cross-tenant reporting belongs in an explicit platform service,
 not in schema switching inside the mall request path.
 
-The split is required because MSS 1.3.6 includes a legacy migration that scans
+The split is required because the MSS Admin migration history includes a legacy
+migration that scans
 tables in `CURRENT_SCHEMA` and relaxes `tenant_id NOT NULL`. Keeping commerce
 tables outside the MSS core schema prevents that framework migration from
 changing R1Shop-owned table semantics while leaving MSS itself untouched.

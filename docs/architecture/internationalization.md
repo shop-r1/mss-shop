@@ -62,7 +62,7 @@ locale.
 
 ## MSS Admin limitation and upgrade gate
 
-MSS 1.3.6 already composes complete `zh-CN` and `en-US` catalogs for both Thin
+MSS 1.3.7 composes complete `zh-CN` and `en-US` catalogs for both Thin
 Hosts, so those two locales are the supported admin baseline. A third Admin
 locale is not implemented by patching one host. It requires a coordinated MSS
 Distribution upgrade that provides:

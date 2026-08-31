@@ -19,12 +19,12 @@ for app in apps/tenant-platform apps/mall-platform; do
     exit 1
   fi
   distribution=$(cd "$app" && GOWORK=off go list -m -f '{{.Version}}' github.com/mss-boot-io/mss-boot-admin/admin)
-  if [ "$distribution" != "v1.3.6" ]; then
+  if [ "$distribution" != "v1.3.7" ]; then
     echo "$app uses unexpected Admin Distribution $distribution" >&2
     exit 1
   fi
   web_distribution=$(node -p "require('./$app/web/package.json').dependencies['@mss-boot-io/admin-web']")
-  if [ "$web_distribution" != "1.3.6" ]; then
+  if [ "$web_distribution" != "1.3.7" ]; then
     echo "$app uses unexpected Admin Web $web_distribution" >&2
     exit 1
   fi

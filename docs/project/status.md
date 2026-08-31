@@ -1,11 +1,14 @@
 # Project status
 
-Last verified: 2026-08-28
+Last verified: 2026-09-01
 
 ## Confirmed decisions
 
-- Admin foundation: `mss-boot-admin` Distribution `v1.3.6`, consumed as an
+- Admin foundation: `mss-boot-admin` Distribution `v1.3.7`, consumed as an
   exact backend/frontend dependency without forking MSS core.
+- Release qualification: the complete 1.3.7 GitHub release assets are public
+  and coordinated at commit `77b53d41092741eac62fa6418c0bdbf87413c7cd`;
+  upstream's tagged policy still has not declared stable promotion complete.
 - Admin topology: one tenant control plane and one mall management runtime per
   tenant. The current first milestone has one tenant, so it needs one of each.
 - Tenant isolation: every mall runtime is configured with one immutable tenant
@@ -22,8 +25,8 @@ Last verified: 2026-08-28
 
 ## Present in this repository
 
-- A runnable MSS 1.3.6 Thin Host proof of concept at the repository root.
-- Final MSS 1.3.6 Thin Hosts under `apps/tenant-platform` and
+- A runnable MSS 1.3.7 Thin Host proof of concept at the repository root.
+- Final MSS 1.3.7 Thin Hosts under `apps/tenant-platform` and
   `apps/mall-platform`, each with its backend and Admin Web in one directory.
 - A generated tenant desired-state Admin module with bilingual UI. Its delete
   action is a soft archive and never destroys tenant resources.
@@ -41,7 +44,7 @@ Last verified: 2026-08-28
 - MSS-generated project contracts and seven MSS workflow Skills.
 - Versioned target architecture, migration plan, i18n policy and project Skill.
 - A project-scoped `mss-mcp` connection whose wrapper rejects any version other
-  than 1.3.6.
+  than 1.3.7.
 
 ## Not implemented yet
 
@@ -66,24 +69,24 @@ production write is part of that milestone.
 
 ## Verification evidence
 
-Verified locally on 2026-08-28:
+Verified locally on 2026-09-01:
 
 - `GOTOOLCHAIN=go1.26.6 mss doctor --strict` reported ready with exact MSS,
   Go, Node and pnpm versions.
-- `GOTOOLCHAIN=go1.26.6 mss verify --all` completed successfully, including
-  Thin Host boundaries, backend build/tests, frontend lint/tests/build and Git
-  text checks for the phase-zero proof before final hosts were added. MSS 1.3.6
-  recursively treats nested generated modules as root modules, so current full
-  verification is intentionally run once per final host instead of at the
-  monorepo root.
+- The root proof and both final Thin Hosts completed independent strict doctor
+  and Skill validation with the official 1.3.7 tools. Both final Hosts passed
+  full verification. Root full verification remains intentionally split into
+  explicit backend/frontend jobs because 1.3.7 still discovers nested Host
+  modules against the root specification path.
 - Root platform tests, race checks, vet, storefront build and architecture
   boundary checks passed.
-- Both final MSS hosts passed their independent strict doctor and full verify
-  workflows; the tenant module also passed deterministic generation check.
+- The tenant module passed deterministic 1.3.7 generation check, including its
+  generated presentation registry.
 - The mobile repository's locked contract check, TypeScript check and both H5
   and `mp-weixin` builds passed against this implementation.
 - The repository-scoped MCP wrapper completed a stdio EOF smoke test against
-  the official `mss-mcp v1.3.6` binary.
+  the official `mss-mcp v1.3.7` binary.
 
 No database migration, Kubernetes operation, deployment or remote push was
-performed as part of this verification.
+performed as part of the 1.3.7 source upgrade verification. Existing databases
+remain blocked on the documented `20260830193000` permission-collision review.
