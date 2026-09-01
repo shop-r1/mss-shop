@@ -62,6 +62,26 @@ func TestValidateSourceCatalogAcceptsOnlyExactReviewedShape(t *testing.T) {
 	}
 }
 
+func TestSourceColumnInventorySQLUsesUnambiguousCollationAlias(t *testing.T) {
+	for _, expected := range []string{
+		"pg_catalog.pg_collation AS collation_record",
+		"collation_record.collname",
+		"collation_record.collprovider",
+		"collation_record.collisdeterministic",
+		"collation_record.collencoding",
+		"collation_record.collnamespace",
+	} {
+		if !strings.Contains(sourceColumnInventorySQL, expected) {
+			t.Fatalf("sourceColumnInventorySQL is missing %q", expected)
+		}
+	}
+	for _, ambiguous := range []string{"AS collation ", "collation."} {
+		if strings.Contains(sourceColumnInventorySQL, ambiguous) {
+			t.Fatalf("sourceColumnInventorySQL contains ambiguous alias %q", ambiguous)
+		}
+	}
+}
+
 func TestValidateTargetBoundaryRequiresFreshIsolatedDatabase(t *testing.T) {
 	safe := safeTargetBoundary()
 	if err := validateTargetBoundary(safe); err != nil {

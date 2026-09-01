@@ -154,6 +154,31 @@ func TestCopySQLUsesOnlyCompiledNames(t *testing.T) {
 	}
 }
 
+func TestCatalogInventorySQLAvoidsPostgreSQLKeywordsAsAliases(t *testing.T) {
+	t.Parallel()
+	for name, query := range map[string]string{
+		"columns":     targetColumnInventorySQL,
+		"constraints": targetConstraintInventorySQL,
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, ambiguous := range []string{
+				"AS collation ",
+				"collation.",
+				"AS constraint ",
+				"constraint.",
+			} {
+				if strings.Contains(query, ambiguous) {
+					t.Fatalf("inventory SQL contains ambiguous alias %q", ambiguous)
+				}
+			}
+		})
+	}
+	if !strings.Contains(targetColumnInventorySQL, "AS collation_record") ||
+		!strings.Contains(targetConstraintInventorySQL, "AS constraint_record") {
+		t.Fatal("inventory SQL is missing explicit catalog aliases")
+	}
+}
+
 func TestReadReceiptAllowsProjectedVolumeStyleLinkOnlyInsideEvidenceDirectory(t *testing.T) {
 	t.Parallel()
 	directory := t.TempDir()

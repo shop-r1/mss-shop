@@ -47,6 +47,34 @@ const (
 	imageRepository               = "ghcr.io/shop-r1/mss-shop-legacy-importer"
 	verifierPodPrefix             = "mss-shop-legacy-verify-"
 	observedRevisionPrefix        = 32
+	targetColumnInventorySQL      = `
+SELECT relation.relname::text, attribute.attnum::integer, attribute.attname::text,
+       attribute.attisdropped, pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),
+       type_namespace.nspname::text, type_record.typname::text, type_record.typtype::text,
+       attribute.atttypmod::integer, attribute.attnotnull, attribute.atthasdef,
+       COALESCE(pg_catalog.pg_get_expr(default_record.adbin, default_record.adrelid, true), ''),
+       attribute.attidentity::text, attribute.attgenerated::text, attribute.attstorage::text,
+       attribute.attcompression::text, attribute.atthasmissing,
+       COALESCE(collation_namespace.nspname::text, ''), COALESCE(collation_record.collname::text, ''),
+       COALESCE(collation_record.collprovider::text, ''), COALESCE(collation_record.collisdeterministic, false),
+       COALESCE(collation_record.collencoding, 0), COALESCE(attribute.attacl::text, '')
+FROM pg_catalog.pg_class AS relation
+JOIN pg_catalog.pg_namespace AS relation_namespace ON relation_namespace.oid = relation.relnamespace
+JOIN pg_catalog.pg_attribute AS attribute ON attribute.attrelid = relation.oid
+JOIN pg_catalog.pg_type AS type_record ON type_record.oid = attribute.atttypid
+JOIN pg_catalog.pg_namespace AS type_namespace ON type_namespace.oid = type_record.typnamespace
+LEFT JOIN pg_catalog.pg_attrdef AS default_record ON default_record.adrelid = relation.oid AND default_record.adnum = attribute.attnum
+LEFT JOIN pg_catalog.pg_collation AS collation_record ON collation_record.oid = attribute.attcollation
+LEFT JOIN pg_catalog.pg_namespace AS collation_namespace ON collation_namespace.oid = collation_record.collnamespace
+WHERE relation_namespace.nspname = 'public' AND relation.relname = ANY($1::text[]) AND attribute.attnum > 0
+ORDER BY relation.relname, attribute.attnum`
+	targetConstraintInventorySQL = `
+SELECT relation.relname::text, constraint_record.conname::text, constraint_record.contype::text
+FROM pg_catalog.pg_constraint AS constraint_record
+JOIN pg_catalog.pg_class AS relation ON relation.oid = constraint_record.conrelid
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE namespace.nspname = 'public' AND relation.relname = ANY($1::text[])
+ORDER BY relation.relname, constraint_record.conname`
 )
 
 var (
@@ -380,27 +408,7 @@ func inspectTargetSchema(ctx context.Context, tx pgx.Tx, tables []manifest.Table
 		names = append(names, table.Name)
 	}
 	schema := targetSchema{Columns: make(map[string][]manifest.Column, len(tables))}
-	rows, err := tx.Query(ctx, `
-SELECT relation.relname::text, attribute.attnum::integer, attribute.attname::text,
-       attribute.attisdropped, pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),
-       type_namespace.nspname::text, type_record.typname::text, type_record.typtype::text,
-       attribute.atttypmod::integer, attribute.attnotnull, attribute.atthasdef,
-       COALESCE(pg_catalog.pg_get_expr(default_record.adbin, default_record.adrelid, true), ''),
-       attribute.attidentity::text, attribute.attgenerated::text, attribute.attstorage::text,
-       attribute.attcompression::text, attribute.atthasmissing,
-       COALESCE(collation_namespace.nspname::text, ''), COALESCE(collation.collname::text, ''),
-       COALESCE(collation.collprovider::text, ''), COALESCE(collation.collisdeterministic, false),
-       COALESCE(collation.collencoding, 0), COALESCE(attribute.attacl::text, '')
-FROM pg_catalog.pg_class AS relation
-JOIN pg_catalog.pg_namespace AS relation_namespace ON relation_namespace.oid = relation.relnamespace
-JOIN pg_catalog.pg_attribute AS attribute ON attribute.attrelid = relation.oid
-JOIN pg_catalog.pg_type AS type_record ON type_record.oid = attribute.atttypid
-JOIN pg_catalog.pg_namespace AS type_namespace ON type_namespace.oid = type_record.typnamespace
-LEFT JOIN pg_catalog.pg_attrdef AS default_record ON default_record.adrelid = relation.oid AND default_record.adnum = attribute.attnum
-LEFT JOIN pg_catalog.pg_collation AS collation ON collation.oid = attribute.attcollation
-LEFT JOIN pg_catalog.pg_namespace AS collation_namespace ON collation_namespace.oid = collation.collnamespace
-WHERE relation_namespace.nspname = 'public' AND relation.relname = ANY($1::text[]) AND attribute.attnum > 0
-ORDER BY relation.relname, attribute.attnum`, names)
+	rows, err := tx.Query(ctx, targetColumnInventorySQL, names)
 	if err != nil {
 		return targetSchema{}, err
 	}
@@ -445,13 +453,7 @@ ORDER BY relation.relname, index_relation.relname`, names)
 	if indexRows.Err() != nil {
 		return targetSchema{}, indexRows.Err()
 	}
-	constraintRows, err := tx.Query(ctx, `
-SELECT relation.relname::text, constraint.conname::text, constraint.contype::text
-FROM pg_catalog.pg_constraint AS constraint
-JOIN pg_catalog.pg_class AS relation ON relation.oid = constraint.conrelid
-JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
-WHERE namespace.nspname = 'public' AND relation.relname = ANY($1::text[])
-ORDER BY relation.relname, constraint.conname`, names)
+	constraintRows, err := tx.Query(ctx, targetConstraintInventorySQL, names)
 	if err != nil {
 		return targetSchema{}, err
 	}
