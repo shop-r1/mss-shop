@@ -610,13 +610,13 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if evidence.IndexesConstraintsAndRowCounts != "import-and-independent-post-import-verifier-passed" ||
 		evidence.KubernetesSystemAcceptance != "partial-datastore-import-and-verifier-only" ||
 		evidence.ProductionMigration != "forbidden-without-explicit-approval" ||
-		evidence.DeliveryCI != "four-image-publications-verified-through-annotation-compatibility-fix" ||
-		evidence.RemoteDevelopmentPlan != "isolated-import-and-verifier-complete-reconciliation-pending" ||
+		evidence.DeliveryCI != "four-image-publications-verified-through-revision-c-evidence" ||
+		evidence.RemoteDevelopmentPlan != "revision-c-ci-complete-reconciliation-secret-dry-run-not-executed" ||
 		evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
 		evidence.DatastoreReadinessJob != "passed-revision-6fed45f" ||
 		evidence.PostImportVerifierJob != "passed-revision-b-3eb4c72" ||
-		evidence.ReconciliationSecretsOperator != "implemented-not-executed" ||
+		evidence.ReconciliationSecretsOperator != "implemented-default-server-dry-run-explicit-create-not-executed" ||
 		evidence.ReconcilerJob != "source-implemented-not-executed" ||
 		evidence.IsolatedInAppBrowserAcceptance != "pending-not-deployed" {
 		t.Fatalf("isolated infrastructure evidence drifted: %#v", evidence)
@@ -1220,13 +1220,15 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	}
 	images := status.Spec.LocalEvidence.DeliveryImages
 	verifiedRun := images.VerifiedRun
-	if images.CurrentFourImagePublication != "verified-annotation-compatibility-fix-ebefd1c-not-deployed" ||
-		verifiedRun.ID != 33500133380 || verifiedRun.Revision != annotationFixRevision ||
-		verifiedRun.Conclusion != "success" || verifiedRun.Scope != "stage-annotation-compatibility-fix-not-deployed" ||
-		verifiedRun.TenantDigest != "sha256:9fe3463cbf88e4312f5b6735e25470d62fe5c9eb685f8cd8d83a3e7b57a34467" ||
-		verifiedRun.MallDigest != "sha256:636159961ab6c0bc9303ed9e9ef759dea30510ca9a84c3e33d829e636d678a2c" ||
-		verifiedRun.ReconcilerDigest != "sha256:3afa8204a0f14dfbbe1fd9510d1c0a0e0cd0153f13dc4e3421bde56810705baf" ||
-		verifiedRun.LegacyImporterDigest != "sha256:80a382e42aa43d49c2e4431798d72699d12077106c9fa7755466df28e822adc3" {
+	if images.CurrentFourImagePublication != "verified-revision-c-fc6d1bf-not-deployed" ||
+		verifiedRun.ID != 33503127917 ||
+		verifiedRun.Revision != "fc6d1bf357ca7291a0fc2fe4391ca15628f8e9b9" ||
+		verifiedRun.Conclusion != "success" ||
+		verifiedRun.Scope != "revision-c-verifier-evidence-publication-not-deployed" ||
+		verifiedRun.TenantDigest != "sha256:87a2ba402b9dc5f82769b4fbf4c1b1220368483dde6a4c6fc580507328f05750" ||
+		verifiedRun.MallDigest != "sha256:22a02242cc815ec7e2bf29fc5f9ec86789a245074754f49b59bc2b7def66c92e" ||
+		verifiedRun.ReconcilerDigest != "sha256:0beece2f39be8892649981db69bb20ebef6c6b27a6ab8741d4cf129b5d6a3af5" ||
+		verifiedRun.LegacyImporterDigest != "sha256:385e5161b5a2133a482cb34330092d4e94e9e3c48d7b1a7ca01dc5f4b7e3bb38" {
 		t.Fatalf("verified four-image evidence drifted: %#v", images)
 	}
 	verifierRun := images.VerifierRun
@@ -1248,12 +1250,12 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		t.Fatalf("verifier summary CI binding drifted: %#v", verifierDeliveryCI)
 	}
 	fixDeliveryCI := verificationSpec.DeliveryCI.AnnotationCompatibilityFix
-	if fixDeliveryCI.RunID != verifiedRun.ID || fixDeliveryCI.Revision != verifiedRun.Revision ||
-		fixDeliveryCI.Conclusion != verifiedRun.Conclusion || fixDeliveryCI.Deployed ||
-		fixDeliveryCI.TenantDigest != verifiedRun.TenantDigest ||
-		fixDeliveryCI.MallDigest != verifiedRun.MallDigest ||
-		fixDeliveryCI.ReconcilerDigest != verifiedRun.ReconcilerDigest ||
-		fixDeliveryCI.LegacyImporterDigest != verifiedRun.LegacyImporterDigest {
+	if fixDeliveryCI.RunID != 33500133380 || fixDeliveryCI.Revision != annotationFixRevision ||
+		fixDeliveryCI.Conclusion != "success" || fixDeliveryCI.Deployed ||
+		fixDeliveryCI.TenantDigest != "sha256:9fe3463cbf88e4312f5b6735e25470d62fe5c9eb685f8cd8d83a3e7b57a34467" ||
+		fixDeliveryCI.MallDigest != "sha256:636159961ab6c0bc9303ed9e9ef759dea30510ca9a84c3e33d829e636d678a2c" ||
+		fixDeliveryCI.ReconcilerDigest != "sha256:3afa8204a0f14dfbbe1fd9510d1c0a0e0cd0153f13dc4e3421bde56810705baf" ||
+		fixDeliveryCI.LegacyImporterDigest != "sha256:80a382e42aa43d49c2e4431798d72699d12077106c9fa7755466df28e822adc3" {
 		t.Fatalf("annotation-fix summary CI binding drifted: %#v", fixDeliveryCI)
 	}
 

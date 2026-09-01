@@ -132,6 +132,31 @@ No image from this run was deployed. The fix was used only to validate the
 existing B Job as a read-only exact retry. A new B2 verifier preflight failed
 closed at the immutable B-bound receipt ConfigMap and created no Job or Pod.
 
+Run
+[`33503127917`](https://github.com/shop-r1/mss-shop/actions/runs/33503127917)
+verified and published all four receipts for evidence revision C
+`fc6d1bf357ca7291a0fc2fe4391ca15628f8e9b9`:
+
+- tenant-platform:
+  `sha256:87a2ba402b9dc5f82769b4fbf4c1b1220368483dde6a4c6fc580507328f05750`;
+- mall-platform:
+  `sha256:22a02242cc815ec7e2bf29fc5f9ec86789a245074754f49b59bc2b7def66c92e`;
+- reconciler:
+  `sha256:0beece2f39be8892649981db69bb20ebef6c6b27a6ab8741d4cf129b5d6a3af5`;
+- legacy-importer:
+  `sha256:385e5161b5a2133a482cb34330092d4e94e9e3c48d7b1a7ca01dc5f4b7e3bb38`.
+
+The corresponding tenant, mall, reconciler and legacy-importer receipt-file
+SHA-256 values are respectively
+`3e377cb929b36ae4a5a972465ae8f0c6a040c94f2885238e5ba5c45546723f39`,
+`cc381da20c2ac33e0046317cfaa3fd2c71bf37db8e8d96256ed7f4fe7659fa09`,
+`fa2cebf94e67dfa6e291087657b4c36847879d18c2f81850299e3a298aeb3913`
+and `15905b3e866410736ea407faece74a8bf57f589ef0443cc24c5e61bee44dc223`.
+This run binds the committed verifier evidence and synchronized project
+memory. No image from the run was deployed. A later source change to the
+reconciliation-secret safety path requires a new successful four-image run;
+revision-C receipts cannot authorize that changed operator or reconciler.
+
 ## Permissions and package source
 
 Validation and build-only jobs have read-only repository permission. Only the

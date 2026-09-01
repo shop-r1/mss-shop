@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -100,6 +101,153 @@ func TestEnsureSecretsCreatesExactOpaqueCredentialsAndIsIdempotent(t *testing.T)
 	}
 }
 
+func TestDryRunSecretsUsesOnlyDryRunAllAndLeavesTrackerUnchanged(t *testing.T) {
+	t.Parallel()
+	driver, client := newFakeDriver(t)
+	installDriverSecretDryRunReactor(client)
+	materials, result, err := driver.DryRunSecrets(context.Background(), testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Changed || materials.DatabaseCredentials().Validate() != nil {
+		t.Fatalf("new Secret dry-run result=%+v has invalid materials", result)
+	}
+	mutations := 0
+	for _, action := range client.Actions() {
+		if action.GetResource().Resource != "secrets" || (action.GetVerb() != "create" && action.GetVerb() != "update") {
+			continue
+		}
+		mutations++
+		if action.GetNamespace() != stage.Namespace {
+			t.Fatalf("dry-run escaped isolated namespace: %s", action.GetNamespace())
+		}
+		create, ok := action.(interface{ GetCreateOptions() metav1.CreateOptions })
+		if !ok || !reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			t.Fatal("new application Secret was not a DryRunAll create")
+		}
+	}
+	if mutations != 2 {
+		t.Fatalf("application Secret dry-run mutations=%d, want 2", mutations)
+	}
+	for _, input := range applicationSecretInputs(testConfig()) {
+		_, getErr := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, input.Name)
+		if !apierrors.IsNotFound(getErr) {
+			t.Fatalf("dry-run persisted application Secret %q: %v", input.Name, getErr)
+		}
+	}
+}
+
+func TestDryRunSecretsExactRetryUsesTwoDryRunUpdatesWithoutChangingTracker(t *testing.T) {
+	t.Parallel()
+	driver, client := newFakeDriver(t)
+	config := testConfig()
+	if _, _, err := driver.EnsureSecrets(context.Background(), config); err != nil {
+		t.Fatal(err)
+	}
+	before := make(map[string]*corev1.Secret)
+	for _, input := range applicationSecretInputs(config) {
+		secret, err := client.CoreV1().Secrets(stage.Namespace).Get(context.Background(), input.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		before[input.Name] = secret.DeepCopy()
+	}
+	client.ClearActions()
+	installDriverSecretDryRunReactor(client)
+	_, result, err := driver.DryRunSecrets(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Changed {
+		t.Fatal("exact dry-run retry reported a logical change")
+	}
+	updates := 0
+	for _, action := range client.Actions() {
+		if action.GetResource().Resource != "secrets" || action.GetVerb() != "update" {
+			continue
+		}
+		updates++
+		update, ok := action.(interface{ GetUpdateOptions() metav1.UpdateOptions })
+		if !ok || !reflect.DeepEqual(update.GetUpdateOptions().DryRun, []string{metav1.DryRunAll}) {
+			t.Fatal("exact application Secret was not a DryRunAll update")
+		}
+	}
+	if updates != 2 {
+		t.Fatalf("exact application Secret dry-run updates=%d, want 2", updates)
+	}
+	for name, expected := range before {
+		object, getErr := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, name)
+		if getErr != nil || !reflect.DeepEqual(object, expected) {
+			t.Fatalf("dry-run update changed tracker Secret %q: %v", name, getErr)
+		}
+	}
+}
+
+func TestApplyDryRunSecretsPersistsOnlyTheApprovedBytes(t *testing.T) {
+	t.Parallel()
+	driver, client := newFakeDriver(t)
+	installDriverSecretDryRunReactor(client)
+	config := testConfig()
+	dryRunMaterials, _, err := driver.DryRunSecrets(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.ClearActions()
+	persistedMaterials, result, err := driver.ApplyDryRunSecrets(context.Background(), config, dryRunMaterials)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Changed || !dryRunMaterials.EquivalentSecretData(persistedMaterials) {
+		t.Fatal("persistent application Secret bytes differ from dry-run material")
+	}
+	persistentCreates := 0
+	for _, action := range client.Actions() {
+		if action.GetResource().Resource == "secrets" && action.GetVerb() == "create" {
+			create := action.(interface{ GetCreateOptions() metav1.CreateOptions })
+			if len(create.GetCreateOptions().DryRun) != 0 {
+				t.Fatal("apply path unexpectedly repeated server dry-run")
+			}
+			persistentCreates++
+		}
+	}
+	if persistentCreates != 2 {
+		t.Fatalf("persistent application Secret creates=%d, want 2", persistentCreates)
+	}
+	for _, input := range applicationSecretInputs(config) {
+		secret, getErr := client.CoreV1().Secrets(stage.Namespace).Get(context.Background(), input.Name, metav1.GetOptions{})
+		if getErr != nil || !dryRunMaterials.MatchesSecretData(input.Name, secret.Data) {
+			t.Fatalf("post-create application Secret %q differs from dry-run bytes: %v", input.Name, getErr)
+		}
+	}
+}
+
+func TestApplyDryRunSecretsRejectsChangedSourceBeforeAnyWrite(t *testing.T) {
+	t.Parallel()
+	driver, client := newFakeDriver(t)
+	installDriverSecretDryRunReactor(client)
+	config := testConfig()
+	dryRunMaterials, _, err := driver.DryRunSecrets(context.Background(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := applicationSecretInputs(config)[0]
+	concurrent := applicationSecretWithData(input, nil, dryRunMaterials.secretData[input.Name])
+	concurrent.ResourceVersion = "concurrent-version"
+	if err := client.Tracker().Create(corev1.SchemeGroupVersion.WithResource("secrets"), concurrent, stage.Namespace); err != nil {
+		t.Fatal(err)
+	}
+	client.ClearActions()
+	if _, _, err := driver.ApplyDryRunSecrets(context.Background(), config, dryRunMaterials); !errors.Is(err, ErrUnsafeResource) {
+		t.Fatalf("changed source error=%v, want ErrUnsafeResource", err)
+	}
+	assertNoMutationActions(t, client.Actions())
+	second := applicationSecretInputs(config)[1]
+	_, getErr := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, second.Name)
+	if !apierrors.IsNotFound(getErr) {
+		t.Fatalf("source race persisted second application Secret: %v", getErr)
+	}
+}
+
 func TestInitialAdminRetirementIsExplicitStableAndNeverRegenerated(t *testing.T) {
 	t.Parallel()
 	driver, client := newFakeDriver(t)
@@ -186,6 +334,28 @@ func TestPreflightRejectsSecondCollisionBeforeAnyWrite(t *testing.T) {
 	assertNoMutationActions(t, client.Actions())
 }
 
+func TestPreflightRejectsForeignSecretUsingReviewedOwnershipBinding(t *testing.T) {
+	t.Parallel()
+	config := testConfig()
+	input := applicationSecretInputs(config)[0]
+	collision := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foreign-credential",
+			Namespace: stage.Namespace,
+			Annotations: map[string]string{
+				ownershipAnnotation: ownershipBinding(input.Name),
+			},
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+	driver, client := newFakeDriver(t, collision)
+	client.ClearActions()
+	if err := driver.Preflight(context.Background(), config); !errors.Is(err, ErrUnsafeResource) {
+		t.Fatalf("foreign ownership collision error=%v, want ErrUnsafeResource", err)
+	}
+	assertNoMutationActions(t, client.Actions())
+}
+
 func TestPreflightRejectsForgedBindingAndServiceAccountAnnotation(t *testing.T) {
 	t.Parallel()
 	config := testConfig()
@@ -222,6 +392,13 @@ func TestPreflightRejectsForgedBindingAndServiceAccountAnnotation(t *testing.T) 
 			name: "finalizer",
 			mutate: func(secret *corev1.Secret) {
 				secret.Finalizers = []string{"foreign.example/finalizer"}
+			},
+		},
+		{
+			name: "deletion timestamp",
+			mutate: func(secret *corev1.Secret) {
+				timestamp := metav1.Now()
+				secret.DeletionTimestamp = &timestamp
 			},
 		},
 		{
@@ -427,4 +604,27 @@ func assertNoMutationActions(t *testing.T, actions []ktesting.Action) {
 			t.Fatalf("unexpected mutation after preflight failure: %s %s", action.GetVerb(), action.GetResource().Resource)
 		}
 	}
+}
+
+func installDriverSecretDryRunReactor(client *fake.Clientset) {
+	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		create, ok := action.(interface {
+			GetCreateOptions() metav1.CreateOptions
+			GetObject() runtime.Object
+		})
+		if !ok || !reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		return true, create.GetObject().DeepCopyObject(), nil
+	})
+	client.PrependReactor("update", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		update, ok := action.(interface {
+			GetUpdateOptions() metav1.UpdateOptions
+			GetObject() runtime.Object
+		})
+		if !ok || !reflect.DeepEqual(update.GetUpdateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		return true, update.GetObject().DeepCopyObject(), nil
+	})
 }

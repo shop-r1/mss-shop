@@ -67,6 +67,11 @@ redacted by construction, and is reviewed before commit.
   rejected preflight never increase resource counts or close an acceptance
   row. An immutable receipt ConfigMap remains bound to the verifier revision
   that created it; do not delete or rewrite it to force a later verifier run.
+- Every trusted stage command that can persist a Kubernetes object defaults to
+  a non-persistent API-server dry-run. "Dry-run" means the exact Create or
+  Update is submitted with `DryRunAll`; a local render or collision preflight
+  alone is insufficient. Persistence requires the command's explicit
+  `--create`/`--apply` flag and a fresh complete preflight in that same process.
 - Accepted ADRs and prior migration evidence are superseded, not deleted.
 
 ## Review cadence

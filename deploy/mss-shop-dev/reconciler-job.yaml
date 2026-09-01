@@ -1,14 +1,21 @@
 # Operator-reviewed mss-shop-dev database reconciliation Job.
 #
 # Do not substitute or apply this template manually. First run the trusted
-# operator-only command from the development server to create the exact app
-# and receipt-bound bootstrap Secrets:
+# operator-only command from the development server. The first invocation is a
+# non-persistent API-server dry-run of the exact app and receipt-bound bootstrap
+# Secrets:
 #
 #   go run ./services/reconciler/cmd/stage-reconciliation-secrets \
 #     --environment mss-shop-dev \
 #     --kubeconfig /absolute/operator/kubeconfig \
 #     --revision <complete-lowercase-git-sha> \
-#     --import-receipt-sha256 <verified-lowercase-receipt-sha256>
+#     --import-receipt-sha256 <verified-lowercase-receipt-sha256> \
+#     --receipt-evidence /absolute/repository/docs/evidence/legacy-import/<verified-lowercase-receipt-sha256>/receipt.json \
+#     --verification-evidence /absolute/repository/docs/evidence/legacy-import/<verified-lowercase-receipt-sha256>/verification.json
+#
+# After recording the successful dry-run and exact write declaration, repeat
+# the same command with `--create`. It repeats every preflight before persisting
+# only the three fixed Secrets in `mss-shop-dev`.
 #
 # Then run `stage-jobs` first without and then with `--create`, supplying the
 # exact reconciler digest from the same revision's immutable CI receipt. The

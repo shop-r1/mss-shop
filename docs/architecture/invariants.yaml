@@ -29,7 +29,7 @@ invariants:
     statement: The original r1shop-dev environment is immutable; the only development write target is mss-shop-dev with dedicated PostgreSQL, Redis, PVCs, TLS, credentials and network policy.
     owner: platform-operations
     decision: DEC-0010
-    enforced_by: [create-only-24-object-operator, network-policies-before-storage-binders, inert-storage-binders-before-statefulsets, exclusive-node-local-path-gate, six-immutable-foundation-secrets, fixed-namespace-guards]
+    enforced_by: [create-only-24-object-operator, network-policies-before-storage-binders, inert-storage-binders-before-statefulsets, exclusive-node-local-path-gate, six-immutable-foundation-secrets, fixed-namespace-guards, api-server-dry-run-by-default, explicit-create-or-apply]
   - id: ENV-002
     statement: Old-environment access is limited to the exact read-only legacy database source and GET of its credential and the exact GHCR pull Secret; old Redis and every old-environment write are forbidden.
     owner: platform-operations

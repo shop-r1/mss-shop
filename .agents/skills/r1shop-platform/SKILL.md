@@ -53,3 +53,8 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
    workload execution. Keep the receipt ConfigMap immutable and bound to the
    revision that created it. A later verifier revision must fail closed instead
    of deleting, relabelling or replacing that evidence object.
+10. Trusted Kubernetes stage commands default to a non-persistent API-server
+    dry-run of the exact objects. A render or local preflight is not a dry-run.
+    Require an explicit `--create` or `--apply` for persistence and repeat the
+    complete collision, evidence and object preflight immediately before the
+    allowed write. This never authorizes a write outside `mss-shop-dev`.

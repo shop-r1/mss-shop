@@ -95,6 +95,10 @@ manifest and generated paths must stay coherent.
   only after verified import, the two application Secrets plus transient
   reconciler bootstrap Secret. Each operator runs from a clean full-SHA
   checkout with an explicit kubeconfig and never prints Secret values.
+- Every Secret/workload stage defaults to API-server `DryRunAll` for the exact
+  Create or Update and persists nothing. Persistence requires an explicit
+  `--create` or `--apply`; the same process repeats the complete preflight
+  immediately before writing only its fixed `mss-shop-dev` objects.
 - The foundation credential stage may GET only the exact old database
   credential and GHCR pull Secret. It creates independent PostgreSQL/Redis
   credentials and TLS identities in `mss-shop-dev`; it does not read or reuse

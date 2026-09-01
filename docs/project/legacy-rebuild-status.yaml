@@ -77,8 +77,8 @@ spec:
       tenantPlatform: pending
     kubernetesSystemAcceptance: partial-datastore-import-and-verifier-only
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: four-image-publications-verified-through-annotation-compatibility-fix
-    remoteDevelopmentPlan: isolated-import-and-verifier-complete-reconciliation-pending
+    deliveryCI: four-image-publications-verified-through-revision-c-evidence
+    remoteDevelopmentPlan: revision-c-ci-complete-reconciliation-secret-dry-run-not-executed
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
     originalDevelopmentFingerprint:
@@ -148,7 +148,7 @@ spec:
       newRevisionVerifierPodCreated: false
       receiptConfigMapChangedByFix: false
       kubernetesWritesFromFixValidation: false
-    reconciliationSecretsOperator: implemented-not-executed
+    reconciliationSecretsOperator: implemented-default-server-dry-run-explicit-create-not-executed
     reconcilerJob: source-implemented-not-executed
     isolatedInAppBrowserAcceptance: pending-not-deployed
   acceptance:
@@ -262,16 +262,16 @@ spec:
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
-      currentFourImagePublication: verified-annotation-compatibility-fix-ebefd1c-not-deployed
+      currentFourImagePublication: verified-revision-c-fc6d1bf-not-deployed
       verifiedRun:
-        id: 33500133380
-        revision: ebefd1c20bf51f3c43e4a2bb90085fb60ea21442
+        id: 33503127917
+        revision: fc6d1bf357ca7291a0fc2fe4391ca15628f8e9b9
         conclusion: success
-        scope: stage-annotation-compatibility-fix-not-deployed
-        tenantDigest: sha256:9fe3463cbf88e4312f5b6735e25470d62fe5c9eb685f8cd8d83a3e7b57a34467
-        mallDigest: sha256:636159961ab6c0bc9303ed9e9ef759dea30510ca9a84c3e33d829e636d678a2c
-        reconcilerDigest: sha256:3afa8204a0f14dfbbe1fd9510d1c0a0e0cd0153f13dc4e3421bde56810705baf
-        legacyImporterDigest: sha256:80a382e42aa43d49c2e4431798d72699d12077106c9fa7755466df28e822adc3
+        scope: revision-c-verifier-evidence-publication-not-deployed
+        tenantDigest: sha256:87a2ba402b9dc5f82769b4fbf4c1b1220368483dde6a4c6fc580507328f05750
+        mallDigest: sha256:22a02242cc815ec7e2bf29fc5f9ec86789a245074754f49b59bc2b7def66c92e
+        reconcilerDigest: sha256:0beece2f39be8892649981db69bb20ebef6c6b27a6ab8741d4cf129b5d6a3af5
+        legacyImporterDigest: sha256:385e5161b5a2133a482cb34330092d4e94e9e3c48d7b1a7ca01dc5f4b7e3bb38
       verifierRun:
         id: 33497583981
         revision: 3eb4c72b485066e7b189446fab5b66a1047e66a2

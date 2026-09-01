@@ -400,7 +400,10 @@ credential, certificate, token or row value.
 
 After the preceding evidence passes, run the separately reviewed
 `stage-reconciliation-secrets` operator from the clean evidence-bearing
-checkout. Use absolute paths to the two exact tracked files:
+checkout. Use absolute paths to the two exact tracked files. The command shown
+below is the default non-persistent mode: it submits the exact two application
+Secret operations and bootstrap Secret operation to the Kubernetes API server
+with `DryRunAll`, but stores no object:
 
 ```shell
 go run ./services/reconciler/cmd/stage-reconciliation-secrets \
@@ -419,9 +422,22 @@ a clean operator checkout, exact fixed paths, regular non-symlink files, Git
 tracking in `HEAD`, byte-for-byte agreement with the committed blobs, strict
 single-document JSON, the canonical importer receipt digest and the complete
 receipt/verifier bindings above. It then reads only the isolated foundation
-credentials, validates every Secret collision before writing, and creates only
-the two Admin application Secrets plus transient
-`mss-shop-reconciler-bootstrap` in `mss-shop-dev`.
+credentials, validates every Secret collision and performs the API-server
+dry-run. A successful default invocation proves only that the exact operations
+would be accepted; it creates or updates nothing.
+
+Record the dry-run result and declare the exact write target. Then repeat the
+identical command with `--create`. The create invocation repeats all evidence,
+foundation-credential, collision and object checks, performs the exact
+API-server dry-run again with the same generated material, and only then may
+persist these three Secrets in `mss-shop-dev`:
+
+- `Secret/mss-shop-tenant-admin-runtime`;
+- `Secret/mss-shop-mall-admin-aussibuy-runtime`;
+- `Secret/mss-shop-reconciler-bootstrap`.
+
+It cannot select another namespace. It never reads or writes any
+`r1shop-dev` application, database, Redis, Secret, volume, Service or Ingress.
 
 This host-side operator does **not** connect to PostgreSQL and its committed
 evidence checks are not a replacement for a live database boundary. The later
@@ -431,9 +447,11 @@ DDL.
 
 **Gate:** the importer receipt and disposable-verifier evidence are committed;
 the reconciliation-secret operator has not yet been executed. Until its exact
-clean-checkout dry-run passes, no application/bootstrap Secret, reconciler or
-Admin runtime may be created. Do not fabricate placeholder evidence or infer a
-write authorization from the completed verifier.
+clean-checkout API-server dry-run passes, no application/bootstrap Secret,
+reconciler or Admin runtime may be created. Dry-run success is not write
+authorization: the explicit three-resource declaration is still required
+before `--create`. Do not fabricate placeholder evidence or infer a write
+authorization from the completed verifier.
 
 ### 9. Create the receipt-bound reconciler Job
 

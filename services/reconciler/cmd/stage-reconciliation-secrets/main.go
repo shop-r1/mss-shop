@@ -1,6 +1,7 @@
-// Command stage-reconciliation-secrets creates only the two generated
+// Command stage-reconciliation-secrets server-dry-runs the two generated
 // application Secrets and the short-lived reconciliation bootstrap Secret in
-// the isolated mss-shop-dev namespace. It never reads or writes r1shop-dev.
+// the isolated mss-shop-dev namespace. It persists them only with an explicit
+// create option and never reads or writes r1shop-dev.
 package main
 
 import (
@@ -108,6 +109,7 @@ type options struct {
 	importReceiptSHA256  string
 	receiptEvidence      string
 	verificationEvidence string
+	create               bool
 }
 
 type checkoutState struct {
@@ -167,9 +169,18 @@ type runDependencies struct {
 }
 
 type convergeResult struct {
-	applicationSecretsChanged bool
-	bootstrapCreated          bool
-	bootstrapExactRetry       bool
+	create     bool
+	dryRun     bool
+	change     bool
+	exactRetry bool
+}
+
+type reconciliationPreflight struct {
+	config               stage.Config
+	applicationSecrets   map[string]*corev1.Secret
+	applicationsComplete bool
+	bootstrap            *corev1.Secret
+	bootstrapExists      bool
 }
 
 func main() {
@@ -216,17 +227,22 @@ func runWithDependencies(ctx context.Context, arguments []string, dependencies r
 	if err != nil {
 		return err
 	}
-	result, err := convergeReconciliationSecrets(ctx, client, opts.importReceiptSHA256, dependencies.random)
+	result, err := convergeReconciliationSecrets(
+		ctx,
+		client,
+		opts.importReceiptSHA256,
+		dependencies.random,
+		opts.create,
+	)
 	if err != nil {
 		return err
 	}
 	slog.Info(
 		"isolated reconciliation credentials completed",
-		"environment", environment,
-		"revision", opts.revision,
-		"applicationSecretsChanged", result.applicationSecretsChanged,
-		"bootstrapCreated", result.bootstrapCreated,
-		"bootstrapExactRetry", result.bootstrapExactRetry,
+		"create", result.create,
+		"dryRun", result.dryRun,
+		"change", result.change,
+		"exactRetry", result.exactRetry,
 	)
 	return nil
 }
@@ -253,6 +269,7 @@ func parseOptions(arguments []string) (options, error) {
 	flags.StringVar(&result.importReceiptSHA256, "import-receipt-sha256", "", "verified legacy import receipt SHA-256")
 	flags.StringVar(&result.receiptEvidence, "receipt-evidence", "", "absolute committed importer receipt evidence path")
 	flags.StringVar(&result.verificationEvidence, "verification-evidence", "", "absolute committed disposable verifier evidence path")
+	flags.BoolVar(&result.create, "create", false, "persist only the fully preflighted reconciliation Secrets")
 	if err := flags.Parse(arguments); err != nil {
 		return options{}, errors.New("parse isolated reconciliation credential options")
 	}
@@ -724,89 +741,235 @@ func convergeReconciliationSecrets(
 	client kubernetes.Interface,
 	importReceiptSHA256 string,
 	random io.Reader,
+	create bool,
 ) (convergeResult, error) {
 	if client == nil || random == nil || !validReceipt(importReceiptSHA256) {
 		return convergeResult{}, errors.New("isolated reconciliation credential inputs are invalid")
 	}
-	if err := validateTargetNamespace(ctx, client); err != nil {
-		return convergeResult{}, err
-	}
-	postgresAuth, err := readInfrastructureAuthSecret(ctx, client, postgresAuthSecret)
-	if err != nil {
-		return convergeResult{}, err
-	}
-	redisAuth, err := readInfrastructureAuthSecret(ctx, client, redisAuthSecret)
-	if err != nil {
-		return convergeResult{}, err
-	}
-	config := buildStageConfig(postgresAuth, redisAuth, importReceiptSHA256)
-	if err := config.Validate(); err != nil {
-		return convergeResult{}, errors.New("isolated reconciliation target configuration is invalid")
-	}
-
 	driver, err := kubernetesdriver.NewWithRandom(client, random)
 	if err != nil {
 		return convergeResult{}, errors.New("initialize isolated application credential driver")
 	}
-	// Resolve all deterministic application collisions before any write.
-	if err := driver.Preflight(ctx, config); err != nil {
-		return convergeResult{}, err
-	}
-	existingCredentials, applicationsComplete, err := readExistingApplicationCredentials(ctx, client, config)
-	if err != nil {
-		return convergeResult{}, err
-	}
-	existingBootstrap, bootstrapExists, err := readBootstrapSecret(ctx, client)
-	if err != nil {
-		return convergeResult{}, err
-	}
-	if bootstrapExists {
-		if !applicationsComplete {
-			return convergeResult{}, errors.New("isolated reconciliation bootstrap Secret exists without both reviewed application Secrets")
-		}
-		expected, buildErr := bootstrapSecretData(config.DatabaseDSN, existingCredentials, importReceiptSHA256)
-		if buildErr != nil || validateBootstrapSecret(existingBootstrap, expected) != nil {
-			return convergeResult{}, errors.New("isolated reconciliation bootstrap Secret has an incompatible contract")
-		}
-	}
 
-	materials, applicationResult, err := driver.EnsureSecrets(ctx, config)
+	preflight, err := preflightReconciliationSecrets(ctx, client, driver, importReceiptSHA256)
 	if err != nil {
 		return convergeResult{}, err
 	}
-	credentials := materials.DatabaseCredentials()
-	expectedBootstrapData, err := bootstrapSecretData(config.DatabaseDSN, credentials, importReceiptSHA256)
+	dryRunMaterials, dryRunApplicationResult, err := driver.DryRunSecrets(ctx, preflight.config)
 	if err != nil {
 		return convergeResult{}, err
 	}
-	result := convergeResult{applicationSecretsChanged: applicationResult.Changed}
-	if bootstrapExists {
-		if err := validateBootstrapSecret(existingBootstrap, expectedBootstrapData); err != nil {
-			return convergeResult{}, err
-		}
-		result.bootstrapExactRetry = true
+	dryRunBootstrapData, err := bootstrapSecretData(
+		preflight.config.DatabaseDSN,
+		dryRunMaterials.DatabaseCredentials(),
+		importReceiptSHA256,
+	)
+	if err != nil {
+		return convergeResult{}, err
+	}
+	if err := dryRunBootstrapSecret(ctx, client, preflight.bootstrap, dryRunBootstrapData); err != nil {
+		return convergeResult{}, err
+	}
+	wouldChange := dryRunApplicationResult.Changed || !preflight.bootstrapExists
+	result := convergeResult{
+		create:     create,
+		dryRun:     true,
+		change:     wouldChange,
+		exactRetry: !wouldChange,
+	}
+	if !create {
 		return result, nil
 	}
 
-	secrets := client.CoreV1().Secrets(stage.Namespace)
-	desired := newBootstrapSecret(expectedBootstrapData)
-	stored, createErr := secrets.Create(ctx, desired, metav1.CreateOptions{FieldManager: "mss-shop-stage-reconciliation-secrets"})
-	if apierrors.IsAlreadyExists(createErr) {
-		stored, createErr = secrets.Get(ctx, bootstrapSecret, metav1.GetOptions{})
-	}
-	if createErr != nil {
-		return convergeResult{}, errors.New("create isolated reconciliation bootstrap Secret failed")
-	}
-	if err := validateBootstrapSecret(stored, expectedBootstrapData); err != nil {
+	// Re-run every Namespace, dependency, identity, and exact-object gate after
+	// server dry-run and immediately before the persistent Secret operations.
+	persistentPreflight, err := preflightReconciliationSecrets(ctx, client, driver, importReceiptSHA256)
+	if err != nil {
 		return convergeResult{}, err
 	}
-	result.bootstrapCreated = true
+	if !equivalentReconciliationPreflight(preflight, persistentPreflight) {
+		return convergeResult{}, errors.New("isolated reconciliation target state changed after server dry-run; persistence is blocked")
+	}
+	preflight = persistentPreflight
+	materials, applicationResult, err := driver.ApplyDryRunSecrets(ctx, preflight.config, dryRunMaterials)
+	if err != nil {
+		return convergeResult{}, err
+	}
+	if !dryRunMaterials.EquivalentSecretData(materials) {
+		return convergeResult{}, errors.New("persistent application Secret responses differ from the successful server dry-run")
+	}
+	postApplicationPreflight, err := preflightReconciliationSecrets(ctx, client, driver, importReceiptSHA256)
+	if err != nil || !matchesDryRunApplicationSecrets(dryRunMaterials, postApplicationPreflight) ||
+		!reflect.DeepEqual(preflight.config, postApplicationPreflight.config) ||
+		preflight.bootstrapExists != postApplicationPreflight.bootstrapExists ||
+		!reflect.DeepEqual(preflight.bootstrap, postApplicationPreflight.bootstrap) {
+		return convergeResult{}, errors.New("post-application Secret verification differs from server dry-run; bootstrap persistence is blocked")
+	}
+	expectedBootstrapData, err := bootstrapSecretData(
+		preflight.config.DatabaseDSN,
+		materials.DatabaseCredentials(),
+		importReceiptSHA256,
+	)
+	if err != nil || !equalData(expectedBootstrapData, dryRunBootstrapData) {
+		return convergeResult{}, errors.New("persistent bootstrap Secret data differs from the successful server dry-run")
+	}
+	bootstrapChanged, bootstrapExactRetry, err := ensureBootstrapSecret(
+		ctx,
+		client,
+		preflight.bootstrap,
+		expectedBootstrapData,
+	)
+	if err != nil {
+		return convergeResult{}, err
+	}
+	result.change = applicationResult.Changed || bootstrapChanged
+	result.exactRetry = !result.change && bootstrapExactRetry
+
+	observed, err := preflightReconciliationSecrets(ctx, client, driver, importReceiptSHA256)
+	if err != nil || !observed.applicationsComplete || !observed.bootstrapExists ||
+		!matchesDryRunApplicationSecrets(dryRunMaterials, observed) ||
+		!equalData(observed.bootstrap.Data, dryRunBootstrapData) {
+		return convergeResult{}, errors.New("post-create reconciliation Secret verification failed; stage is blocked")
+	}
 	return result, nil
+}
+
+func equivalentReconciliationPreflight(left, right reconciliationPreflight) bool {
+	return reflect.DeepEqual(left.config, right.config) &&
+		reflect.DeepEqual(left.applicationSecrets, right.applicationSecrets) &&
+		left.applicationsComplete == right.applicationsComplete &&
+		left.bootstrapExists == right.bootstrapExists &&
+		reflect.DeepEqual(left.bootstrap, right.bootstrap)
+}
+
+func matchesDryRunApplicationSecrets(
+	dryRunMaterials kubernetesdriver.Materials,
+	observed reconciliationPreflight,
+) bool {
+	names := observed.config.Names()
+	tenant := observed.applicationSecrets[names.TenantSecret]
+	mall := observed.applicationSecrets[names.MallSecret]
+	return tenant != nil && mall != nil &&
+		dryRunMaterials.MatchesSecretData(names.TenantSecret, tenant.Data) &&
+		dryRunMaterials.MatchesSecretData(names.MallSecret, mall.Data)
+}
+
+func preflightReconciliationSecrets(
+	ctx context.Context,
+	client kubernetes.Interface,
+	driver *kubernetesdriver.Driver,
+	importReceiptSHA256 string,
+) (reconciliationPreflight, error) {
+	if client == nil || driver == nil || !validReceipt(importReceiptSHA256) {
+		return reconciliationPreflight{}, errors.New("isolated reconciliation preflight inputs are invalid")
+	}
+	if err := validateTargetNamespace(ctx, client); err != nil {
+		return reconciliationPreflight{}, err
+	}
+	postgresAuth, err := readInfrastructureAuthSecret(ctx, client, postgresAuthSecret)
+	if err != nil {
+		return reconciliationPreflight{}, err
+	}
+	redisAuth, err := readInfrastructureAuthSecret(ctx, client, redisAuthSecret)
+	if err != nil {
+		return reconciliationPreflight{}, err
+	}
+	config := buildStageConfig(postgresAuth, redisAuth, importReceiptSHA256)
+	if err := config.Validate(); err != nil {
+		return reconciliationPreflight{}, errors.New("isolated reconciliation target configuration is invalid")
+	}
+	if err := driver.Preflight(ctx, config); err != nil {
+		return reconciliationPreflight{}, err
+	}
+	existingCredentials, applicationSecrets, applicationsComplete, err := readExistingApplicationCredentials(ctx, client, config)
+	if err != nil {
+		return reconciliationPreflight{}, err
+	}
+	existingBootstrap, bootstrapExists, err := readBootstrapSecret(ctx, client)
+	if err != nil {
+		return reconciliationPreflight{}, err
+	}
+	if bootstrapExists {
+		if !applicationsComplete {
+			return reconciliationPreflight{}, errors.New("isolated reconciliation bootstrap Secret exists without both reviewed application Secrets")
+		}
+		expected, buildErr := bootstrapSecretData(config.DatabaseDSN, existingCredentials, importReceiptSHA256)
+		if buildErr != nil || validateBootstrapSecret(existingBootstrap, expected) != nil {
+			return reconciliationPreflight{}, errors.New("isolated reconciliation bootstrap Secret has an incompatible contract")
+		}
+	}
+	return reconciliationPreflight{
+		config:               config,
+		applicationSecrets:   applicationSecrets,
+		applicationsComplete: applicationsComplete,
+		bootstrap:            existingBootstrap,
+		bootstrapExists:      bootstrapExists,
+	}, nil
+}
+
+func dryRunBootstrapSecret(
+	ctx context.Context,
+	client kubernetes.Interface,
+	existing *corev1.Secret,
+	expectedData map[string][]byte,
+) error {
+	secrets := client.CoreV1().Secrets(stage.Namespace)
+	var (
+		observed *corev1.Secret
+		err      error
+	)
+	if existing == nil {
+		observed, err = secrets.Create(ctx, newBootstrapSecret(expectedData), metav1.CreateOptions{
+			FieldManager: "mss-shop-stage-reconciliation-secrets",
+			DryRun:       []string{metav1.DryRunAll},
+		})
+		if apierrors.IsAlreadyExists(err) {
+			observed, err = secrets.Get(ctx, bootstrapSecret, metav1.GetOptions{})
+		}
+	} else {
+		desired := existing.DeepCopy()
+		desired.Data = cloneData(expectedData)
+		observed, err = secrets.Update(ctx, desired, metav1.UpdateOptions{
+			FieldManager: "mss-shop-stage-reconciliation-secrets",
+			DryRun:       []string{metav1.DryRunAll},
+		})
+	}
+	if err != nil || validateBootstrapSecret(observed, expectedData) != nil {
+		return errors.New("server dry-run rejected the exact isolated reconciliation bootstrap Secret")
+	}
+	return nil
+}
+
+func ensureBootstrapSecret(
+	ctx context.Context,
+	client kubernetes.Interface,
+	existing *corev1.Secret,
+	expectedData map[string][]byte,
+) (bool, bool, error) {
+	if existing != nil {
+		if err := validateBootstrapSecret(existing, expectedData); err != nil {
+			return false, false, err
+		}
+		return false, true, nil
+	}
+	secrets := client.CoreV1().Secrets(stage.Namespace)
+	desired := newBootstrapSecret(expectedData)
+	stored, err := secrets.Create(ctx, desired, metav1.CreateOptions{
+		FieldManager: "mss-shop-stage-reconciliation-secrets",
+	})
+	created := err == nil
+	if apierrors.IsAlreadyExists(err) {
+		stored, err = secrets.Get(ctx, bootstrapSecret, metav1.GetOptions{})
+	}
+	if err != nil || validateBootstrapSecret(stored, expectedData) != nil {
+		return false, false, errors.New("create isolated reconciliation bootstrap Secret failed or had an incompatible concurrent outcome")
+	}
+	return created, !created, nil
 }
 
 func validateTargetNamespace(ctx context.Context, client kubernetes.Interface) error {
 	namespace, err := client.CoreV1().Namespaces().Get(ctx, stage.Namespace, metav1.GetOptions{})
-	if err != nil {
+	if err != nil || namespace == nil {
 		return errors.New("read isolated reconciliation target Namespace failed")
 	}
 	wantLabels := map[string]string{
@@ -938,19 +1101,35 @@ func readExistingApplicationCredentials(
 	ctx context.Context,
 	client kubernetes.Interface,
 	config stage.Config,
-) (postgresdriver.Credentials, bool, error) {
+) (postgresdriver.Credentials, map[string]*corev1.Secret, bool, error) {
 	names := config.Names()
 	secrets := client.CoreV1().Secrets(stage.Namespace)
 	tenant, tenantErr := secrets.Get(ctx, names.TenantSecret, metav1.GetOptions{})
 	if tenantErr != nil && !apierrors.IsNotFound(tenantErr) {
-		return postgresdriver.Credentials{}, false, errors.New("read isolated tenant application Secret failed")
+		return postgresdriver.Credentials{}, nil, false, errors.New("read isolated tenant application Secret failed")
+	}
+	if tenantErr == nil && tenant == nil {
+		return postgresdriver.Credentials{}, nil, false, errors.New("read isolated tenant application Secret returned no object")
 	}
 	mall, mallErr := secrets.Get(ctx, names.MallSecret, metav1.GetOptions{})
 	if mallErr != nil && !apierrors.IsNotFound(mallErr) {
-		return postgresdriver.Credentials{}, false, errors.New("read isolated mall application Secret failed")
+		return postgresdriver.Credentials{}, nil, false, errors.New("read isolated mall application Secret failed")
+	}
+	if mallErr == nil && mall == nil {
+		return postgresdriver.Credentials{}, nil, false, errors.New("read isolated mall application Secret returned no object")
+	}
+	applicationSecrets := map[string]*corev1.Secret{
+		names.TenantSecret: nil,
+		names.MallSecret:   nil,
+	}
+	if tenant != nil {
+		applicationSecrets[names.TenantSecret] = tenant.DeepCopy()
+	}
+	if mall != nil {
+		applicationSecrets[names.MallSecret] = mall.DeepCopy()
 	}
 	if apierrors.IsNotFound(tenantErr) || apierrors.IsNotFound(mallErr) {
-		return postgresdriver.Credentials{}, false, nil
+		return postgresdriver.Credentials{}, applicationSecrets, false, nil
 	}
 	credentials := postgresdriver.Credentials{
 		TenantMigratorPassword: append([]byte(nil), tenant.Data["database-migrator-password"]...),
@@ -959,16 +1138,29 @@ func readExistingApplicationCredentials(
 		MallRuntimePassword:    append([]byte(nil), mall.Data["database-runtime-password"]...),
 	}
 	if err := credentials.Validate(); err != nil {
-		return postgresdriver.Credentials{}, false, errors.New("isolated application database credentials are invalid")
+		return postgresdriver.Credentials{}, nil, false, errors.New("isolated application database credentials are invalid")
 	}
-	return credentials, true, nil
+	return credentials, applicationSecrets, true, nil
 }
 
 func readBootstrapSecret(
 	ctx context.Context,
 	client kubernetes.Interface,
 ) (*corev1.Secret, bool, error) {
-	secret, err := client.CoreV1().Secrets(stage.Namespace).Get(ctx, bootstrapSecret, metav1.GetOptions{})
+	secrets := client.CoreV1().Secrets(stage.Namespace)
+	items, err := secrets.List(ctx, metav1.ListOptions{})
+	if err != nil || items == nil {
+		return nil, false, errors.New("list isolated reconciliation Secrets for bootstrap identity collision preflight")
+	}
+	wantBinding := infrastructureSecretAnnotations(bootstrapSecret)[bindingAnnotation]
+	for index := range items.Items {
+		item := &items.Items[index]
+		if item.Name != bootstrapSecret && (item.Annotations[bindingAnnotation] == wantBinding ||
+			reflect.DeepEqual(item.Labels, infrastructureSecretLabels(bootstrapSecret))) {
+			return nil, false, errors.New("isolated reconciliation bootstrap Secret ownership is occupied by another Secret")
+		}
+	}
+	secret, err := secrets.Get(ctx, bootstrapSecret, metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		return nil, false, nil
 	}

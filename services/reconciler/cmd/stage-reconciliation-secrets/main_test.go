@@ -43,8 +43,13 @@ func TestParseOptionsAllowsOnlyReviewedIsolatedInputs(t *testing.T) {
 		"--verification-evidence", "/trusted/verification.json",
 	}
 	parsed, err := parseOptions(arguments)
-	if err != nil || parsed.environment != environment || parsed.importReceiptSHA256 != testReceipt {
+	if err != nil || parsed.environment != environment || parsed.importReceiptSHA256 != testReceipt || parsed.create {
 		t.Fatalf("reviewed options rejected: %+v err=%v", parsed, err)
+	}
+	createArguments := append(append([]string(nil), arguments...), "--create")
+	created, err := parseOptions(createArguments)
+	if err != nil || !created.create {
+		t.Fatalf("explicit create option rejected: %+v err=%v", created, err)
 	}
 	for _, unsafe := range [][]string{
 		withoutOption(arguments, "--environment", "r1shop-dev"),
@@ -325,13 +330,229 @@ func TestEvidenceFailureInitializesNoKubernetesClientAndPerformsNoActions(t *tes
 	}
 }
 
-func TestConvergeCreatesApplicationsAndExactImmutableBootstrap(t *testing.T) {
+func TestConvergeDefaultsToThreeServerDryRunsAndPersistsNothing(t *testing.T) {
 	client := newTestClient()
-	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom())
+	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !result.applicationSecretsChanged || !result.bootstrapCreated || result.bootstrapExactRetry {
+	if result.create || !result.dryRun || !result.change || result.exactRetry {
+		t.Fatalf("unexpected default dry-run result: %+v", result)
+	}
+	dryRuns := 0
+	for _, action := range client.Actions() {
+		if action.GetResource().Resource != "secrets" || (action.GetVerb() != "create" && action.GetVerb() != "update") {
+			continue
+		}
+		if action.GetNamespace() != stage.Namespace {
+			t.Fatalf("dry-run escaped isolated Namespace: %s", action.GetNamespace())
+		}
+		switch action.GetVerb() {
+		case "create":
+			create := action.(interface{ GetCreateOptions() metav1.CreateOptions })
+			if !reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+				t.Fatal("default mode issued a persistent Secret create")
+			}
+		case "update":
+			update := action.(interface{ GetUpdateOptions() metav1.UpdateOptions })
+			if !reflect.DeepEqual(update.GetUpdateOptions().DryRun, []string{metav1.DryRunAll}) {
+				t.Fatal("default mode issued a persistent Secret update")
+			}
+		}
+		dryRuns++
+	}
+	if dryRuns != 3 {
+		t.Fatalf("default Secret dry-runs=%d, want exactly 3", dryRuns)
+	}
+	assertManagedSecretsAbsentFromTracker(t, client)
+	assertNoOldNamespaceActions(t, client.Actions())
+}
+
+func TestConvergeCreatePersistsExactlyThreeReviewedSecrets(t *testing.T) {
+	client := newTestClient()
+	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.create || !result.dryRun || !result.change || result.exactRetry {
+		t.Fatalf("unexpected create result: %+v", result)
+	}
+	dryRuns := 0
+	persistent := 0
+	for _, action := range client.Actions() {
+		if action.GetResource().Resource != "secrets" || action.GetVerb() != "create" {
+			continue
+		}
+		create := action.(interface{ GetCreateOptions() metav1.CreateOptions })
+		if len(create.GetCreateOptions().DryRun) == 0 {
+			persistent++
+		} else if reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			dryRuns++
+		} else {
+			t.Fatal("Secret create used an unapproved dry-run directive")
+		}
+	}
+	if dryRuns != 3 || persistent != 3 {
+		t.Fatalf("dry-run/persistent Secret creates=%d/%d, want 3/3", dryRuns, persistent)
+	}
+	assertExactManagedSecretsInTracker(t, client)
+	assertNoOldNamespaceActions(t, client.Actions())
+}
+
+func TestCreatePersistsObjectsEquivalentToSuccessfulDryRunRequests(t *testing.T) {
+	client := newTestClient()
+	dryRunObjects := make(map[string]*corev1.Secret)
+	persistentObjects := make(map[string]*corev1.Secret)
+	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		create := action.(interface {
+			GetCreateOptions() metav1.CreateOptions
+			GetObject() runtime.Object
+		})
+		secret := create.GetObject().(*corev1.Secret).DeepCopy()
+		if reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			dryRunObjects[secret.Name] = secret
+		} else if len(create.GetCreateOptions().DryRun) == 0 {
+			persistentObjects[secret.Name] = secret
+		}
+		return false, nil, nil
+	})
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err != nil {
+		t.Fatal(err)
+	}
+	names := buildTestConfig().Names()
+	for _, name := range []string{names.TenantSecret, names.MallSecret, bootstrapSecret} {
+		dryRunObject := dryRunObjects[name]
+		persistentObject := persistentObjects[name]
+		if dryRunObject == nil || persistentObject == nil ||
+			dryRunObject.Namespace != persistentObject.Namespace || dryRunObject.Name != persistentObject.Name ||
+			dryRunObject.Type != persistentObject.Type ||
+			!reflect.DeepEqual(dryRunObject.Immutable, persistentObject.Immutable) ||
+			!reflect.DeepEqual(dryRunObject.Labels, persistentObject.Labels) ||
+			!reflect.DeepEqual(dryRunObject.Annotations, persistentObject.Annotations) ||
+			!reflect.DeepEqual(dryRunObject.Data, persistentObject.Data) {
+			t.Fatalf("persistent Secret %q differs from its successful dry-run request", name)
+		}
+		stored, err := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, name)
+		storedSecret, ok := stored.(*corev1.Secret)
+		if err != nil || !ok || !reflect.DeepEqual(storedSecret.Data, dryRunObject.Data) {
+			t.Fatalf("post-create Secret %q data differs byte-for-byte from server dry-run", name)
+		}
+	}
+}
+
+func TestCreateRepreflightRejectsCollisionIntroducedAfterDryRunBeforePersistence(t *testing.T) {
+	client := newTestClient()
+	injected := false
+	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		create := action.(interface {
+			GetCreateOptions() metav1.CreateOptions
+			GetObject() runtime.Object
+		})
+		secret := create.GetObject().(*corev1.Secret)
+		if injected || secret.Name != bootstrapSecret ||
+			!reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		injected = true
+		foreign := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "foreign-after-dry-run",
+				Namespace:   stage.Namespace,
+				Labels:      infrastructureSecretLabels(bootstrapSecret),
+				Annotations: infrastructureSecretAnnotations(bootstrapSecret),
+			},
+			Type: corev1.SecretTypeOpaque,
+		}
+		if err := client.Tracker().Create(corev1.SchemeGroupVersion.WithResource("secrets"), foreign, stage.Namespace); err != nil {
+			return true, nil, errors.New("inject second-preflight collision")
+		}
+		return false, nil, nil
+	})
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err == nil {
+		t.Fatal("collision introduced after dry-run reached persistence")
+	}
+	if !injected {
+		t.Fatal("test did not reach the post-dry-run race boundary")
+	}
+	assertNoPersistentWrites(t, client.Actions())
+	assertManagedSecretsAbsentFromTracker(t, client)
+}
+
+func TestCreateRepreflightRejectsApplicationAppearanceAfterDryRun(t *testing.T) {
+	client := newTestClient()
+	names := buildTestConfig().Names()
+	var tenantDryRun *corev1.Secret
+	injected := false
+	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		create := action.(interface {
+			GetCreateOptions() metav1.CreateOptions
+			GetObject() runtime.Object
+		})
+		if !reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		secret := create.GetObject().(*corev1.Secret)
+		if secret.Name == names.TenantSecret {
+			tenantDryRun = secret.DeepCopy()
+		}
+		if secret.Name != bootstrapSecret || tenantDryRun == nil || injected {
+			return false, nil, nil
+		}
+		injected = true
+		concurrent := tenantDryRun.DeepCopy()
+		concurrent.ResourceVersion = "concurrent-version"
+		if err := client.Tracker().Create(corev1.SchemeGroupVersion.WithResource("secrets"), concurrent, stage.Namespace); err != nil {
+			return true, nil, errors.New("inject concurrent application Secret")
+		}
+		return false, nil, nil
+	})
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err == nil {
+		t.Fatal("application Secret appearance after dry-run reached persistence")
+	}
+	if !injected {
+		t.Fatal("test did not introduce the application Secret race")
+	}
+	assertNoPersistentWrites(t, client.Actions())
+	for _, name := range []string{names.MallSecret, bootstrapSecret} {
+		_, err := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, name)
+		if !apierrors.IsNotFound(err) {
+			t.Fatalf("race failure persisted managed Secret %q: %v", name, err)
+		}
+	}
+}
+
+func TestDryRunRejectsNonEquivalentServerResponseWithoutPersistence(t *testing.T) {
+	client := newTestClient()
+	tenantName := buildTestConfig().Names().TenantSecret
+	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		create, ok := action.(interface {
+			GetCreateOptions() metav1.CreateOptions
+			GetObject() runtime.Object
+		})
+		if !ok || !reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		secret := create.GetObject().(*corev1.Secret)
+		if secret.Name != tenantName {
+			return false, nil, nil
+		}
+		observed := secret.DeepCopy()
+		observed.Data["auth-key"] = []byte("server-returned-drift")
+		return true, observed, nil
+	})
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false); err == nil {
+		t.Fatal("non-equivalent server dry-run response was accepted")
+	}
+	assertManagedSecretsAbsentFromTracker(t, client)
+}
+
+func TestConvergeCreatesApplicationsAndExactImmutableBootstrap(t *testing.T) {
+	client := newTestClient()
+	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.create || !result.dryRun || !result.change || result.exactRetry {
 		t.Fatalf("unexpected first result: %+v", result)
 	}
 	names := buildTestConfig().Names()
@@ -362,18 +583,18 @@ func TestConvergeCreatesApplicationsAndExactImmutableBootstrap(t *testing.T) {
 
 func TestConvergeExactRetryIsReadOnly(t *testing.T) {
 	client := newTestClient()
-	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err != nil {
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err != nil {
 		t.Fatal(err)
 	}
 	client.ClearActions()
-	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom())
+	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.applicationSecretsChanged || result.bootstrapCreated || !result.bootstrapExactRetry {
+	if !result.create || !result.dryRun || result.change || !result.exactRetry {
 		t.Fatalf("unexpected retry result: %+v", result)
 	}
-	assertNoWrites(t, client.Actions())
+	assertNoPersistentWrites(t, client.Actions())
 	assertNoOldNamespaceActions(t, client.Actions())
 }
 
@@ -383,7 +604,7 @@ func TestBootstrapCollisionAndReceiptMismatchFailBeforeWrites(t *testing.T) {
 		func(secret *corev1.Secret) { secret.Data["import-receipt-sha256"] = []byte(strings.Repeat("b", 64)) },
 	} {
 		client := newTestClient()
-		if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err != nil {
+		if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err != nil {
 			t.Fatal(err)
 		}
 		bootstrap, err := client.CoreV1().Secrets(stage.Namespace).Get(context.Background(), bootstrapSecret, metav1.GetOptions{})
@@ -395,18 +616,18 @@ func TestBootstrapCollisionAndReceiptMismatchFailBeforeWrites(t *testing.T) {
 			t.Fatal(err)
 		}
 		client.ClearActions()
-		if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err == nil {
+		if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err == nil {
 			t.Fatal("bootstrap collision accepted")
 		}
 		assertNoWrites(t, client.Actions())
 	}
 
 	client := newTestClient()
-	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err != nil {
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err != nil {
 		t.Fatal(err)
 	}
 	client.ClearActions()
-	if _, err := convergeReconciliationSecrets(context.Background(), client, strings.Repeat("b", 64), testRandom()); err == nil {
+	if _, err := convergeReconciliationSecrets(context.Background(), client, strings.Repeat("b", 64), testRandom(), true); err == nil {
 		t.Fatal("bootstrap bound to another receipt was accepted")
 	}
 	assertNoWrites(t, client.Actions())
@@ -414,7 +635,7 @@ func TestBootstrapCollisionAndReceiptMismatchFailBeforeWrites(t *testing.T) {
 
 func TestApplicationCollisionFailsBeforeWrites(t *testing.T) {
 	client := newTestClient()
-	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err != nil {
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err != nil {
 		t.Fatal(err)
 	}
 	name := buildTestConfig().Names().TenantSecret
@@ -427,8 +648,26 @@ func TestApplicationCollisionFailsBeforeWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	client.ClearActions()
-	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err == nil {
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true); err == nil {
 		t.Fatal("application Secret collision accepted")
+	}
+	assertNoWrites(t, client.Actions())
+}
+
+func TestForeignBootstrapIdentityCollisionFailsBeforeDryRun(t *testing.T) {
+	foreign := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "foreign-bootstrap",
+			Namespace:   stage.Namespace,
+			Labels:      infrastructureSecretLabels(bootstrapSecret),
+			Annotations: infrastructureSecretAnnotations(bootstrapSecret),
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+	client := newTestClient(foreign)
+	client.ClearActions()
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false); err == nil {
+		t.Fatal("foreign bootstrap identity collision was accepted")
 	}
 	assertNoWrites(t, client.Actions())
 }
@@ -436,7 +675,13 @@ func TestApplicationCollisionFailsBeforeWrites(t *testing.T) {
 func TestBootstrapCreateRaceAcceptsOnlyExactAlreadyExists(t *testing.T) {
 	client := newTestClient()
 	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
-		create := action.(ktesting.CreateAction)
+		create := action.(interface {
+			ktesting.CreateAction
+			GetCreateOptions() metav1.CreateOptions
+		})
+		if len(create.GetCreateOptions().DryRun) != 0 {
+			return false, nil, nil
+		}
 		secret := create.GetObject().(*corev1.Secret)
 		if secret.Name != bootstrapSecret {
 			return false, nil, nil
@@ -446,11 +691,11 @@ func TestBootstrapCreateRaceAcceptsOnlyExactAlreadyExists(t *testing.T) {
 		}
 		return true, nil, apierrors.NewAlreadyExists(schema.GroupResource{Resource: "secrets"}, bootstrapSecret)
 	})
-	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom())
+	result, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !result.bootstrapCreated {
+	if !result.create || !result.dryRun || !result.change || result.exactRetry {
 		t.Fatalf("exact race was not accepted: %+v", result)
 	}
 }
@@ -465,7 +710,7 @@ func TestSourceContractAndAPIErrorsAreRedactedAndReadOnly(t *testing.T) {
 		}
 		return false, nil, nil
 	})
-	_, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom())
+	_, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false)
 	if err == nil || strings.Contains(err.Error(), sensitive) {
 		t.Fatal("source API error was accepted or exposed")
 	}
@@ -476,7 +721,7 @@ func TestSourceContractAndAPIErrorsAreRedactedAndReadOnly(t *testing.T) {
 	})
 	client = newTestClient(bad)
 	client.ClearActions()
-	_, err = convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom())
+	_, err = convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false)
 	if err == nil || strings.Contains(err.Error(), sensitive) {
 		t.Fatal("source data mismatch was accepted or exposed")
 	}
@@ -491,7 +736,7 @@ func TestNeverUsesLegacyDevelopmentNamespace(t *testing.T) {
 		}
 		return false, nil, nil
 	})
-	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err != nil {
+	if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false); err != nil {
 		t.Fatal(err)
 	}
 	assertNoOldNamespaceActions(t, client.Actions())
@@ -513,7 +758,7 @@ func TestNamespaceLifecycleDriftFailsBeforeSecretReadsOrWrites(t *testing.T) {
 		mutate(namespace)
 		client := newTestClient(namespace)
 		client.ClearActions()
-		if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom()); err == nil {
+		if _, err := convergeReconciliationSecrets(context.Background(), client, testReceipt, testRandom(), false); err == nil {
 			t.Fatal("unsafe Namespace lifecycle or ownership drift accepted")
 		}
 		assertNoWrites(t, client.Actions())
@@ -568,7 +813,32 @@ func newTestClient(replacements ...runtime.Object) *fake.Clientset {
 			objects = append(objects, secret)
 		}
 	}
-	return fake.NewSimpleClientset(objects...)
+	client := fake.NewSimpleClientset(objects...)
+	installSecretDryRunReactor(client)
+	return client
+}
+
+func installSecretDryRunReactor(client *fake.Clientset) {
+	client.PrependReactor("create", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		create, ok := action.(interface {
+			GetCreateOptions() metav1.CreateOptions
+			GetObject() runtime.Object
+		})
+		if !ok || !reflect.DeepEqual(create.GetCreateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		return true, create.GetObject().DeepCopyObject(), nil
+	})
+	client.PrependReactor("update", "secrets", func(action ktesting.Action) (bool, runtime.Object, error) {
+		update, ok := action.(interface {
+			GetUpdateOptions() metav1.UpdateOptions
+			GetObject() runtime.Object
+		})
+		if !ok || !reflect.DeepEqual(update.GetUpdateOptions().DryRun, []string{metav1.DryRunAll}) {
+			return false, nil, nil
+		}
+		return true, update.GetObject().DeepCopyObject(), nil
+	})
 }
 
 func targetNamespaceObject() *corev1.Namespace {
@@ -798,6 +1068,52 @@ func assertNoWrites(t *testing.T, actions []ktesting.Action) {
 		switch action.GetVerb() {
 		case "create", "update", "patch", "delete", "deletecollection":
 			t.Fatalf("preflight or exact retry wrote resource: %s %s", action.GetVerb(), action.GetResource().Resource)
+		}
+	}
+}
+
+func assertNoPersistentWrites(t *testing.T, actions []ktesting.Action) {
+	t.Helper()
+	for _, action := range actions {
+		switch action.GetVerb() {
+		case "create":
+			create, ok := action.(interface{ GetCreateOptions() metav1.CreateOptions })
+			if !ok || len(create.GetCreateOptions().DryRun) == 0 {
+				t.Fatalf("persistent create reached resource: %s", action.GetResource().Resource)
+			}
+		case "update":
+			update, ok := action.(interface{ GetUpdateOptions() metav1.UpdateOptions })
+			if !ok || len(update.GetUpdateOptions().DryRun) == 0 {
+				t.Fatalf("persistent update reached resource: %s", action.GetResource().Resource)
+			}
+		case "patch", "delete", "deletecollection":
+			t.Fatalf("persistent mutation reached resource: %s %s", action.GetVerb(), action.GetResource().Resource)
+		}
+	}
+}
+
+func assertManagedSecretsAbsentFromTracker(t *testing.T, client *fake.Clientset) {
+	t.Helper()
+	names := buildTestConfig().Names()
+	for _, name := range []string{names.TenantSecret, names.MallSecret, bootstrapSecret} {
+		_, err := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, name)
+		if !apierrors.IsNotFound(err) {
+			t.Fatalf("dry-run persisted managed Secret %q: %v", name, err)
+		}
+	}
+}
+
+func assertExactManagedSecretsInTracker(t *testing.T, client *fake.Clientset) {
+	t.Helper()
+	names := buildTestConfig().Names()
+	for _, name := range []string{names.TenantSecret, names.MallSecret, bootstrapSecret} {
+		object, err := client.Tracker().Get(corev1.SchemeGroupVersion.WithResource("secrets"), stage.Namespace, name)
+		if err != nil {
+			t.Fatalf("persistent create did not store managed Secret %q: %v", name, err)
+		}
+		secret, ok := object.(*corev1.Secret)
+		if !ok || secret.Namespace != stage.Namespace || secret.Name != name {
+			t.Fatalf("managed Secret %q tracker object is incompatible", name)
 		}
 	}
 }

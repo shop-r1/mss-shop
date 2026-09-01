@@ -135,8 +135,9 @@ Last verified: 2026-09-01
   pushing and no workflow deploys them. Run `33494258866` supplied the
   successful import revision-A image; run `33497583981` supplied the revision-B
   verifier image; and run `33500133380` validates the later stage-annotation
-  compatibility fix without deploying it. The older 12c6 publication remains
-  historical pre-source-catalog-fix evidence. See `docs/runbooks/ci-images.md`.
+  compatibility fix. Run `33503127917` validates revision-C evidence and memory.
+  None was deployed. The older 12c6 publication remains historical
+  pre-source-catalog-fix evidence. See `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
   work and dependency order in
@@ -174,6 +175,10 @@ Last verified: 2026-09-01
   revision-B verifier now form the A-to-B-to-C evidence chain, but no
   reconciliation Secret or reconciler workload has been created yet. These
   gates may not be replaced by ad-hoc deployment commands.
+- The reconciliation-secret operator now defaults to a non-persistent
+  API-server dry-run and requires explicit `--create`; this safety change is
+  not itself execution evidence. Its clean-revision dry-run and later exact
+  three-Secret write declaration remain pending.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
@@ -202,14 +207,14 @@ Last verified: 2026-09-01
 
 ## Next milestone and acceptance criteria
 
-Commit the byte-exact verifier output and synchronized provenance as clean
-revision C, publish and verify its four image receipts, then run the
-reconciliation-secret operator in dry-run mode against the committed receipt
-and verifier evidence. Only after that gate passes may the three
-receipt-bound application/bootstrap Secrets and the reconciler Job be created
-in `mss-shop-dev`. Acceptance still requires isolated disposable-Pod system
-tests and in-app-browser review with URLs left for owner verification. The
-original development environment and production remain unchanged.
+Publish and verify the reconciliation-secret safety revision's four image
+receipts, then run its default API-server dry-run against the committed receipt
+and verifier evidence. Only after that gate passes and the exact write is
+declared may the three receipt-bound application/bootstrap Secrets be created
+in `mss-shop-dev`; the reconciler Job remains a separate later gate. Acceptance
+still requires isolated disposable-Pod system tests and in-app-browser review
+with URLs left for owner verification. The original development environment
+and production remain unchanged.
 
 ## Verification evidence
 
@@ -297,6 +302,16 @@ Verification evidence recorded on 2026-09-01:
   `ebefd1c20bf51f3c43e4a2bb90085fb60ea21442`. Its four images were not
   deployed. The fix permits exact KubeSphere v3.1.1 controller-owned Job
   status annotations without accepting stale, foreign or extra metadata.
+- GitHub Actions run
+  [`33503127917`](https://github.com/shop-r1/mss-shop/actions/runs/33503127917)
+  passed every current gate for evidence revision C
+  `fc6d1bf357ca7291a0fc2fe4391ca15628f8e9b9` and published four immutable
+  receipts. Its tenant, mall, reconciler and legacy-importer digests are
+  respectively `sha256:87a2ba402b9dc5f82769b4fbf4c1b1220368483dde6a4c6fc580507328f05750`,
+  `sha256:22a02242cc815ec7e2bf29fc5f9ec86789a245074754f49b59bc2b7def66c92e`,
+  `sha256:0beece2f39be8892649981db69bb20ebef6c6b27a6ab8741d4cf129b5d6a3af5`
+  and `sha256:385e5161b5a2133a482cb34330092d4e94e9e3c48d7b1a7ca01dc5f4b7e3bb38`.
+  None was deployed.
 - The exact 24 infrastructure objects and six immutable foundation Secrets
   were created only in `mss-shop-dev`. Its PostgreSQL 17.6 and Redis 8.6.3 are
   ready. The original-development metadata fingerprint was captured from the
