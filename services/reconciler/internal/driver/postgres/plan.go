@@ -2716,21 +2716,21 @@ BEGIN
       AND NOT (is_migrator AND namespace.nspname = core_schema_name)
   ) OR EXISTS (
     SELECT 1
-    FROM pg_catalog.pg_collation AS collation
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation.collnamespace
-    WHERE collation.collowner = app_role_oid
+    FROM pg_catalog.pg_collation AS collation_record
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = collation_record.collnamespace
+    WHERE collation_record.collowner = app_role_oid
       AND NOT (is_migrator AND namespace.nspname = core_schema_name)
   ) OR EXISTS (
     SELECT 1
-    FROM pg_catalog.pg_conversion AS conversion
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = conversion.connamespace
-    WHERE conversion.conowner = app_role_oid
+    FROM pg_catalog.pg_conversion AS conversion_record
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = conversion_record.connamespace
+    WHERE conversion_record.conowner = app_role_oid
       AND NOT (is_migrator AND namespace.nspname = core_schema_name)
   ) OR EXISTS (
     SELECT 1
-    FROM pg_catalog.pg_operator AS operator
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = operator.oprnamespace
-    WHERE operator.oprowner = app_role_oid
+    FROM pg_catalog.pg_operator AS operator_record
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = operator_record.oprnamespace
+    WHERE operator_record.oprowner = app_role_oid
       AND NOT (is_migrator AND namespace.nspname = core_schema_name)
   ) OR EXISTS (
     SELECT 1
@@ -2758,9 +2758,9 @@ BEGIN
       AND NOT (is_migrator AND namespace.nspname = core_schema_name)
   ) OR EXISTS (
     SELECT 1
-    FROM pg_catalog.pg_statistic_ext AS statistics
-    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = statistics.stxnamespace
-    WHERE statistics.stxowner = app_role_oid
+    FROM pg_catalog.pg_statistic_ext AS statistics_record
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = statistics_record.stxnamespace
+    WHERE statistics_record.stxowner = app_role_oid
       AND NOT (is_migrator AND namespace.nspname = core_schema_name)
   ) OR EXISTS (
     SELECT 1 FROM pg_catalog.pg_extension WHERE extowner = app_role_oid

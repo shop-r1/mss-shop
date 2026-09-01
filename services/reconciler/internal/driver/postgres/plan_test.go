@@ -415,6 +415,37 @@ func TestManagedRolePasswordIsWrittenOnlyOnTransactionalCreation(t *testing.T) {
 	}
 }
 
+func TestApplicationRoleRealmAvoidsPostgreSQLKeywordAliases(t *testing.T) {
+	t.Parallel()
+	statement := validateApplicationRoleRealm(
+		"mss_t_dev_migrator",
+		true,
+		"mss_t_dev_core",
+		"mss_t_dev_shared",
+		nil,
+	)
+	for _, expected := range []string{
+		"pg_collation AS collation_record",
+		"pg_conversion AS conversion_record",
+		"pg_operator AS operator_record",
+		"pg_statistic_ext AS statistics_record",
+	} {
+		if !strings.Contains(statement.SQL, expected) {
+			t.Fatalf("application role realm SQL is missing safe alias %q", expected)
+		}
+	}
+	for _, forbidden := range []string{
+		"pg_collation AS collation\n",
+		"pg_conversion AS conversion\n",
+		"pg_operator AS operator\n",
+		"pg_statistic_ext AS statistics\n",
+	} {
+		if strings.Contains(statement.SQL, forbidden) {
+			t.Fatalf("application role realm SQL uses PostgreSQL keyword alias %q", forbidden)
+		}
+	}
+}
+
 func TestSnapshotsShareRepeatableReadAndVerifyRetryAudit(t *testing.T) {
 	t.Parallel()
 	plan, err := BuildPlan(testConfig(), testCredentials())
