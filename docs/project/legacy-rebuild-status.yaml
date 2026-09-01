@@ -71,18 +71,35 @@ spec:
     compatibilityOwnershipReassignment: implemented-source-not-deployed
     catalogAndLogisticsDesignReview: awaiting-project-owner-review
     localMallBrowserFixture: pending-post-ownership-move-validation
-    domainWorkflows: mall-settings-four-field-source-implemented-unverified-all-other-workflows-pending
+    domainWorkflows: mall-settings-and-member-levels-source-validated-release-candidate-all-other-workflows-pending
     mallSettingsWorkflow:
-      status: source-implemented-unverified
+      status: source-validated-release-candidate
       api: GET-PUT-/admin/api/mall-settings/general
       fields: [mallName, orderPrefix, defaultSenderName, defaultSenderPhone]
+      responseOperations: {update: server-projected-false-for-postgres}
       legacyRow: fixed-schema-fixed-legacy-tenant-appConfig-active-row
+      postgresRelation: mss_m_aussibuy_biz.r1_mall_settings_system_configs
+      postgresRelationCapability: select-only-security-barrier-fixed-tenant-name-active
+      writeGate: R1SHOP_MALL_SETTINGS_WRITE_ENABLED-default-false
       genericSystemConfigsMutation: disabled
       authorizationMigration: "66966149766804"
-      tests: deferred-until-planned-development-complete
+      tests: passed-unified-remote-validation
       migrationApplied: demo-sqlite-only
       deployed: false
       remoteLocalPreview: healthy-backend-and-admin-web-demo-sqlite-not-acceptance
+      acceptanceScenarioClosed: false
+    memberLevelsWorkflow:
+      status: source-validated-release-candidate
+      api: /admin/api/member-levels
+      legacyRow: fixed-schema-fixed-legacy-tenant-member_levels
+      postgresRelation: mss_m_aussibuy_biz.member_levels
+      postgresRelationCapability: select-only-security-barrier-fixed-tenant
+      mutationGate: R1SHOP_MEMBER_LEVELS_MUTATION_MODE-default-closed
+      deploymentMode: read-only
+      authorizationMigration: "66966149766805"
+      projectionVerifier: source-implemented-not-executed
+      tests: passed-unified-remote-validation
+      deployed: false
       acceptanceScenarioClosed: false
     inAppBrowserAcceptance:
       mallPlatform: historical-pre-dec-0009-compatibility-surface
@@ -90,7 +107,7 @@ spec:
     kubernetesSystemAcceptance: partial-datastore-import-and-verifier-only
     productionMigration: forbidden-without-explicit-approval
     deliveryCI: four-image-publications-verified-through-revision-c-evidence
-    remoteDevelopmentPlan: development-first-current-source-unverified-revision-c-ci-complete-reconciliation-secret-dry-run-not-executed
+    remoteDevelopmentPlan: development-first-release-candidate-validation-authorized-revision-c-evidence-current
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
     originalDevelopmentFingerprint:
@@ -183,11 +200,11 @@ spec:
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
       ownershipDeployment: pending-forward-migrations-not-applied
-      fullTests: passed-revision-c-before-current-working-tree
-      vet: passed-revision-c-before-current-working-tree
+      fullTests: passed-current-release-candidate-remote
+      vet: passed-current-release-candidate-remote
       focusedRace: pending-post-ownership-move
     mallSettingsWorkflow:
-      implementation: source-complete-not-validated
+      implementation: source-complete-validated-remote
       featureContract: apps/mall-platform/.mss/features/mall-settings.yaml
       developmentRecord: docs/project/mall-settings-development.md
       backend: apps/mall-platform/internal/modules/mallsettings
@@ -197,9 +214,28 @@ spec:
       unknownMetadataPreserved: source-contract
       nestedSecretsReturned: false
       genericCompatibilityWriteEnabled: false
-      tests: not-run-development-first
-      build: remote-dev-startup-compiled-production-build-not-run
+      responseOperationsUpdate: false-for-current-postgres-projection
+      postgresPrivateRelation: r1_mall_settings_system_configs-select-only
+      genericMetadataRedactionAndQueryProhibition: unchanged
+      writeDisabledError: HTTP-503-MALL_SETTINGS_WRITE_DISABLED
+      tests: passed-backend-frontend-contract-authorization-readiness-and-preservation
+      build: passed-remote-production-build-total-js-913.92-of-930-kib
       deployment: remote-local-process-preview-only-kubernetes-not-executed
+      acceptance: open
+    memberLevelsWorkflow:
+      implementation: source-complete-validated-remote
+      featureContract: apps/mall-platform/.mss/features/member-levels.yaml
+      developmentRecord: docs/project/member-levels-development.md
+      backend: apps/mall-platform/internal/modules/memberlevels
+      frontend: apps/mall-platform/web/src/business/member-levels
+      permissions: [member-levels:list, member-levels:read, member-levels:create, member-levels:update, member-levels:set-default, member-levels:delete]
+      legacySourceOfTruth: member_levels
+      genericCompatibilityWriteEnabled: false
+      runtimeMutationMode: default-closed
+      deploymentMutationCapability: read-only
+      projectionVerifier: source-implemented-not-executed
+      tests: passed-backend-frontend-contract-authorization-readiness-and-sqlite-preservation
+      deployment: kubernetes-not-executed
       acceptance: open
     tenantSharedCatalogBackend:
       manifestResources: 1
@@ -209,21 +245,21 @@ spec:
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
       ownershipDeployment: pending-forward-migrations-not-applied
-      fullTests: passed-revision-c-before-current-working-tree
-      vet: passed-revision-c-before-current-working-tree
+      fullTests: passed-current-release-candidate-remote
+      vet: passed-current-release-candidate-remote
       focusedRace: pending-post-ownership-move
     compatibilityErrorContract:
       envelope: flat-errorCode-errorMessage-messageKey-params
       bilingualCatalogs: passed
       malformedResponseStringSafety: passed
     mssContracts:
-      ownershipAndMemoryContract: passed-revision-c-before-current-working-tree
+      ownershipAndMemoryContract: passed-current-release-candidate-remote
       generatedModuleDryRun: unchanged
       featurePlan: passed
       strictDoctorMall: passed
       strictDoctorTenant: passed
-      fullVerifyMall: passed-revision-c-before-current-working-tree
-      fullVerifyTenant: passed-revision-c-before-current-working-tree
+      fullVerifyMall: passed-current-release-candidate-remote-10-of-10
+      fullVerifyTenant: passed-current-release-candidate-remote-10-of-10
     localMallBrowserFixture:
       reviewedTables: 50
       nonSensitiveRows: 10
@@ -257,19 +293,25 @@ spec:
       hostFacadeContractTests: passed
     memoryContracts:
       command: tools/check-project-memory.sh
-      result: passed-revision-c-before-current-working-tree
+      result: passed-current-release-candidate-remote
     currentSourceValidation:
-      scope: revision-c-fc6d1bf-before-current-unvalidated-working-tree
-      currentWorkingTreeValidation: deferred-by-project-owner-development-first
-      unvalidatedSourceChanges:
+      scope: release-candidate-unified-remote-validation-complete
+      currentWorkingTreeValidation: passed-remote-source-gates
+      validatedSourceChanges:
         - reconciliation-secret-concurrency-hardening
         - mall-settings-four-field-vertical-slice
+        - mall-settings-private-read-projection-and-fail-closed-write-gate
+        - member-levels-typed-read-only-release-surface
+        - member-levels-fixed-projection-audit-and-disposable-verifier
       rootGoTest: passed
       rootGoVet: passed
       tenantGoTestAndVet: passed
       mallGoTestAndVet: passed
       tenantAdminWebTests: 26-passed
-      mallAdminWebTests: 33-passed
+      mallAdminWebTests: 50-passed
+      mallAdminWebProductionBuild: passed-913.92-of-930-kib-total-js
+      tenantMSSVerifyAll: passed-10-of-10
+      mallMSSVerifyAll: passed-10-of-10
       platformBoundaries: passed
       isolatedCreateOnlyResources:
         infrastructureObjects: 24
@@ -339,6 +381,7 @@ spec:
     ciImageRunbook: docs/runbooks/ci-images.md
     legacyRestorationGap: docs/project/legacy-restoration-gap.md
     mallSettingsDevelopment: docs/project/mall-settings-development.md
+    memberLevelsDevelopment: docs/project/member-levels-development.md
     remoteDevelopmentDecision: docs/decisions/DEC-0010-remote-development-and-dev-reconciliation.md
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
@@ -366,7 +409,7 @@ spec:
     legacyImportSucceeded: true
     postImportVerifierSucceeded: true
     isolatedBrowserAcceptanceExecuted: false
-    currentWorkingTreeTested: false
+    currentWorkingTreeTested: true
     currentWorkingTreeRemoteLocalPreviewHealthy: true
-    currentWorkingTreeProductionBuilt: false
+    currentWorkingTreeProductionBuilt: true
     currentWorkingTreeDeployed: false

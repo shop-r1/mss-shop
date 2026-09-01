@@ -1,13 +1,19 @@
-export interface MallGeneralSettings {
+export interface MallGeneralSettingsInput {
   mallName: string;
   orderPrefix: string;
   defaultSenderName: string;
   defaultSenderPhone: string;
 }
 
-export type MallGeneralSettingsInput = MallGeneralSettings;
+export interface MallGeneralSettingsOperations {
+  update: boolean;
+}
 
-export type MallGeneralSettingsFieldName = keyof MallGeneralSettings;
+export interface MallGeneralSettings extends MallGeneralSettingsInput {
+  operations: MallGeneralSettingsOperations;
+}
+
+export type MallGeneralSettingsFieldName = keyof MallGeneralSettingsInput;
 
 export interface MallGeneralSettingsFieldDefinition {
   name: MallGeneralSettingsFieldName;

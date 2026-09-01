@@ -192,17 +192,21 @@ Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
 7. after the separate application/bootstrap Secret operator gate passes,
    create the receipt-bound reconciler Job from
    `deploy/mss-shop-dev/reconciler-job.yaml`;
-8. stage only the eight Admin runtime objects from
+8. create the same-SHA, same-reconciler-digest Member Levels projection
+   verifier Job from
+   `deploy/mss-shop-dev/member-levels-projection-verifier-job.yaml`, and require
+   its complete success JSON before any runtime stage;
+9. stage only the eight Admin runtime objects from
    `deploy/mss-shop-dev/admin-runtime.yaml` using the tenant and mall image
    digests;
-9. run disposable-Pod system verification and in-app-browser acceptance.
+10. run disposable-Pod system verification and in-app-browser acceptance.
 
 The importer Job renderer/create-only path, disposable verification runner and
 post-receipt application/bootstrap Secret operator are implemented and tested.
 The disposable verifier has passed once for the successful receipt-bound
 import; the application/bootstrap Secret operator and reconciler remain the
-next ordered gates. Do not replace them with ad-hoc template substitution or
-`kubectl apply`.
+next ordered gates, followed by the projection verifier and runtime stage. Do
+not replace them with ad-hoc template substitution or `kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

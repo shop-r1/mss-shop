@@ -39,13 +39,13 @@ func TestPlanHasExactCompatibilityAllocation(t *testing.T) {
 		t.Fatalf("view/snapshot counts = %d/%d, want 43/7", len(mallLegacyViews), len(mallSnapshots))
 	}
 	summary := plan.Summary()
-	if summary.Views != 44 || summary.Snapshots != 7 {
-		t.Fatalf("summary = %+v, want 43 mall views + payments and seven snapshots", summary)
+	if summary.Views != 46 || summary.Snapshots != 7 {
+		t.Fatalf("summary = %+v, want 43 generic mall views + payment/private/audit views and seven snapshots", summary)
 	}
 
 	allSQL := flattenSQL(plan)
-	if count := strings.Count(allSQL, "CREATE VIEW \"mss_m_aussibuy_biz\""); count != 43 {
-		t.Fatalf("mall view count in SQL = %d, want 43", count)
+	if count := strings.Count(allSQL, "CREATE VIEW \"mss_m_aussibuy_biz\""); count != 45 {
+		t.Fatalf("mall view count in SQL = %d, want 45", count)
 	}
 	if count := strings.Count(allSQL, "CREATE TABLE \"mss_m_aussibuy_biz\""); count != 8 {
 		// Seven resource tables plus the snapshot audit table.
@@ -192,6 +192,77 @@ func TestPlanUsesLeastPrivilegeRuntimeGrants(t *testing.T) {
 	}
 }
 
+func TestMemberLevelsProjectionAuditIsFixedAggregateOnlyAndLeastPrivilege(t *testing.T) {
+	t.Parallel()
+	plan, err := BuildPlan(testConfig(), testCredentials())
+	if err != nil {
+		t.Fatal(err)
+	}
+	allSQL := flattenSQL(plan)
+	fragment := requiredStatementSQL(
+		t,
+		plan,
+		"reconcile-managed-view-mss_m_aussibuy_biz-r1_member_levels_projection_audit",
+	)
+	for _, expected := range []string{
+		`WITH (security_barrier=true, security_invoker=false)`,
+		`FROM "public"."member_levels" AS source`,
+		`source."tenant_id" = ''518729051064631297''`,
+		`FROM "mss_m_aussibuy_biz"."member_levels" AS business`,
+		`source_minus_business AS`,
+		`business_minus_source AS`,
+		`public_member_levels_rows`,
+		`business_member_levels_rows`,
+		`difference_rows`,
+		`cross_tenant_rows`,
+		`flagged_default_rows`,
+		`enabled_default_rows`,
+		`invalid_default_rows`,
+		`GROUP BY name HAVING count(*) > 1`,
+		`duplicate_active_name_groups`,
+		`public_orders_rows`,
+		`business_orders_rows`,
+		`public_order_goods_rows`,
+		`business_order_goods_rows`,
+		`ALTER VIEW "mss_m_aussibuy_biz"."r1_member_levels_projection_audit" OWNER TO "mss_m_aussibuy_compat_owner"`,
+		`REVOKE ALL ON TABLE "mss_m_aussibuy_biz"."r1_member_levels_projection_audit" FROM PUBLIC`,
+		`GRANT SELECT ON TABLE "mss_m_aussibuy_biz"."r1_member_levels_projection_audit" TO "mss_m_aussibuy_runtime"`,
+	} {
+		if !strings.Contains(fragment, expected) {
+			t.Fatalf("member-levels projection audit is missing %q", expected)
+		}
+	}
+	// reconcileManagedView compiles the reviewed SELECT twice: once for the
+	// target view and once for the pg_temp structural comparison view. Each
+	// copy must contain both directions of the EXCEPT ALL proof.
+	if strings.Count(fragment, "EXCEPT ALL") != 4 {
+		t.Fatalf("projection audit EXCEPT ALL count = %d, want exactly 4", strings.Count(fragment, "EXCEPT ALL"))
+	}
+	if len(legacySourceColumns["member_levels"]) != 12 {
+		t.Fatalf("compiled member-levels projection has %d columns, want 12", len(legacySourceColumns["member_levels"]))
+	}
+	for _, column := range legacySourceColumns["member_levels"] {
+		for _, alias := range []string{"source", "business", "source_rows", "business_rows"} {
+			if !strings.Contains(fragment, `"`+alias+`"."`+column+`"`) {
+				t.Fatalf("12-column audit projection omits %s.%s", alias, column)
+			}
+		}
+	}
+	for _, forbidden := range []string{
+		`security_invoker=true`,
+		`GRANT SELECT ON TABLE "public"."member_levels" TO "mss_m_aussibuy_runtime"`,
+		`GRANT SELECT ON TABLE "public"."orders" TO "mss_m_aussibuy_runtime"`,
+		`GRANT SELECT ON TABLE "public"."order_goods" TO "mss_m_aussibuy_runtime"`,
+		`GRANT INSERT ON TABLE "mss_m_aussibuy_biz"."r1_member_levels_projection_audit"`,
+		`GRANT UPDATE ON TABLE "mss_m_aussibuy_biz"."r1_member_levels_projection_audit"`,
+		`GRANT DELETE ON TABLE "mss_m_aussibuy_biz"."r1_member_levels_projection_audit"`,
+	} {
+		if strings.Contains(allSQL, forbidden) {
+			t.Fatalf("projection audit contains forbidden privilege or view option %q", forbidden)
+		}
+	}
+}
+
 func TestInheritedViewsUseActiveOwningTenantPredicates(t *testing.T) {
 	t.Parallel()
 	plan, err := BuildPlan(testConfig(), testCredentials())
@@ -225,7 +296,6 @@ func TestSensitiveCompatibilityViewsNullClassifiedColumns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	allSQL := flattenSQL(plan)
 	classified := map[string][]string{
 		"consignees":       {"id_card", "id_card_front", "id_card_back"},
 		"courier_installs": {"app_key", "app_secret", "param0", "param1"},
@@ -236,16 +306,11 @@ func TestSensitiveCompatibilityViewsNullClassifiedColumns(t *testing.T) {
 		"system_configs":   {"metadata"},
 	}
 	for relation, columns := range classified {
-		marker := `CREATE VIEW "mss_m_aussibuy_biz"."` + relation + `"`
-		start := strings.Index(allSQL, marker)
-		if start < 0 {
-			t.Fatalf("classified view %s is missing", relation)
-		}
-		end := strings.Index(allSQL[start:], "\n-- mall-view-owner-")
-		fragment := allSQL[start:]
-		if end >= 0 {
-			fragment = fragment[:end]
-		}
+		fragment := requiredStatementSQL(
+			t,
+			plan,
+			"reconcile-managed-view-mss_m_aussibuy_biz-"+relation,
+		)
 		if strings.Contains(fragment, "SELECT source.*") {
 			t.Fatalf("classified view %s exposes source.*: %s", relation, fragment)
 		}
@@ -454,8 +519,8 @@ func TestCompatibilityObjectsUseNoLoginLeastPrivilegeOwners(t *testing.T) {
 			t.Fatalf("least-privilege compatibility owner contract is missing %q", expected)
 		}
 	}
-	if count := strings.Count(allSQL, `ALTER VIEW "mss_`); count != 44 {
-		t.Fatalf("compatibility view ownership transfers = %d, want 44", count)
+	if count := strings.Count(allSQL, `ALTER VIEW "mss_`); count != 46 {
+		t.Fatalf("compatibility view ownership transfers = %d, want 46", count)
 	}
 	if count := strings.Count(allSQL, `ALTER TABLE "mss_m_aussibuy_biz"`); count != 8 {
 		t.Fatalf("snapshot/audit ownership transfers = %d, want 8", count)
@@ -558,4 +623,20 @@ func flattenSQL(plan Plan) string {
 		}
 	}
 	return builder.String()
+}
+
+func requiredStatementSQL(t *testing.T, plan Plan, name string) string {
+	t.Helper()
+	var matches []string
+	for _, batch := range plan.Batches {
+		for _, statement := range batch.Statements {
+			if statement.Name == name {
+				matches = append(matches, statement.SQL)
+			}
+		}
+	}
+	if len(matches) != 1 {
+		t.Fatalf("statement %q count = %d, want exactly 1", name, len(matches))
+	}
+	return matches[0]
 }

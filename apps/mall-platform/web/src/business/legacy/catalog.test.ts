@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import enUS from '../locales/en-US';
 import zhCN from '../locales/zh-CN';
+import { mallGeneralSettingsPermissionPaths } from '../mall-settings/paths';
+import { memberLevelsPermissionPaths } from '../member-levels/paths';
 import routeRegistrations from '../route-registrations';
 import businessRoutes from '../routes.config';
 import {
@@ -26,9 +28,31 @@ describe('mall legacy resource catalog', () => {
     expect(findLegacyResourceByPath('/business/catalog/not_allowlisted')).toBeUndefined();
   });
 
-  it('registers one navigable route and one server permission projection per resource', () => {
-    expect(businessRoutes).toHaveLength(LEGACY_RESOURCES.length);
-    expect(routeRegistrations).toHaveLength(LEGACY_RESOURCES.length);
+  it('registers typed workflows plus one route and permission projection per legacy resource', () => {
+    expect(businessRoutes).toHaveLength(LEGACY_RESOURCES.length + 2);
+    expect(routeRegistrations).toHaveLength(LEGACY_RESOURCES.length + 2);
+    expect(businessRoutes).toContainEqual({
+      path: mallGeneralSettingsPermissionPaths.route,
+      component: '@/business/mall-settings',
+      name: 'mallSettings',
+    });
+    expect(businessRoutes).toContainEqual({
+      path: memberLevelsPermissionPaths.route,
+      component: '@/business/member-levels',
+      name: 'memberLevels',
+    });
+    expect(routeRegistrations).toContainEqual({
+      path: mallGeneralSettingsPermissionPaths.route,
+      serverPaths: [mallGeneralSettingsPermissionPaths.route],
+      menuName: 'mallSettings',
+      permission: mallGeneralSettingsPermissionPaths.route,
+    });
+    expect(routeRegistrations).toContainEqual({
+      path: memberLevelsPermissionPaths.route,
+      serverPaths: [memberLevelsPermissionPaths.route],
+      menuName: 'memberLevels',
+      permission: memberLevelsPermissionPaths.route,
+    });
 
     for (const entry of LEGACY_RESOURCES) {
       expect(entry.routePermission).toBe(entry.path);

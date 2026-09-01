@@ -98,8 +98,13 @@ The compatibility allocation is 50 mall resources plus the one tenant payment
 resource. All 51 **generic compatibility resources** remain read-only: they
 advertise no create, update or delete capability, and their generic mutation
 endpoints fail closed. A separate four-field Mall Settings workflow is now
-implemented in source for the active `system_configs.appConfig` row; it does
-not change the generic resource capability. A demo-SQLite development preview
+implemented in source for the active `system_configs.appConfig` row; its GET
+response also projects closed `operations.update` state and it does not change
+the generic resource capability. PostgreSQL reads through the dedicated fixed-
+tenant/name/active `r1_mall_settings_system_configs` security-barrier view with
+runtime SELECT only. Cluster writes default closed and return a stable 503;
+the generic nested-secret redaction and metadata query prohibition are
+unchanged. A demo-SQLite development preview
 starts, but the workflow remains without formal tests, production build,
 isolated PostgreSQL/Kubernetes migration, deployment or acceptance. Source code
 contains forward-only route and permission migrations for this allocation, but

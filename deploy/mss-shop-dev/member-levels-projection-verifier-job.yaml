@@ -1,0 +1,113 @@
+# Fixed, create-only Member Levels projection verifier for mss-shop-dev.
+# Never apply or substitute this template manually. The trusted stage-jobs
+# command renders it only from a clean full Git SHA and the digest of the
+# reconciler image published for that same SHA, then proves the receipt-bound
+# reconciler Job completed before this Job can be created.
+#
+# The reused legacy-verifier network role reaches only the isolated PostgreSQL
+# Pod. The Job has no ServiceAccount token, mounts only the PostgreSQL CA, and
+# receives only the mall runtime's read-only DSN. It cannot read public table
+# rows directly: the fixed reconciler-owned aggregate audit view is its only
+# source-side evidence. Stdout is exactly one bounded JSON object with counts
+# and immutable execution bindings; capture it before the Job TTL expires.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # 23-character prefix + 40-character SHA = the 63-character DNS limit.
+  name: mss-shop-ml-projection-0000000000000000000000000000000000000000
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-member-levels-projection-verifier
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Job:mss-shop-ml-projection-0000000000000000000000000000000000000000
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/image-digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    r1shop.io/import-receipt-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-member-levels-projection-verifier
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: legacy-verifier
+      annotations:
+        r1shop.io/import-receipt-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: member-levels-projection-verifier
+          image: ghcr.io/shop-r1/mss-shop-reconciler:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/mss-shop-member-levels-projection-verifier"]
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          env:
+            - name: MSS_PROJECTION_DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: database-runtime-dsn
+            - name: MSS_PROJECTION_POSTGRES_TLS_CA_FILE
+              value: /etc/mss-shop/postgres-tls/ca.crt
+            - name: MSS_PROJECTION_POSTGRES_TLS_SERVER_NAME
+              value: mss-shop-postgres.mss-shop-dev.svc
+            - name: MSS_PROJECTION_IMPORT_RECEIPT_SHA256
+              value: "0000000000000000000000000000000000000000000000000000000000000000"
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MSS_IMAGE_REVISION
+              value: "0000000000000000000000000000000000000000"
+            - name: MSS_IMAGE_DIGEST
+              value: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          volumeMounts:
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+      volumes:
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt

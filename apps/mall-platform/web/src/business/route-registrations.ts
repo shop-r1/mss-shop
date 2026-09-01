@@ -1,6 +1,7 @@
 import type { RouteRegistration } from '@mss-boot-io/admin-web/runtime';
 import { LEGACY_RESOURCES } from './legacy/catalog';
 import { mallGeneralSettingsPermissionPaths } from './mall-settings/paths';
+import { memberLevelsPermissionPaths } from './member-levels/paths';
 
 // Project handwritten server paths into frontend menu and route visibility here.
 // This does not create Admin Menu/Casbin rows or authorize backend requests.
@@ -10,6 +11,12 @@ const routeRegistrations: readonly RouteRegistration[] = [
     serverPaths: [mallGeneralSettingsPermissionPaths.route],
     menuName: 'mallSettings',
     permission: mallGeneralSettingsPermissionPaths.route,
+  },
+  {
+    path: memberLevelsPermissionPaths.route,
+    serverPaths: [memberLevelsPermissionPaths.route],
+    menuName: 'memberLevels',
+    permission: memberLevelsPermissionPaths.route,
   },
   ...LEGACY_RESOURCES.map((entry) => ({
     path: entry.path,

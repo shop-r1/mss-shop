@@ -136,6 +136,9 @@ func writeMallSettingsError(ctx *gin.Context, err error) {
 	case errors.Is(err, ErrSchemaNotReady):
 		status, response.ErrorCode = http.StatusServiceUnavailable, "LEGACY_SCHEMA_NOT_READY"
 		response.ErrorMessage, response.MessageKey = "Legacy settings schema is not ready", "mallSettings.errors.schemaNotReady"
+	case errors.Is(err, ErrMutationDisabled):
+		status, response.ErrorCode = http.StatusServiceUnavailable, "MALL_SETTINGS_WRITE_DISABLED"
+		response.ErrorMessage, response.MessageKey = "Mall settings updates are disabled until a reviewed writable cutover", "mallSettings.errors.writeDisabled"
 	default:
 		status, response.ErrorCode = http.StatusInternalServerError, "INTERNAL_ERROR"
 		response.ErrorMessage, response.MessageKey = "Mall settings operation failed", "mallSettings.errors.internal"

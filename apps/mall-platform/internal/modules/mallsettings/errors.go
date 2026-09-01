@@ -12,6 +12,7 @@ var (
 	ErrInvalidRequest           = errors.New("mall settings request is invalid")
 	ErrValidation               = errors.New("mall settings validation failed")
 	ErrConflict                 = errors.New("mall settings legacy row is ambiguous")
+	ErrMutationDisabled         = errors.New("mall settings updates are disabled until a reviewed writable cutover")
 	ErrSchemaNotReady           = errors.New("mall settings legacy schema is not ready")
 	ErrPersistence              = errors.New("mall settings persistence failed")
 	ErrLegacyMetadata           = errors.New("mall settings legacy metadata is incompatible")

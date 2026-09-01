@@ -13,6 +13,7 @@ import (
 
 type module struct {
 	binding *fixedbinding.Resolver
+	writes  writeCapability
 }
 
 type descriptorModel struct{}
@@ -22,7 +23,10 @@ func Module() business.Module {
 }
 
 func NewModule(source fixedbinding.Source) business.Module {
-	return &module{binding: fixedbinding.NewResolver(source)}
+	return &module{
+		binding: fixedbinding.NewResolver(source),
+		writes:  environmentWriteCapability(),
+	}
 }
 
 func (*module) Name() string { return moduleName }
@@ -80,7 +84,9 @@ func (settings *module) registerRoutes(group *gin.RouterGroup, runtime business.
 	if err != nil {
 		return fmt.Errorf("mall settings routes: %w", err)
 	}
-	application := &requestApplication{database: runtime.RequestDatabase, binding: binding}
+	application := &requestApplication{
+		database: runtime.RequestDatabase, binding: binding, writes: settings.writes,
+	}
 	if err := RegisterRoutes(group, application, authorizer); err != nil {
 		return fmt.Errorf("mall settings routes: %w", err)
 	}
@@ -90,6 +96,7 @@ func (settings *module) registerRoutes(group *gin.RouterGroup, runtime business.
 type requestApplication struct {
 	database business.RequestDatabase
 	binding  fixedbinding.Binding
+	writes   writeCapability
 }
 
 func (application *requestApplication) repository(ctx context.Context) (*Repository, error) {
@@ -112,13 +119,21 @@ func (application *requestApplication) GetGeneral(ctx context.Context) (GeneralS
 	if err != nil {
 		return GeneralSettings{}, err
 	}
-	return repository.GetGeneral(ctx)
+	settings, err := repository.GetGeneral(ctx)
+	if err != nil {
+		return GeneralSettings{}, err
+	}
+	settings.Operations.Update = application.writes.allowsUpdate() && repository.supportsUpdate()
+	return settings, nil
 }
 
 func (application *requestApplication) PutGeneral(
 	ctx context.Context,
 	input UpdateGeneralSettingsInput,
 ) (GeneralSettings, error) {
+	if application == nil || !application.writes.allowsUpdate() {
+		return GeneralSettings{}, ErrMutationDisabled
+	}
 	settings, err := input.settings()
 	if err != nil {
 		return GeneralSettings{}, err
@@ -127,5 +142,10 @@ func (application *requestApplication) PutGeneral(
 	if err != nil {
 		return GeneralSettings{}, err
 	}
-	return repository.PutGeneral(ctx, settings)
+	persisted, err := repository.PutGeneral(ctx, settings)
+	if err != nil {
+		return GeneralSettings{}, err
+	}
+	persisted.Operations.Update = application.writes.allowsUpdate() && repository.supportsUpdate()
+	return persisted, nil
 }

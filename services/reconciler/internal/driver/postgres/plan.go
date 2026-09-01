@@ -63,7 +63,7 @@ type Summary struct {
 func (p Plan) Summary() Summary {
 	summary := Summary{
 		Batches:   len(p.Batches),
-		Views:     expectedMallViewCount + 1,
+		Views:     expectedMallViewCount + 3,
 		Snapshots: expectedMallSnapshotCount,
 	}
 	for _, batch := range p.Batches {
@@ -82,6 +82,9 @@ func BuildPlan(config stage.Config, credentials Credentials) (Plan, error) {
 	if len(mallLegacyViews) != expectedMallViewCount || len(mallSnapshots) != expectedMallSnapshotCount {
 		return Plan{}, errors.New("compiled legacy reconciliation inventory is inconsistent")
 	}
+	if len(legacySourceColumns["member_levels"]) != expectedMemberLevelsProjectionColumnCount {
+		return Plan{}, errors.New("compiled member levels projection inventory is inconsistent")
+	}
 	if err := validateCompiledSourceColumns(); err != nil {
 		return Plan{}, err
 	}
@@ -93,6 +96,7 @@ func BuildPlan(config stage.Config, credentials Credentials) (Plan, error) {
 		buildLegacySourceBoundaryBatch(roles),
 		buildTenantSharedBatch(schemas, roles),
 		buildMallViewsBatch(config.LegacyTenantID, schemas, roles),
+		buildMemberLevelsProjectionAuditBatch(config.LegacyTenantID, schemas, roles),
 		buildSnapshotAuditBatch(schemas, roles),
 	}
 	snapshotBatch := Batch{Name: "tenant-global-snapshots"}
@@ -889,7 +893,7 @@ func buildTenantSharedBatch(schemas stage.Schemas, roles stage.Roles) Batch {
 }
 
 func buildMallViewsBatch(legacyTenantID string, schemas stage.Schemas, roles stage.Roles) Batch {
-	statements := make([]Statement, 0, len(mallLegacyViews))
+	statements := make([]Statement, 0, len(mallLegacyViews)+1)
 	for _, resource := range mallLegacyViews {
 		projection := legacyViewProjection(resource)
 		predicate := quoteIdentifier("source") + "." + quoteIdentifier("tenant_id") + " = " + quoteLiteral(legacyTenantID)
@@ -917,7 +921,99 @@ func buildMallViewsBatch(legacyTenantID string, schemas stage.Schemas, roles sta
 			roles.MallRuntime,
 		))
 	}
+	statements = append(statements, buildMallSettingsPrivateView(legacyTenantID, schemas, roles))
 	return Batch{Name: "mall-fixed-tenant-views", Statements: statements}
+}
+
+// buildMemberLevelsProjectionAuditBatch creates a fixed-name, single-row view
+// that the mall runtime can query without receiving any privilege on the
+// legacy public tables. Its compatibility owner evaluates source aggregates
+// through the already-reviewed SELECT-only source grants. All compared columns
+// remain explicit so the 12-column projection is part of the compiled contract.
+func buildMemberLevelsProjectionAuditBatch(legacyTenantID string, schemas stage.Schemas, roles stage.Roles) Batch {
+	columns := legacySourceColumns["member_levels"]
+	selectSQL := fmt.Sprintf(`WITH source_rows AS (
+  SELECT %s
+  FROM %s AS source
+  WHERE source.%s = %s
+), business_rows AS (
+  SELECT %s
+  FROM %s AS business
+), source_minus_business AS (
+  SELECT %s FROM source_rows
+  EXCEPT ALL
+  SELECT %s FROM business_rows
+), business_minus_source AS (
+  SELECT %s FROM business_rows
+  EXCEPT ALL
+  SELECT %s FROM source_rows
+)
+SELECT
+  (SELECT count(*) FROM source_rows)::bigint AS public_member_levels_rows,
+  (SELECT count(*) FROM business_rows)::bigint AS business_member_levels_rows,
+  ((SELECT count(*) FROM source_minus_business) +
+   (SELECT count(*) FROM business_minus_source))::bigint AS difference_rows,
+  (SELECT count(*) FROM business_rows WHERE tenant_id IS DISTINCT FROM %s)::bigint AS cross_tenant_rows,
+  (SELECT count(*) FROM business_rows WHERE init IS TRUE)::bigint AS flagged_default_rows,
+  (SELECT count(*) FROM business_rows
+    WHERE init IS TRUE AND deleted_at IS NULL AND status = 1)::bigint AS enabled_default_rows,
+  (SELECT count(*) FROM business_rows
+    WHERE init IS TRUE AND (deleted_at IS NOT NULL OR status IS DISTINCT FROM 1))::bigint AS invalid_default_rows,
+  (SELECT count(*) FROM (
+     SELECT name FROM source_rows
+     WHERE deleted_at IS NULL
+     GROUP BY name HAVING count(*) > 1
+   ) AS duplicate_active_names)::bigint AS duplicate_active_name_groups,
+  (SELECT count(*) FROM %s)::bigint AS public_orders_rows,
+  (SELECT count(*) FROM %s)::bigint AS business_orders_rows,
+  (SELECT count(*) FROM %s)::bigint AS public_order_goods_rows,
+  (SELECT count(*) FROM %s)::bigint AS business_order_goods_rows`,
+		projectionForAlias("source", columns),
+		qualified(stage.LegacySchema, "member_levels"),
+		quoteIdentifier("tenant_id"),
+		quoteLiteral(legacyTenantID),
+		projectionForAlias("business", columns),
+		qualified(schemas.MallBusiness, "member_levels"),
+		columnReferences("source_rows", columns),
+		columnReferences("business_rows", columns),
+		columnReferences("business_rows", columns),
+		columnReferences("source_rows", columns),
+		quoteLiteral(legacyTenantID),
+		qualified(stage.LegacySchema, "orders"),
+		qualified(schemas.MallBusiness, "orders"),
+		qualified(stage.LegacySchema, "order_goods"),
+		qualified(schemas.MallBusiness, "order_goods"),
+	)
+	return Batch{Name: "member-levels-projection-audit", Statements: []Statement{
+		reconcileManagedView(
+			schemas.MallBusiness,
+			memberLevelsProjectionAuditView,
+			selectSQL,
+			roles.MallCompatibilityOwner,
+			roles.MallRuntime,
+		),
+	}}
+}
+
+func projectionForAlias(alias string, columns []string) string {
+	projection := make([]string, 0, len(columns))
+	for _, column := range columns {
+		projection = append(projection, fmt.Sprintf(
+			"%s.%s AS %s",
+			quoteIdentifier(alias),
+			quoteIdentifier(column),
+			quoteIdentifier(column),
+		))
+	}
+	return strings.Join(projection, ", ")
+}
+
+func columnReferences(alias string, columns []string) string {
+	references := make([]string, 0, len(columns))
+	for _, column := range columns {
+		references = append(references, quoteIdentifier(alias)+"."+quoteIdentifier(column))
+	}
+	return strings.Join(references, ", ")
 }
 
 func reconcileManagedView(schema, relation, selectSQL, owner, runtime string) Statement {
@@ -2058,14 +2154,27 @@ func buildRuntimeGrantsBatch(schemas stage.Schemas, roles stage.Roles) Batch {
 	// validates it without issuing catalog writes. This terminal batch is
 	// assertions only; it must not repeat 51 semantically redundant GRANTs.
 	tenantReadOnlyObjects := []string{tenantSharedResource + ":v"}
-	mallReadOnlyObjects := make([]string, 0, len(mallLegacyViews)+len(mallSnapshots)+1)
+	mallReadOnlyObjects := make([]string, 0, len(mallLegacyViews)+len(mallSnapshots)+3)
 	for _, name := range legacyViewNames() {
 		mallReadOnlyObjects = append(mallReadOnlyObjects, name+":v")
 	}
 	for _, name := range snapshotNames() {
 		mallReadOnlyObjects = append(mallReadOnlyObjects, name+":r")
 	}
-	mallReadOnlyObjects = append(mallReadOnlyObjects, snapshotAuditTable+":r")
+	mallReadOnlyObjects = append(mallReadOnlyObjects,
+		mallSettingsPrivateView+":v",
+		memberLevelsProjectionAuditView+":v",
+		snapshotAuditTable+":r",
+	)
+	mallCompatibilityRelations := append(append(legacyViewNames(), snapshotNames()...),
+		mallSettingsPrivateView,
+		memberLevelsProjectionAuditView,
+		snapshotAuditTable,
+	)
+	mallRuntimeRelations := append(append(legacyViewNames(), snapshotNames()...),
+		mallSettingsPrivateView,
+		memberLevelsProjectionAuditView,
+	)
 	statements := []Statement{
 		validateCoreSchemaEmpty(schemas.TenantCore),
 		validateCoreSchemaEmpty(schemas.MallCore),
@@ -2080,13 +2189,13 @@ func buildRuntimeGrantsBatch(schemas stage.Schemas, roles stage.Roles) Batch {
 		validateCompatibilityOwnerRealm(
 			roles.MallCompatibilityOwner,
 			schemas.MallBusiness,
-			append(append(legacyViewNames(), snapshotNames()...), snapshotAuditTable),
+			mallCompatibilityRelations,
 			mallCompatibilitySourceNames(),
 		),
 		validateApplicationRoleRealm(roles.TenantMigrator, true, schemas.TenantCore, schemas.TenantShared, nil),
 		validateApplicationRoleRealm(roles.TenantRuntime, false, schemas.TenantCore, schemas.TenantShared, []string{tenantSharedResource}),
 		validateApplicationRoleRealm(roles.MallMigrator, true, schemas.MallCore, schemas.MallBusiness, nil),
-		validateApplicationRoleRealm(roles.MallRuntime, false, schemas.MallCore, schemas.MallBusiness, append(legacyViewNames(), snapshotNames()...)),
+		validateApplicationRoleRealm(roles.MallRuntime, false, schemas.MallCore, schemas.MallBusiness, mallRuntimeRelations),
 	}
 	statements = append(statements,
 		validateManagedRoleACLs(
@@ -2106,8 +2215,8 @@ func buildRuntimeGrantsBatch(schemas stage.Schemas, roles stage.Roles) Batch {
 			roles.MallCompatibilityOwner,
 			schemas.MallCore,
 			schemas.MallBusiness,
-			append(append(legacyViewNames(), snapshotNames()...), snapshotAuditTable),
-			append(legacyViewNames(), snapshotNames()...),
+			mallCompatibilityRelations,
+			mallRuntimeRelations,
 		),
 		validateManagedSchemaACL(schemas.TenantCore, roles.TenantMigrator, roles.TenantRuntime),
 		validateManagedSchemaACL(schemas.MallCore, roles.MallMigrator, roles.MallRuntime),

@@ -2,14 +2,13 @@
 
 Last verified: 2026-09-01
 
-Current working-tree note: development has continued after the latest verified
-Revision C evidence. The reconciliation-secret concurrency hardening and the
-Mall Settings vertical slice are source-complete but intentionally not covered
-by the deferred formal suite, production build, CI or isolated deployment. A
-bounded remote local-process preview compiled and started the Mall backend and
-Admin Web and applied only the demo-SQLite authorization migration. It remains
-unpushed and is not system evidence. All later verification claims in this
-document apply to their named revision, not to these current changes.
+Current release-candidate note: development has continued after the latest
+verified Revision C evidence. The reconciliation-secret hardening, Mall
+Settings and Member Levels slices passed the complete remote Go suites, vet,
+frontend tests/lint/build, strict MSS checks and both final Hosts' MSS v1.3.7
+`verify --all` gates. Immutable-image CI, isolated reconciliation, deployment
+and browser acceptance have not yet executed for this candidate. All earlier
+environment claims in this document apply only to their named revision.
 
 ## Confirmed decisions
 
@@ -129,11 +128,17 @@ document apply to their named revision, not to these current changes.
   old `system_configs.appConfig` merge preservation, independent MSS
   read/update permissions, an MSS-style focused page and complete Chinese and
   English messages. It deliberately excludes raw metadata, secrets, payment,
-  logistics, storefront and native-App settings. A local-process remote preview
-  starts successfully with the repository demo SQLite, but the source has not
-  yet completed the deferred formal tests, production build, isolated
-  migration, deployment or acceptance; see
+  logistics, storefront and native-App settings. Its source tests, production
+  build and MSS v1.3.7 verification pass remotely; isolated reconciliation,
+  deployment and acceptance remain open. The cluster manifest keeps writes
+  disabled; see
   `docs/project/mall-settings-development.md`.
+- A dedicated Member Levels source slice with fixed tenant/schema binding,
+  strict DTOs, action-level permissions, optimistic revisions, default-level
+  integrity reporting and preservation of unowned legacy policy columns. Its
+  source tests and production build pass remotely, while the cluster release
+  remains read-only and its four-row projection verifier has not yet run; see
+  `docs/project/member-levels-development.md`.
 - A repository Skill and contract tests that keep the target table ownership,
   50/one source catalogs, acceptance matrix, MCP registration and
   project-memory source paths in sync with code.
@@ -203,10 +208,10 @@ document apply to their named revision, not to these current changes.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
-- Validation and rollout of the new Mall Settings source slice. Its four safe
-  fields are implemented, but business switches, credential rotation,
-  PostgreSQL/SQLite integration evidence, permission-matrix evidence and
-  isolated browser acceptance remain open; `CONFIG-001` is not closed.
+- Isolated rollout and browser acceptance of the validated Mall Settings and
+  Member Levels source slices. PostgreSQL projection evidence, writable
+  cutover semantics, business switches and credential rotation remain open;
+  `CONFIG-001` and `MEMBER-001` are not closed.
 - Applying and verifying the product/logistics ownership migrations in an
   isolated development environment, including per-tenant data conversion,
   menu/policy results, row counts, hashes and relationship checks. The source
@@ -232,19 +237,27 @@ document apply to their named revision, not to these current changes.
 
 ## Current development sequence and later acceptance
 
-Continue implementing the domain slices without claiming test or deployment
-evidence. The next unblocked work after Mall Settings is control/IAM and member
-management; payment writes wait for DEC-0008 approval, and product/logistics
-writes wait for the open CL review items. After the planned business source is
-complete, run the deferred unit/integration suite, publish immutable images,
-execute the reconciliation-secret API-server dry-run and the subsequent exact
-isolated gates, then deploy only to `mss-shop-dev` for disposable-Pod system
-tests and in-app-browser acceptance. The original development environment and
-production remain unchanged.
+The current source gates are complete. Publish immutable images, execute the
+reconciliation-secret API-server dry-run and the subsequent exact isolated
+gates, then deploy only to `mss-shop-dev` for disposable-Pod system tests and
+in-app-browser acceptance. Continue later domain work without treating these
+two read-only slices as full business restoration. Payment writes wait for
+DEC-0008 approval, and product/logistics writes wait for the open CL review
+items. The original development environment and production remain unchanged.
 
 ## Verification evidence
 
 Verification evidence recorded on 2026-09-01:
+
+- The current release candidate passed `GOWORK=off GOMAXPROCS=2 go test -p=1
+  ./...` and `go vet -p=1 ./...` independently at the root and both final
+  Hosts. Root, Tenant and Mall Admin Web tests/lint/production builds passed on
+  Node 24.19.0 and pnpm 10.34.5. Tenant and Mall each passed all ten MSS v1.3.7
+  `verify --all` checks. Mall ran 16 files / 50 tests and built at 913.92 KiB
+  against its reviewed 930 KiB total compressed-JavaScript budget while the
+  default entry and largest-async-chunk limits remained unchanged. Project
+  memory, boundaries and contract checks also passed. This is source evidence,
+  not immutable-image, database, Kubernetes or browser evidence.
 
 - `GOTOOLCHAIN=go1.26.6 mss doctor --strict` reported ready with exact MSS,
   Go, Node and pnpm versions.
@@ -407,7 +420,7 @@ Verification evidence recorded on 2026-09-01:
   and focused race checks; its tests proved 43-table completeness, ten-row
   idempotent seeding, readiness and rejection of DSNs, escaped paths, symlinks,
   non-SQLite files and incompatible existing relations. The expanded 50-table
-  fixture requires post-change validation.
+  fixture is included in the current passing Mall Host suite.
 - The mall compatibility UI passed the bounded in-app-browser smoke review in
   `docs/acceptance/mall-local-browser-acceptance.md`. A fresh review-time tab
   rendered the bilingual authorized menu and two-row display-category list

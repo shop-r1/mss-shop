@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ type Repository struct {
 	database *gorm.DB
 	binding  fixedbinding.Binding
 	table    string
+	writable bool
 }
 
 func NewRepository(database *gorm.DB, binding fixedbinding.Binding) (*Repository, error) {
@@ -46,10 +48,15 @@ func NewRepository(database *gorm.DB, binding fixedbinding.Binding) (*Repository
 	// Metadata can contain historical credentials. Suppress SQL/value logging
 	// for every operation that reads or rewrites the legacy JSON object.
 	session := database.Session(&gorm.Session{Logger: logger.Discard})
+	table, writable, err := systemConfigsRelation(binding, database.Dialector.Name())
+	if err != nil {
+		return nil, err
+	}
 	return &Repository{
 		database: session,
 		binding:  binding,
-		table:    qualifiedSystemConfigsTable(binding),
+		table:    table,
+		writable: writable,
 	}, nil
 }
 
@@ -76,6 +83,9 @@ func (repository *Repository) GetGeneral(ctx context.Context) (GeneralSettings, 
 // existing active row is updated; when none exists a fresh row is created and
 // every historical soft-deleted row remains untouched.
 func (repository *Repository) PutGeneral(ctx context.Context, settings GeneralSettings) (GeneralSettings, error) {
+	if repository == nil || !repository.supportsUpdate() {
+		return GeneralSettings{}, ErrMutationDisabled
+	}
 	if repository == nil || repository.database == nil || ctx == nil {
 		return GeneralSettings{}, ErrPersistence
 	}
@@ -141,7 +151,7 @@ func (repository *Repository) PutGeneral(ctx context.Context, settings GeneralSe
 		if err != nil {
 			return err
 		}
-		if persisted != settings {
+		if !sameGeneralSettingsValues(persisted, settings) {
 			return ErrPersistence
 		}
 		return nil
@@ -153,6 +163,13 @@ func (repository *Repository) PutGeneral(ctx context.Context, settings GeneralSe
 		return GeneralSettings{}, ErrPersistence
 	}
 	return persisted, nil
+}
+
+func sameGeneralSettingsValues(left, right GeneralSettings) bool {
+	return left.MallName == right.MallName &&
+		left.OrderPrefix == right.OrderPrefix &&
+		left.DefaultSenderName == right.DefaultSenderName &&
+		left.DefaultSenderPhone == right.DefaultSenderPhone
 }
 
 func (repository *Repository) findRows(ctx context.Context, database *gorm.DB, lock bool) ([]systemConfigRow, error) {
@@ -193,8 +210,32 @@ func (repository *Repository) lockConfiguration(tx *gorm.DB) error {
 	}
 }
 
-func qualifiedSystemConfigsTable(binding fixedbinding.Binding) string {
-	return "\"" + binding.BusinessSchema + "\".\"system_configs\""
+func (repository *Repository) supportsUpdate() bool {
+	return repository != nil && repository.writable
+}
+
+func systemConfigsRelation(binding fixedbinding.Binding, dialect string) (string, bool, error) {
+	switch dialect {
+	case "postgres":
+		// The reconciler-owned private view is tenant/name filtered and grants
+		// runtime SELECT only. A future writable projection requires its own
+		// reviewed cutover before this flag can become true.
+		return qualifiedRelation(binding.BusinessSchema, postgresPrivateRelation), false, nil
+	case "sqlite":
+		// The repository-owned demo database retains the historical table so
+		// local compatibility tests can explicitly exercise merge semantics.
+		return qualifiedRelation(binding.BusinessSchema, "system_configs"), true, nil
+	default:
+		return "", false, ErrSchemaNotReady
+	}
+}
+
+func qualifiedRelation(schema, relation string) string {
+	// fixedbinding validates the schema identifier and relation is compiled.
+	// Pass the dotted name without pre-quoting so GORM quotes each identifier
+	// segment. Supplying embedded quotes makes GORM quote those quote bytes and
+	// addresses a non-existent table named `"schema"."relation"`.
+	return schema + "." + relation
 }
 
 func decodeGeneralSettings(metadata []byte) (GeneralSettings, error) {
@@ -245,11 +286,39 @@ func mergeGeneralSettings(metadata []byte, settings GeneralSettings) ([]byte, er
 		}
 		object[value.mapping.MetadataKey] = json.RawMessage(encoded)
 	}
-	encoded, err := json.Marshal(object)
-	if err != nil {
-		return nil, ErrLegacyMetadata
+	return encodeMetadataObject(object)
+}
+
+// encodeMetadataObject deliberately appends each already-validated RawMessage
+// without asking encoding/json to compact or otherwise rewrite unknown nested
+// values. Key order is deterministic, while unapproved value bytes—including
+// secret-bearing objects—remain exactly as decoded from the legacy document.
+func encodeMetadataObject(object map[string]json.RawMessage) ([]byte, error) {
+	keys := make([]string, 0, len(object))
+	for key := range object {
+		keys = append(keys, key)
 	}
-	return encoded, nil
+	sort.Strings(keys)
+	buffer := bytes.NewBuffer(make([]byte, 0, len(keys)*32))
+	buffer.WriteByte('{')
+	for index, key := range keys {
+		raw := object[key]
+		if len(raw) == 0 || !json.Valid(raw) {
+			return nil, ErrLegacyMetadata
+		}
+		encodedKey, err := json.Marshal(key)
+		if err != nil {
+			return nil, ErrLegacyMetadata
+		}
+		if index != 0 {
+			buffer.WriteByte(',')
+		}
+		buffer.Write(encodedKey)
+		buffer.WriteByte(':')
+		buffer.Write(raw)
+	}
+	buffer.WriteByte('}')
+	return buffer.Bytes(), nil
 }
 
 func decodeMetadataObject(metadata []byte) (map[string]json.RawMessage, error) {
@@ -319,6 +388,7 @@ func newLegacyID() (string, error) {
 
 func isRepositoryError(err error) bool {
 	return errors.Is(err, ErrConflict) ||
+		errors.Is(err, ErrMutationDisabled) ||
 		errors.Is(err, ErrSchemaNotReady) ||
 		errors.Is(err, ErrPersistence) ||
 		errors.Is(err, ErrLegacyMetadata)

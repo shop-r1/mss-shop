@@ -1,0 +1,175 @@
+apiVersion: mss.io/v1alpha1
+kind: Feature
+metadata:
+  name: member-levels
+  displayName: Member levels
+  description: Restore tenant-owned member level administration on the legacy member_levels table through a typed MSS workflow.
+  owner: product-engineering
+spec:
+  problem: The legacy member-level endpoint accepts broad model writes and arbitrary PATCH maps, can lose the only default level, and can overwrite payment policy data owned by checkout. The replacement must preserve the old table while tightening the workflow around one startup-bound tenant.
+  goals:
+    - List, inspect, create, rename, price, enable, disable, set the default and safely delete member levels through a focused Admin page.
+    - Keep the legacy member_levels row authoritative and preserve has_market, change_courier and payment_ids unless their owning domain explicitly changes them.
+    - Serialize tenant-level writes, reject stale revisions and keep exactly one enabled default after a set-default command.
+  nonGoals:
+    - Do not expose or edit raw payment IDs, marketplace entitlement or courier-selection entitlement.
+    - Do not backfill members, recalculate historical orders or rewrite existing goods prices when a discount changes.
+    - Do not enable mutation on the generic legacy member_levels resource.
+  actors:
+    - id: mall-administrator
+      displayName: Mall administrator
+      description: Maintains the member-level catalogue for the one mall bound to this runtime.
+  modules:
+    - name: memberlevels
+      kind: infrastructure
+      operation: create
+      description: Handwritten legacy-compatible business workflow hosted by the generated MSS Mall Admin application.
+  requirements:
+    - id: typed-member-level-catalogue
+      title: Typed member-level catalogue
+      description: The dedicated API and MSS-style page expose only the reviewed member-level fields and explicit actions.
+      priority: must
+      actor: mall-administrator
+      module: memberlevels
+      permission: member-levels:list
+      rules:
+        - Responses expose id, name, discountPercent, status, isDefault, timestamps and an opaque revision only.
+        - payment_ids, has_market, change_courier, tenant_id and deleted_at never enter the public DTO or frontend state.
+        - IDs remain opaque legacy-safe strings; new IDs are collision-checked 18-digit cryptographic values.
+        - Names are non-empty valid UTF-8 up to 100 bytes and unique among active rows for the fixed tenant.
+        - Discount percentages use decimal strings with at most two fractional digits and remain between zero and one hundred.
+    - id: safe-level-mutations
+      title: Preserve legacy policy fields
+      description: Every write is a column-level transaction that retains unowned legacy columns byte-for-byte.
+      priority: must
+      actor: mall-administrator
+      module: memberlevels
+      permission: member-levels:update
+      rules:
+        - Update changes only name, ratio, status and updated_at after matching the opaque revision.
+        - The active default level cannot be disabled or deleted.
+        - Creation copies raw payment_ids from an explicitly selected active same-tenant level, or from the unique active enabled default when no source is supplied.
+        - Creation fails closed when no unambiguous payment-policy source exists; it never writes a guessed, NULL or silently empty policy.
+        - has_market and change_courier start disabled for a new level and existing values are never modified by this workflow.
+    - id: transactional-default
+      title: Transactional default command
+      description: Setting a default is an idempotent command protected by one tenant aggregate lock.
+      priority: must
+      actor: mall-administrator
+      module: memberlevels
+      permission: member-levels:set-default
+      rules:
+        - The target belongs to the fixed tenant, is active and is enabled.
+        - Clearing other defaults and setting the target happen in one database transaction.
+        - Historical zero-default, multiple-default and disabled-flagged-default states remain readable and can be repaired by choosing an enabled target through the command.
+        - The list response separately reports flaggedDefaultCount, enabledDefaultCount and invalidDefaultCount so the Admin page cannot mask disabled or unknown flagged defaults.
+    - id: referenced-level-delete
+      title: Reject referenced deletes
+      description: Soft deletion is allowed only for a non-default level with no active business references.
+      priority: must
+      actor: mall-administrator
+      module: memberlevels
+      permission: member-levels:delete
+      rules:
+        - Active members, activities, coupon templates and active goods member-level price entries are checked with exact, tenant-scoped matching.
+        - A conflict identifies reference categories and counts without returning unrelated row data.
+        - The row is soft-deleted with a revision precondition; owned and unowned legacy values remain physically preserved.
+    - id: member-level-authorization
+      title: Enforce action-level authorization
+      description: Every route requires both its exact MSS component permission and API policy.
+      priority: must
+      actor: mall-administrator
+      module: memberlevels
+      permission: member-levels:read
+      rules:
+        - Authentication and authorization run before request application or legacy repository access.
+        - A forward-only migration projects the menu, hidden action components, API permissions and default admin policies without altering member_levels.
+        - Readiness proves the fixed binding, authorization projection and exact legacy table/reference fingerprint without blocking on repairable historical data.
+  constraints:
+    - id: fixed-binding
+      type: security
+      statement: Tenant and schema identity are startup configuration and never HTTP input.
+    - id: payment-policy-isolation
+      type: security
+      statement: Raw payment policy data is copied only inside the database transaction and is never returned, logged or re-encoded.
+    - id: legacy-source-of-truth
+      type: compatibility
+      statement: The legacy member_levels table remains authoritative; no replacement table or permanent dual write is introduced.
+    - id: generic-compatibility-remains-read-only
+      type: compatibility
+      statement: The generic legacy member_levels capability remains read-only while this dedicated workflow owns reviewed writes.
+    - id: isolated-mutation-cutover
+      type: operations
+      statement: Dedicated mutations are read-only when R1SHOP_MEMBER_LEVELS_MUTATION_MODE is absent or unrecognized; create, update and set-default require isolated-cutover after the old member-level writer is stopped, while delete requires isolated-cutover-all-reference-writers-stopped until shared locking is implemented.
+  acceptance:
+    - id: member-level-contract-tests
+      requirement: typed-member-level-catalogue
+      statement: Contract tests reject missing, extra, wrongly typed and unowned fields and prove bilingual page states.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/memberlevels
+        - type: command
+          value: pnpm test -- member-levels
+    - id: mutation-preservation-tests
+      requirement: safe-level-mutations
+      statement: SQLite and PostgreSQL fixtures prove fixed scope, stale-write rejection, name serialization and byte-for-byte preservation of unowned columns.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/memberlevels
+    - id: default-and-reference-tests
+      requirement: transactional-default
+      statement: Concurrent default repair and exact reference fixtures prove one-default postconditions and fail-closed deletion.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/memberlevels
+    - id: reference-delete-tests
+      requirement: referenced-level-delete
+      statement: Exact tenant-scoped reference fixtures prove that active business references and the active default block deletion without exposing unrelated row data.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/memberlevels
+    - id: member-level-permission-matrix
+      requirement: member-level-authorization
+      statement: Root, allowed role, denied role, missing identity and forged-route cases prove backend policy enforcement.
+      level: integration
+      phase: checkpoint
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/memberlevels
+  risks:
+    - id: legacy-writer-bypass
+      description: The former service does not honor the new advisory lock and could race a new write during cutover.
+      severity: high
+      mitigation: Keep all mutations fail-closed by default and enable isolated-cutover mode only after old writes to member_levels are stopped; the stronger delete mode also asserts that all reference writers are stopped.
+    - id: reference-delete-race
+      description: Member, promotion and catalogue writers do not yet share the member-level aggregate lock, so a new reference could race the delete precondition.
+      severity: high
+      mitigation: Keep delete unavailable in ordinary isolated-cutover mode; enable its stronger runtime mode only while every reference writer is stopped, then replace the operational gate with a shared database locking protocol.
+    - id: payment-policy-loss
+      description: A newly created level without compatible payment IDs can make checkout unusable.
+      severity: critical
+      mitigation: Copy the raw policy from an active same-tenant source or reject creation; never synthesize an empty policy.
+    - id: pricing-without-recalculation
+      description: Operators may expect a ratio change to rewrite historical prices or orders.
+      severity: medium
+      mitigation: State clearly that the value is a forward pricing input and complete pricing-flow integration before acceptance.
+  validation:
+    changed: mss verify --changed
+    all: mss verify --all
+  rollout:
+    strategy: phased
+    migration: Apply only the MSS authorization projection, then exercise writes against the isolated development schema after all planned development is complete.
+    rollback: Remove the dedicated route and restore the previous runtime; the legacy rows and unowned fields remain compatible with the old service.

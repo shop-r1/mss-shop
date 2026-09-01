@@ -264,8 +264,11 @@ old data path is a constrained, read-only import from
 database credential and GHCR pull Secret. Old Redis is not shared. The
 one-time importer persists a receipt-bound marker; only after a disposable Pod
 independently proves that marker and zero target rows in `orders` and
-`order_goods` may application/bootstrap Secrets, the reconciler and the eight
-Admin runtime objects be staged. Production is outside this workflow. See
+`order_goods` may application/bootstrap Secrets and the reconciler be staged.
+A same-revision projection verifier must then prove the fixed four-row Member
+Levels slice, default integrity, zero order rows and absence of runtime source
+privileges before the eight Admin runtime objects. Production is outside this
+workflow. See
 [`remote-development-and-dev-acceptance.md`](../runbooks/remote-development-and-dev-acceptance.md).
 
 This remains the target delivery topology rather than completed runtime
@@ -276,8 +279,9 @@ attempts failed before opening the target transaction; the third completed one
 bounded snapshot import and persisted its canonical receipt. A subsequent
 revision-B disposable verifier independently proved the 51-table receipt and
 zero target rows in `orders` and `order_goods`. Reconciliation Secrets, the
-reconciler, Admin runtime deployment, complete Kubernetes system acceptance and
-isolated browser acceptance remain pending. The original `r1shop-dev` safe
+reconciler, Member Levels projection verification, Admin runtime deployment,
+complete Kubernetes system acceptance and isolated browser acceptance remain
+pending. The original `r1shop-dev` safe
 metadata fingerprint is unchanged, and the business matrix is still 0/31.
 
 ## Mobile boundary

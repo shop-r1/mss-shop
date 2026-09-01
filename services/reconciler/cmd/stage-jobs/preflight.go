@@ -192,11 +192,11 @@ func desiredBindings(desired *batchv1.Job, mode jobMode, receipt string) (string
 	if !validDigest(digest) {
 		return "", "", errors.New("isolated Job image lacks an exact nonzero digest")
 	}
-	if (mode == modeReconciler || mode == modeVerifier) && (!validReceipt(receipt) || desired.Annotations[receiptKey] != receipt ||
+	if (mode == modeReconciler || mode == modeVerifier || mode == modeProjection) && (!validReceipt(receipt) || desired.Annotations[receiptKey] != receipt ||
 		desired.Spec.Template.Annotations[receiptKey] != receipt) {
 		return "", "", errors.New("receipt-bound Job lacks its exact receipt binding")
 	}
-	if (mode == modeReadiness || mode == modeVerifier) && desired.Annotations[imageDigestKey] != digest {
+	if (mode == modeReadiness || mode == modeVerifier || mode == modeProjection) && desired.Annotations[imageDigestKey] != digest {
 		return "", "", errors.New("verification Job lacks its exact image digest annotation")
 	}
 	return revision, digest, nil
@@ -244,13 +244,18 @@ func preflightAll(
 	if err := validateRequiredSecrets(ctx, client, mode, receipt); err != nil {
 		return preflightState{}, err
 	}
-	if mode == modeImporter || mode == modeReadiness || mode == modeVerifier {
+	if mode == modeImporter || mode == modeReadiness || mode == modeVerifier || mode == modeProjection {
 		if err := validateImporterTarget(ctx, client); err != nil {
 			return preflightState{}, err
 		}
 	}
 	if mode == modeReadiness {
 		if err := validateReadinessRedisTarget(ctx, client); err != nil {
+			return preflightState{}, err
+		}
+	}
+	if mode == modeProjection {
+		if err := validateProjectionReconcilerPrerequisite(ctx, client, desired, receipt); err != nil {
 			return preflightState{}, err
 		}
 	}
@@ -346,6 +351,100 @@ func validateGlobalJobIdentities(items []batchv1.Job, desired *batchv1.Job) erro
 	return nil
 }
 
+// validateProjectionReconcilerPrerequisite proves that the audit view was
+// reconciled by the exact same clean revision, receipt and reconciler image
+// digest that the projection verifier will report. The prerequisite is
+// immutable and terminal; no workload logs or Secret values are inspected.
+func validateProjectionReconcilerPrerequisite(
+	ctx context.Context,
+	client kubernetes.Interface,
+	desired *batchv1.Job,
+	receipt string,
+) error {
+	revision, digest, err := desiredBindings(desired, modeProjection, receipt)
+	if err != nil {
+		return err
+	}
+	rule, err := ruleFor(modeReconciler, revision)
+	if err != nil {
+		return err
+	}
+	observed, err := client.BatchV1().Jobs(stage.Namespace).Get(ctx, rule.name, metav1.GetOptions{})
+	if err != nil {
+		return errors.New("read same-revision reconciler Job prerequisite failed")
+	}
+	annotations := desiredJobAnnotations(rule, revision, digest, receipt, modeReconciler)
+	if observed.Namespace != stage.Namespace || observed.Name != rule.name || observed.UID == "" ||
+		observed.ResourceVersion == "" || observed.DeletionTimestamp != nil ||
+		len(observed.OwnerReferences) != 0 || len(observed.Finalizers) != 0 ||
+		!reflect.DeepEqual(observed.Labels, desiredJobLabels(rule)) ||
+		!safeJobAnnotations(observed, annotations) || !completedSuccessfully(observed) {
+		return errors.New("same-revision reconciler Job is not the exact successful prerequisite")
+	}
+
+	// Convert only reviewed API-server defaults back to their manifest form,
+	// then reuse the full desired-Job validator. Any unreviewed server-side or
+	// caller-supplied field remains and is rejected.
+	candidate := observed.DeepCopy()
+	uid := candidate.UID
+	if err := stripGeneratedJobSelector(candidate, uid); err != nil {
+		return errors.New("same-revision reconciler Job has an incompatible generated identity")
+	}
+	if err := validateReviewedJobServerDefaults(candidate); err != nil {
+		return errors.New("same-revision reconciler Job has unreviewed server defaults")
+	}
+	candidate.Status = batchv1.JobStatus{}
+	cleanObjectMeta(&candidate.ObjectMeta)
+	cleanObjectMeta(&candidate.Spec.Template.ObjectMeta)
+	candidate.APIVersion, candidate.Kind = "batch/v1", "Job"
+	candidate.Annotations = annotations
+	candidate.Spec.CompletionMode = nil
+	candidate.Spec.Suspend = nil
+	candidate.Spec.PodReplacementPolicy = nil
+	candidate.Spec.Template.Spec.DNSPolicy = ""
+	candidate.Spec.Template.Spec.SchedulerName = ""
+	if candidate.Spec.Template.Spec.ServiceAccountName == "default" {
+		candidate.Spec.Template.Spec.ServiceAccountName = ""
+	}
+	if candidate.Spec.Template.Spec.DeprecatedServiceAccount == "default" {
+		candidate.Spec.Template.Spec.DeprecatedServiceAccount = ""
+	}
+	for containerIndex := range candidate.Spec.Template.Spec.Containers {
+		for envIndex := range candidate.Spec.Template.Spec.Containers[containerIndex].Env {
+			valueFrom := candidate.Spec.Template.Spec.Containers[containerIndex].Env[envIndex].ValueFrom
+			if valueFrom != nil && valueFrom.FieldRef != nil {
+				if valueFrom.FieldRef.APIVersion != "" && valueFrom.FieldRef.APIVersion != "v1" {
+					return errors.New("same-revision reconciler Job has an unreviewed field reference")
+				}
+				valueFrom.FieldRef.APIVersion = ""
+			}
+		}
+	}
+	if err := validateDesiredJob(candidate, modeReconciler, revision, digest, receipt); err != nil {
+		return errors.New("same-revision reconciler Job differs from the reviewed prerequisite")
+	}
+	return nil
+}
+
+func completedSuccessfully(job *batchv1.Job) bool {
+	if job == nil || job.Status.Succeeded != 1 || job.Status.Active != 0 || job.Status.CompletionTime == nil {
+		return false
+	}
+	complete := 0
+	for _, condition := range job.Status.Conditions {
+		if condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		if condition.Type == batchv1.JobFailed {
+			return false
+		}
+		if condition.Type == batchv1.JobComplete {
+			complete++
+		}
+	}
+	return complete == 1
+}
+
 func validateTargetNamespace(ctx context.Context, client kubernetes.Interface) error {
 	namespace, err := client.CoreV1().Namespaces().Get(ctx, stage.Namespace, metav1.GetOptions{})
 	if err != nil {
@@ -390,6 +489,8 @@ func validateRequiredSecrets(ctx context.Context, client kubernetes.Interface, m
 		names = append(names, "mss-shop-postgres-auth")
 	} else if mode == modeReconciler {
 		names = append(names, "mss-shop-reconciler-bootstrap")
+	} else if mode == modeProjection {
+		names = append(names, "mss-shop-mall-admin-aussibuy-runtime")
 	} else {
 		return modeError(mode)
 	}
@@ -397,7 +498,7 @@ func validateRequiredSecrets(ctx context.Context, client kubernetes.Interface, m
 	for _, name := range names {
 		secret, err := client.CoreV1().Secrets(stage.Namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
-			return fmt.Errorf("read required immutable Secret %q failed", name)
+			return fmt.Errorf("read required Secret %q failed", name)
 		}
 		if err := validateRequiredSecret(secret, name, receipt); err != nil {
 			return err
@@ -407,6 +508,9 @@ func validateRequiredSecrets(ctx context.Context, client kubernetes.Interface, m
 }
 
 func validateRequiredSecret(secret *corev1.Secret, name, receipt string) error {
+	if name == "mss-shop-mall-admin-aussibuy-runtime" {
+		return validateMallRuntimeSecret(secret)
+	}
 	if secret == nil || secret.Namespace != stage.Namespace || secret.Name != name ||
 		secret.Immutable == nil || !*secret.Immutable || secret.DeletionTimestamp != nil ||
 		len(secret.OwnerReferences) != 0 || len(secret.Finalizers) != 0 ||
@@ -458,6 +562,77 @@ func validateRequiredSecret(secret *corev1.Secret, name, receipt string) error {
 		}
 	default:
 		return errors.New("unapproved isolated Job Secret")
+	}
+	return nil
+}
+
+func validateMallRuntimeSecret(secret *corev1.Secret) error {
+	const name = "mss-shop-mall-admin-aussibuy-runtime"
+	if secret == nil || secret.Namespace != stage.Namespace || secret.Name != name ||
+		secret.Type != corev1.SecretTypeOpaque || secret.Immutable != nil || secret.DeletionTimestamp != nil ||
+		len(secret.OwnerReferences) != 0 || len(secret.Finalizers) != 0 ||
+		!reflect.DeepEqual(secret.Labels, map[string]string{
+			"app.kubernetes.io/name":       "mss-shop-admin",
+			"app.kubernetes.io/component":  "mall-admin",
+			"app.kubernetes.io/part-of":    "mss-shop",
+			"app.kubernetes.io/managed-by": "mss-shop-reconciler",
+		}) {
+		return errors.New("mall runtime Secret lacks its exact reconciler ownership contract")
+	}
+	retired := secret.Annotations["r1shop.io/initial-admin-password-retired"] == "confirmed-password-rotated"
+	wantAnnotations := map[string]string{
+		"r1shop.io/reconciler-binding": stage.Namespace + ":Secret:" + name,
+	}
+	if retired {
+		wantAnnotations["r1shop.io/initial-admin-password-retired"] = "confirmed-password-rotated"
+	}
+	if !reflect.DeepEqual(secret.Annotations, wantAnnotations) {
+		return errors.New("mall runtime Secret lacks its exact reconciler ownership contract")
+	}
+	keys := []string{
+		"auth-key",
+		"database-migrator-dsn",
+		"database-migrator-password",
+		"database-runtime-dsn",
+		"database-runtime-password",
+		"identity-key",
+		"redis-password",
+	}
+	if !retired {
+		keys = append(keys, "initial-admin-password")
+	}
+	if !exactByteKeys(secret.Data, keys) || !allNonempty(secret.Data) ||
+		!safeGeneratedPassword.Match(secret.Data["database-runtime-password"]) ||
+		!safeGeneratedPassword.Match(secret.Data["database-migrator-password"]) ||
+		len(secret.Data["auth-key"]) < 16 || len(secret.Data["identity-key"]) < 16 ||
+		!safeGeneratedPassword.Match(secret.Data["redis-password"]) {
+		return errors.New("mall runtime Secret has an incompatible credential inventory")
+	}
+	return validateMallRuntimeDSN(secret.Data["database-runtime-dsn"], secret.Data["database-runtime-password"])
+}
+
+func validateMallRuntimeDSN(encoded, expectedPassword []byte) error {
+	parsed, err := url.Parse(string(encoded))
+	password, passwordSet := "", false
+	if parsed != nil && parsed.User != nil {
+		password, passwordSet = parsed.User.Password()
+	}
+	query := url.Values{}
+	var queryErr error
+	if parsed != nil {
+		query, queryErr = url.ParseQuery(parsed.RawQuery)
+	}
+	if err != nil || parsed == nil || parsed.Scheme != "postgres" || parsed.Opaque != "" ||
+		parsed.Host != net.JoinHostPort(stage.DatabaseHost, fmt.Sprint(stage.DatabasePort)) ||
+		parsed.Path != "/"+stage.DatabaseName || parsed.Fragment != "" || parsed.User == nil ||
+		parsed.User.Username() != "mss_m_aussibuy_runtime" || !passwordSet || password == "" ||
+		strings.IndexByte(password, 0) >= 0 || queryErr != nil ||
+		subtle.ConstantTimeCompare([]byte(password), expectedPassword) != 1 ||
+		len(query) != 3 || len(query["sslmode"]) != 1 || query.Get("sslmode") != "verify-full" ||
+		len(query["sslrootcert"]) != 1 || query.Get("sslrootcert") != stage.DatabaseCAPath ||
+		len(query["search_path"]) != 1 || query.Get("search_path") != "mss_m_aussibuy_core" ||
+		net.ParseIP(parsed.Hostname()) != nil {
+		return errors.New("mall runtime database endpoint is outside the isolated read-only TLS boundary")
 	}
 	return nil
 }
@@ -966,6 +1141,8 @@ func desiredPodLabelsForJob(job *batchv1.Job) map[string]string {
 	case "mss-shop-import-readiness":
 		role = "isolated-readiness"
 	case "mss-shop-legacy-verifier":
+		role = "legacy-verifier"
+	case "mss-shop-member-levels-projection-verifier":
 		role = "legacy-verifier"
 	}
 	return map[string]string{

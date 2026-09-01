@@ -16,7 +16,7 @@ RUN corepack enable
 COPY web/package.json web/pnpm-lock.yaml web/.npmrc ./
 RUN corepack pnpm@10.34.5 install --frozen-lockfile
 COPY web/ ./
-RUN corepack pnpm@10.34.5 build
+RUN MSS_V6_TOTAL_JS_GZIP_BUDGET_KB=930 corepack pnpm@10.34.5 build
 
 FROM alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 RUN apk add --no-cache ca-certificates tzdata \

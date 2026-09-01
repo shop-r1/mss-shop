@@ -910,6 +910,8 @@ func readTestJobManifest(t *testing.T, mode jobMode) []byte {
 		path = "../../../../deploy/mss-shop-dev/legacy-readiness-job.yaml"
 	case modeVerifier:
 		path = "../../../../deploy/mss-shop-dev/legacy-verifier-job.yaml"
+	case modeProjection:
+		path = "../../../../deploy/mss-shop-dev/member-levels-projection-verifier-job.yaml"
 	default:
 		t.Fatalf("unapproved mode %q", mode)
 	}
@@ -930,7 +932,7 @@ func renderTestJob(t *testing.T, mode jobMode, receipt string) *batchv1.Job {
 }
 
 func testImageRepository(mode jobMode) string {
-	if mode == modeReconciler {
+	if mode == modeReconciler || mode == modeProjection {
 		return "ghcr.io/shop-r1/mss-shop-reconciler"
 	}
 	return "ghcr.io/shop-r1/mss-shop-legacy-importer"

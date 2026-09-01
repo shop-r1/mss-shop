@@ -175,9 +175,12 @@ var mallSnapshots = []snapshotResource{
 }
 
 const (
-	expectedMallViewCount     = 43
-	expectedMallSnapshotCount = 7
-	tenantSharedResource      = "payments"
-	snapshotAuditTable        = "r1_reconcile_snapshot_audit"
-	snapshotPlanVersion       = "legacy-global-snapshot-v4-explicit-ddl"
+	expectedMallViewCount                     = 43
+	expectedMallSnapshotCount                 = 7
+	expectedMemberLevelsProjectionColumnCount = 12
+	tenantSharedResource                      = "payments"
+	mallSettingsPrivateView                   = "r1_mall_settings_system_configs"
+	memberLevelsProjectionAuditView           = "r1_member_levels_projection_audit"
+	snapshotAuditTable                        = "r1_reconcile_snapshot_audit"
+	snapshotPlanVersion                       = "legacy-global-snapshot-v4-explicit-ddl"
 )

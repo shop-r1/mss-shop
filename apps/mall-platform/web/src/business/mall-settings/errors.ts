@@ -33,6 +33,7 @@ const supportedMessageKeys = new Set([
   'mallSettings.errors.conflict',
   'mallSettings.errors.legacyMetadataIncompatible',
   'mallSettings.errors.schemaNotReady',
+  'mallSettings.errors.writeDisabled',
   'mallSettings.errors.internal',
 ]);
 

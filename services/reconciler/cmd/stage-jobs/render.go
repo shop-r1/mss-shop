@@ -93,6 +93,21 @@ func ruleFor(mode jobMode, revision string) (jobRule, error) {
 			receiptSlots:  3,
 			revisionSlots: 4,
 		}, nil
+	case modeProjection:
+		return jobRule{
+			name:          "mss-shop-ml-projection-" + revision,
+			appName:       "mss-shop-member-levels-projection-verifier",
+			repository:    "ghcr.io/shop-r1/mss-shop-reconciler",
+			containerName: "member-levels-projection-verifier",
+			networkRole:   "legacy-verifier",
+			backoff:       0,
+			deadline:      300,
+			cpuLimit:      "200m",
+			memoryLimit:   "128Mi",
+			digestSlots:   3,
+			receiptSlots:  3,
+			revisionSlots: 4,
+		}, nil
 	default:
 		return jobRule{}, modeError(mode)
 	}
@@ -105,7 +120,7 @@ func renderJob(
 ) (*batchv1.Job, error) {
 	if !validRevision(revision) || !validDigest(digest) ||
 		((mode == modeImporter || mode == modeReadiness) && receipt != "") ||
-		((mode == modeReconciler || mode == modeVerifier) && !validReceipt(receipt)) {
+		((mode == modeReconciler || mode == modeVerifier || mode == modeProjection) && !validReceipt(receipt)) {
 		return nil, errors.New("invalid isolated Job render inputs")
 	}
 	rule, err := ruleFor(mode, revision)
@@ -223,10 +238,10 @@ func desiredJobAnnotations(rule jobRule, revision, digest, receipt string, mode 
 		operatorBindingKey: stage.Namespace + ":Job:" + rule.name,
 		revisionKey:        revision,
 	}
-	if mode == modeReadiness || mode == modeVerifier {
+	if mode == modeReadiness || mode == modeVerifier || mode == modeProjection {
 		result[imageDigestKey] = digest
 	}
-	if mode == modeReconciler || mode == modeVerifier {
+	if mode == modeReconciler || mode == modeVerifier || mode == modeProjection {
 		result[receiptKey] = receipt
 	}
 	return result
@@ -241,7 +256,7 @@ func desiredPodLabels(rule jobRule) map[string]string {
 }
 
 func desiredPodAnnotations(mode jobMode, receipt string) map[string]string {
-	if mode == modeReconciler || mode == modeVerifier {
+	if mode == modeReconciler || mode == modeVerifier || mode == modeProjection {
 		return map[string]string{receiptKey: receipt}
 	}
 	return nil
@@ -324,6 +339,12 @@ func validateDesiredPodTemplate(
 			len(container.Args) != 0 || container.TerminationMessagePath != "/dev/termination-log" ||
 			container.TerminationMessagePolicy != corev1.TerminationMessageReadFile {
 			return errors.New("fixed verifier Job contains an unapproved verification command")
+		}
+	case modeProjection:
+		if !reflect.DeepEqual(container.Command, []string{"/usr/local/bin/mss-shop-member-levels-projection-verifier"}) ||
+			len(container.Args) != 0 || container.TerminationMessagePath != "/dev/termination-log" ||
+			container.TerminationMessagePolicy != corev1.TerminationMessageReadFile {
+			return errors.New("fixed projection verifier Job contains an unapproved verification command")
 		}
 	default:
 		return modeError(mode)
@@ -449,6 +470,25 @@ func validateEnvironment(container *corev1.Container, mode jobMode, revision, di
 		}
 		return nil
 	}
+	if mode == modeProjection {
+		wantPlain := map[string]string{
+			"MSS_PROJECTION_POSTGRES_TLS_CA_FILE":     "/etc/mss-shop/postgres-tls/ca.crt",
+			"MSS_PROJECTION_POSTGRES_TLS_SERVER_NAME": "mss-shop-postgres.mss-shop-dev.svc",
+			"MSS_PROJECTION_IMPORT_RECEIPT_SHA256":    receipt,
+			"MSS_IMAGE_REVISION":                      revision,
+			"MSS_IMAGE_DIGEST":                        digest,
+		}
+		wantSecrets := []string{
+			"MSS_PROJECTION_DATABASE_DSN=mss-shop-mall-admin-aussibuy-runtime/database-runtime-dsn",
+		}
+		if !reflect.DeepEqual(plain, wantPlain) || !reflect.DeepEqual(secretRefs, wantSecrets) ||
+			!reflect.DeepEqual(fieldRefs, map[string]string{
+				"POD_NAME": "metadata.name", "POD_NAMESPACE": "metadata.namespace", "POD_UID": "metadata.uid",
+			}) {
+			return errors.New("fixed projection verifier Job escapes the mall runtime read-only PostgreSQL boundary")
+		}
+		return nil
+	}
 	if mode != modeReconciler {
 		return modeError(mode)
 	}
@@ -486,6 +526,7 @@ func validateJobVolumes(pod *corev1.PodSpec, container *corev1.Container, mode j
 		wantMounts = append(wantMounts, "redis-ca=/etc/mss-shop/redis-tls")
 	case modeVerifier:
 		wantMounts = append(wantMounts, "receipt=/evidence")
+	case modeProjection:
 	default:
 		return modeError(mode)
 	}

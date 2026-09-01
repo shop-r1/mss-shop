@@ -1,5 +1,5 @@
 // Command stage-jobs is the trusted render, preflight, and create-only path
-// for the four one-time Jobs in the isolated mss-shop-dev namespace. It never
+// for the five one-time Jobs in the isolated mss-shop-dev namespace. It never
 // accepts an arbitrary manifest and never applies, patches, updates, deletes,
 // or writes outside mss-shop-dev.
 package main
@@ -33,11 +33,13 @@ const (
 	modeReconciler jobMode = "reconciler"
 	modeReadiness  jobMode = "readiness"
 	modeVerifier   jobMode = "verifier"
+	modeProjection jobMode = "projection-verifier"
 
 	importerManifestPath   = "deploy/mss-shop-dev/legacy-import-job.yaml"
 	reconcilerManifestPath = "deploy/mss-shop-dev/reconciler-job.yaml"
 	readinessManifestPath  = "deploy/mss-shop-dev/legacy-readiness-job.yaml"
 	verifierManifestPath   = "deploy/mss-shop-dev/legacy-verifier-job.yaml"
+	projectionManifestPath = "deploy/mss-shop-dev/member-levels-projection-verifier-job.yaml"
 
 	zeroRevision = "0000000000000000000000000000000000000000"
 	zeroDigest   = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
@@ -138,12 +140,12 @@ func parseOptions(arguments []string) (options, error) {
 	flags.SetOutput(io.Discard)
 	var result options
 	var modeText string
-	flags.StringVar(&modeText, "mode", "", "fixed Job mode: readiness, importer, verifier, or reconciler")
+	flags.StringVar(&modeText, "mode", "", "fixed Job mode: readiness, importer, verifier, reconciler, or projection-verifier")
 	flags.StringVar(&result.kubeconfig, "kubeconfig", "", "absolute trusted operator kubeconfig path")
 	flags.StringVar(&result.environment, "environment", "", "required isolated environment confirmation")
 	flags.StringVar(&result.revision, "revision", "", "complete immutable Git revision")
 	flags.StringVar(&result.imageDigest, "image-digest", "", "exact image sha256 digest from the CI receipt")
-	flags.StringVar(&result.importReceiptSHA256, "import-receipt-sha256", "", "verified legacy import receipt SHA-256; verifier and reconciler only")
+	flags.StringVar(&result.importReceiptSHA256, "import-receipt-sha256", "", "verified legacy import receipt SHA-256; verifier, reconciler, and projection-verifier only")
 	flags.StringVar(&result.receiptFile, "receipt-file", "", "absolute canonical committed receipt.json path; verifier only")
 	flags.BoolVar(&result.create, "create", false, "persist only the fully preflighted Job")
 	if err := flags.Parse(arguments); err != nil {
@@ -160,11 +162,11 @@ func parseOptions(arguments []string) (options, error) {
 		(result.importReceiptSHA256 != "" || result.receiptFile != "") {
 		return options{}, errors.New("pre-import Jobs do not accept receipt evidence")
 	}
-	if result.mode == modeReconciler && !validReceipt(result.importReceiptSHA256) {
-		return options{}, errors.New("reconciler Job requires a complete nonzero lowercase import receipt SHA-256")
+	if (result.mode == modeReconciler || result.mode == modeProjection) && !validReceipt(result.importReceiptSHA256) {
+		return options{}, errors.New("receipt-bound Job requires a complete nonzero lowercase import receipt SHA-256")
 	}
-	if result.mode == modeReconciler && result.receiptFile != "" {
-		return options{}, errors.New("reconciler Job does not mount the full import receipt")
+	if (result.mode == modeReconciler || result.mode == modeProjection) && result.receiptFile != "" {
+		return options{}, errors.New("reconciler and projection verifier Jobs do not mount the full import receipt")
 	}
 	if result.mode == modeVerifier && (!validReceipt(result.importReceiptSHA256) ||
 		!filepath.IsAbs(result.receiptFile) || filepath.Clean(result.receiptFile) != result.receiptFile) {
@@ -174,7 +176,8 @@ func parseOptions(arguments []string) (options, error) {
 }
 
 func approvedMode(mode jobMode) bool {
-	return mode == modeReadiness || mode == modeImporter || mode == modeVerifier || mode == modeReconciler
+	return mode == modeReadiness || mode == modeImporter || mode == modeVerifier ||
+		mode == modeReconciler || mode == modeProjection
 }
 
 func manifestPath(mode jobMode) string {
@@ -189,6 +192,9 @@ func manifestPath(mode jobMode) string {
 	}
 	if mode == modeVerifier {
 		return verifierManifestPath
+	}
+	if mode == modeProjection {
+		return projectionManifestPath
 	}
 	return ""
 }

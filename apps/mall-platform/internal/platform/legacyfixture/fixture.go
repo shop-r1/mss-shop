@@ -404,6 +404,24 @@ func demoRows(tenantID string) []demoRow {
 			"updated_at": createdAt, "username": "local-demo-member", "nickname": "本地演示会员",
 			"status": 1, "metadata": `{"fixture":"local-ui"}`,
 		}},
+		{Resource: "member_levels", Values: map[string]any{
+			"id": "910000000000000010", "tenant_id": tenantID, "created_at": createdAt,
+			"updated_at": createdAt, "name": "普通会员", "has_market": false,
+			"change_courier": false, "payment_ids": "local-voucher", "ratio": 0,
+			"init": true, "status": 1,
+		}},
+		{Resource: "member_levels", Values: map[string]any{
+			"id": "910000000000000011", "tenant_id": tenantID, "created_at": createdAt,
+			"updated_at": createdAt, "name": "银卡会员", "has_market": false,
+			"change_courier": false, "payment_ids": "local-voucher", "ratio": 5,
+			"init": false, "status": 1,
+		}},
+		{Resource: "members", Values: map[string]any{
+			"id": "910000000000000012", "tenant_id": tenantID, "created_at": createdAt,
+			"updated_at": createdAt, "level_id": "910000000000000010",
+			"username": "local-level-member", "nickname": "等级关联演示会员",
+			"status": 1, "metadata": `{"fixture":"local-ui"}`,
+		}},
 		{Resource: "shipping_warehouses", Values: map[string]any{
 			"id": "910000000000000007", "tenant_id": tenantID, "created_at": createdAt,
 			"updated_at": createdAt, "name": "本地演示发货仓", "currency": "CNY",
@@ -424,6 +442,12 @@ func demoRows(tenantID string) []demoRow {
 			"tenant_id": tenantID, "goods_id": "910000000000000005",
 			"real_warehouse_id": "910000000000000009", "alias": "本地演示商品",
 			"bar_code": "LOCAL-DEMO-001", "quantity": 20, "created_at": createdAt, "updated_at": createdAt,
+		}},
+		{Resource: "goods_shipping_warehouses", Values: map[string]any{
+			"id": "910000000000000013", "goods_id": "910000000000000005",
+			"warehouse_id":            "910000000000000007",
+			"member_level_price_data": `[{"id":"910000000000000010","price":19.9}]`,
+			"price":                   19.9, "init": true,
 		}},
 	}
 }

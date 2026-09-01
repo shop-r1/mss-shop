@@ -34,7 +34,7 @@ setup. There is no default password.
 Before every pull request, run:
 
 ```shell
-mss verify --all
+MSS_V6_TOTAL_JS_GZIP_BUDGET_KB=930 mss verify --all
 ```
 
 ## Add business capabilities
@@ -87,7 +87,7 @@ mss upgrade admin v1.3.7 --format json
 mss upgrade admin v1.3.7 --apply --yes --format json
 mss upgrade status
 mss doctor --strict
-mss verify --all
+MSS_V6_TOTAL_JS_GZIP_BUDGET_KB=930 mss verify --all
 mss upgrade admin v1.3.7 --format json
 ```
 

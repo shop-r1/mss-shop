@@ -178,10 +178,16 @@ Hook、副作用、后端授权、冲突/幂等以及删除语义。此前对本
 ## 5. 可执行业务验收场景
 
 开发状态说明（2026-09-01）：`CONFIG-001` 的商城名称、存量订单前缀和默认寄件人
-四字段已形成专用源码流程并可在独立 SQLite 开发预览中启动，但尚未完成正式测试、
-生产构建、隔离 PostgreSQL/Kubernetes 迁移、部署或验收；业务开关、密钥轮换和领域
-消费者仍未完成，因此该场景继续保持开放。详见
+四字段专用源码流程已通过远端正式测试、生产构建和 MSS v1.3.7 全量门禁，但尚未
+完成隔离 PostgreSQL reconciliation、部署或验收；业务开关、密钥轮换和领域消费者
+仍未完成，因此该场景继续保持开放。详见
 [`docs/project/mall-settings-development.md`](../project/mall-settings-development.md)。
+
+`MEMBER-001` 的会员等级目录也已通过远端源码门禁。隔离集群的发布姿态默认只读，
+本轮数据测试只比较固定租户 4 条 `member_levels` 存量记录与最终业务 schema 投影，
+不会执行创建、设默认或删除。客户、推荐关系和寄收件人仍未恢复，因此该场景继续
+保持开放。详见
+[`docs/project/member-levels-development.md`](../project/member-levels-development.md)。
 
 | 编号 | 优先级 | 场景 | 操作与验收断言 |
 | --- | --- | --- | --- |

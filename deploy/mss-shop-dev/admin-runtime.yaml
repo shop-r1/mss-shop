@@ -783,6 +783,8 @@ spec:
               value: "518729051064631297"
             - name: R1SHOP_BIZ_SCHEMA
               value: mss_m_aussibuy_biz
+            - name: R1SHOP_MALL_SETTINGS_WRITE_ENABLED
+              value: "false"
           volumeMounts:
             - name: runtime-config
               mountPath: /app/config

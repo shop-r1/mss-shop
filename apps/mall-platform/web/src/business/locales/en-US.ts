@@ -329,6 +329,8 @@ const messages: Record<string, string> = {
   'menu.legacyBusiness': 'Business',
   'menu.mallSettings': 'Mall Settings',
   'menu.legacyBusiness.settings.mallSettings': 'Mall Settings',
+  'menu.memberLevels': 'Member Levels',
+  'menu.legacyBusiness.customers.memberLevels': 'Member Levels',
   'mallSettings.general.title': 'Mall settings',
   'mallSettings.general.description':
     'Manage the reviewed general-setting allow-list for this tenant without exposing raw metadata or secrets.',
@@ -358,7 +360,7 @@ const messages: Record<string, string> = {
   'mallSettings.general.actions.edit': 'Edit',
   'mallSettings.general.feedback.saved': 'General settings saved',
   'mallSettings.general.feedback.savedDescription':
-    'The four allow-listed values were written to this tenant\'s legacy appConfig; every other setting was preserved.',
+    "The four allow-listed values were written to this tenant's legacy appConfig; every other setting was preserved.",
   'mallSettings.general.states.requestFailed':
     'The request could not be completed. Try again later.',
   'mallSettings.general.states.forbidden': 'You do not have permission to view mall settings.',
@@ -366,6 +368,9 @@ const messages: Record<string, string> = {
   'mallSettings.general.states.refreshFailed': 'The displayed settings could not be refreshed',
   'mallSettings.general.states.updateForbidden':
     'You no longer have permission to update mall settings.',
+  'mallSettings.general.states.readOnly': 'Mall settings are read-only',
+  'mallSettings.general.states.readOnlyDescription':
+    'This isolated runtime can safely read the legacy configuration. Updates remain disabled until a reviewed writable cutover.',
   'mallSettings.general.states.saveError': 'Unable to save mall settings',
   'mallSettings.general.states.empty':
     'No general mall settings have been configured for this tenant.',
@@ -377,15 +382,160 @@ const messages: Record<string, string> = {
   'mallSettings.errors.authorizationUnavailable':
     'The authorization service is unavailable. Try again later.',
   'mallSettings.errors.invalidRequest': 'The request is invalid. Check it and try again.',
-  'mallSettings.errors.validationFailed':
-    'The submitted mall settings did not pass validation.',
+  'mallSettings.errors.validationFailed': 'The submitted mall settings did not pass validation.',
   'mallSettings.errors.conflict':
     'The settings changed concurrently or duplicate legacy rows exist. Refresh and try again.',
   'mallSettings.errors.legacyMetadataIncompatible':
     'The legacy appConfig data is incompatible, so the original data was not overwritten.',
-  'mallSettings.errors.schemaNotReady': 'This tenant\'s mall business schema is not ready.',
-  'mallSettings.errors.internal':
-    'The mall-settings service could not complete the request.',
+  'mallSettings.errors.schemaNotReady': "This tenant's mall business schema is not ready.",
+  'mallSettings.errors.writeDisabled':
+    'Mall settings updates are disabled until a reviewed writable cutover.',
+  'mallSettings.errors.internal': 'The mall-settings service could not complete the request.',
+  'memberLevels.title': 'Member Levels',
+  'memberLevels.description':
+    'Manage member pricing discounts, active status, and the default level for this mall.',
+  'memberLevels.list.title': 'Member levels',
+  'memberLevels.fields.id': 'ID',
+  'memberLevels.fields.name': 'Level name',
+  'memberLevels.fields.namePlaceholder': 'Enter a level name',
+  'memberLevels.fields.nameSearch': 'Search by level name',
+  'memberLevels.fields.discountPercent': 'Retail price discount',
+  'memberLevels.fields.discountPercentHelp':
+    'Percentage deducted from the retail base price. Enter 0–100 with up to two decimal places.',
+  'memberLevels.fields.discountPercentPlaceholder': 'For example, 10.00',
+  'memberLevels.fields.status': 'Status',
+  'memberLevels.fields.statusPlaceholder': 'Select a valid status',
+  'memberLevels.fields.isDefault': 'Default level',
+  'memberLevels.fields.createdAt': 'Created at',
+  'memberLevels.fields.updatedAt': 'Updated at',
+  'memberLevels.fields.revision': 'Revision',
+  'memberLevels.values.all': 'All',
+  'memberLevels.values.status.enabled': 'Enabled',
+  'memberLevels.values.status.disabled': 'Disabled',
+  'memberLevels.values.status.unknown': 'Legacy value needs repair',
+  'memberLevels.values.default.yes': 'Default',
+  'memberLevels.values.default.no': 'Not default',
+  'memberLevels.actions.label': 'Actions',
+  'memberLevels.actions.search': 'Search',
+  'memberLevels.actions.reset': 'Reset',
+  'memberLevels.actions.clearFilters': 'Clear filters',
+  'memberLevels.actions.refresh': 'Refresh',
+  'memberLevels.actions.retry': 'Try again',
+  'memberLevels.actions.create': 'Create level',
+  'memberLevels.actions.view': 'View',
+  'memberLevels.actions.edit': 'Edit',
+  'memberLevels.actions.save': 'Save',
+  'memberLevels.actions.cancel': 'Cancel',
+  'memberLevels.actions.setDefault': 'Set default',
+  'memberLevels.actions.delete': 'Delete',
+  'memberLevels.actions.setDefaultDisabledHelp':
+    'Only an enabled level can become the default. Choose another enabled level to repair an invalid default flag.',
+  'memberLevels.actions.deleteDefaultHelp':
+    'Choose another default level before deleting this one.',
+  'memberLevels.pagination.total': '{total} levels',
+  'memberLevels.editor.createTitle': 'Create member level',
+  'memberLevels.editor.editTitle': 'Edit member level',
+  'memberLevels.editor.advancedTitle': 'Advanced compatibility option',
+  'memberLevels.editor.paymentPolicySourceLabel': 'Payment policy source level',
+  'memberLevels.editor.paymentPolicySourcePlaceholder':
+    'Use the enabled default level automatically',
+  'memberLevels.editor.paymentPolicySourceDescription':
+    'Payment policy details remain hidden. By default, the server copies the policy from the one enabled default level.',
+  'memberLevels.editor.paymentPolicySourceHelp':
+    'Select an enabled level from the current list only when a different approved source is required.',
+  'memberLevels.editor.paymentPolicySourceDefaultOption': '{name} (current default)',
+  'memberLevels.editor.defaultStatusHelp':
+    'A default level cannot be disabled in the editor. Set another enabled level as the default first.',
+  'memberLevels.editor.invalidDefaultStatusHelp':
+    'An invalid default flag cannot be enabled through a regular edit. Use Set default for transactional repair.',
+  'memberLevels.confirm.setDefaultTitle': 'Set this as the default member level?',
+  'memberLevels.confirm.setDefaultDescription':
+    '“{name}” will replace the current default in one protected operation.',
+  'memberLevels.confirm.deleteTitle': 'Delete this member level?',
+  'memberLevels.confirm.deleteDescription':
+    '“{name}” can be deleted only when it is not the default and no members still reference it.',
+  'memberLevels.feedback.created': 'Member level created.',
+  'memberLevels.feedback.updated': 'Member level updated.',
+  'memberLevels.feedback.defaultChanged': 'Default member level changed.',
+  'memberLevels.feedback.deleted': 'Member level deleted.',
+  'memberLevels.states.requestFailed': 'The request could not be completed. Try again later.',
+  'memberLevels.states.forbidden': 'You do not have permission to view member levels.',
+  'memberLevels.states.error': 'Unable to load member levels',
+  'memberLevels.states.refreshFailed': 'The displayed member levels could not be refreshed.',
+  'memberLevels.states.notFound': 'The member level was not found or has been deleted.',
+  'memberLevels.states.empty': 'No member levels have been created yet.',
+  'memberLevels.states.filteredEmpty': 'No member levels match the current filters.',
+  'memberLevels.states.unknownRows': 'Some legacy statuses need repair',
+  'memberLevels.states.unknownRowsDescription':
+    '{count} row(s) on this page have an unknown legacy status. Edit each row and explicitly choose Enabled or Disabled.',
+  'memberLevels.states.unknownRepairRequired': 'Choose a valid status before saving',
+  'memberLevels.states.unknownRepairDescription':
+    'This legacy row contains status 0, NULL, or another unsupported value. It will not be changed until you explicitly select Enabled or Disabled.',
+  'memberLevels.states.mutationGateClosed': 'Member levels are read-only',
+  'memberLevels.states.mutationGateClosedDescription':
+    'The isolated cutover is not active, so the server has disabled every member-level mutation. Lists and details remain available.',
+  'memberLevels.states.deleteGateClosed': 'Member-level deletion is not enabled',
+  'memberLevels.states.deleteGateClosedDescription':
+    'Create, edit, and Set default are in isolated-cutover mode, but deletion stays closed until every reference writer is stopped.',
+  'memberLevels.states.defaultFlaggedRepairRequired':
+    'Repair this invalid default through the default command',
+  'memberLevels.states.defaultFlaggedRepairDescription':
+    'This row is flagged as default but is not enabled. Close the editor and run Set default on an enabled level so the transaction can clear invalid flags.',
+  'memberLevels.states.defaultMissing': 'No active default member level exists',
+  'memberLevels.states.defaultMissingDescription':
+    '{flaggedCount} default flag(s) exist and {enabledCount} are enabled. Choose an enabled level and set it as the default to repair this legacy state.',
+  'memberLevels.states.defaultDuplicate': 'Multiple active default member levels exist',
+  'memberLevels.states.defaultDuplicateDescription':
+    '{flaggedCount} default flag(s) exist and {enabledCount} are enabled. Set one enabled level as the default to repair the catalogue transactionally.',
+  'memberLevels.states.defaultInvalid': 'Default member levels include invalid state',
+  'memberLevels.states.defaultInvalidDescription':
+    '{flaggedCount} default flag(s) exist and {invalidCount} are not enabled. Run Set default on an enabled level to clear the other flags.',
+  'memberLevels.states.conflict': 'This member level changed concurrently',
+  'memberLevels.states.saveError': 'Unable to save the member level',
+  'memberLevels.states.setDefaultError': 'Unable to change the default member level',
+  'memberLevels.states.deleteError': 'Unable to delete the member level',
+  'memberLevels.validation.nameRequired': 'Enter a level name.',
+  'memberLevels.validation.nameMaxBytes': 'The level name must be {max} UTF-8 bytes or fewer.',
+  'memberLevels.validation.searchMaxBytes': 'The search text must be {max} UTF-8 bytes or fewer.',
+  'memberLevels.validation.discountRequired': 'Enter the retail price discount.',
+  'memberLevels.validation.discountRange':
+    'Enter a value from 0 to 100 with up to two decimal places.',
+  'memberLevels.validation.statusRequired': 'Select Enabled or Disabled.',
+  'memberLevels.errors.authenticationRequired': 'Your session has expired. Sign in again.',
+  'memberLevels.errors.forbidden': 'You do not have permission to perform this action.',
+  'memberLevels.errors.authorizationUnavailable':
+    'The authorization service is unavailable. Try again later.',
+  'memberLevels.errors.invalidRequest': 'The request format is invalid.',
+  'memberLevels.errors.validationFailed': 'The submitted member level is invalid.',
+  'memberLevels.errors.notFound': 'The member level was not found or has been deleted.',
+  'memberLevels.errors.duplicateName': 'Another active member level already uses this name.',
+  'memberLevels.errors.conflict':
+    'The member level changed or conflicts with current data. Refresh and try again.',
+  'memberLevels.errors.revisionConflict':
+    'The member level changed since it was loaded. Refresh and try again.',
+  'memberLevels.errors.defaultRequired':
+    'Exactly one enabled default level is required before this operation can continue.',
+  'memberLevels.errors.defaultRepairRequired':
+    'An invalid flagged default cannot be enabled by a regular edit. Run Set default on an enabled level.',
+  'memberLevels.errors.defaultProtected':
+    'The current default cannot be disabled or deleted. Choose a replacement first.',
+  'memberLevels.errors.memberReferences':
+    'This member level is still referenced by active members and cannot be deleted.',
+  'memberLevels.errors.paymentPolicySourceRequired':
+    'No safe enabled source level is available for the new level’s payment policy.',
+  'memberLevels.errors.paymentPolicySourceInvalid':
+    'The selected payment policy source is unavailable or not enabled.',
+  'memberLevels.errors.paymentPolicySource':
+    'A safe active source level is required before the hidden payment policy can be copied.',
+  'memberLevels.errors.inUse':
+    'This level is still referenced by active members ({members}), activities ({activities}), coupon templates ({couponTemplates}), and goods prices ({goodsPrices}), so it cannot be deleted.',
+  'memberLevels.errors.legacyDataIncompatible':
+    'The legacy member-level data is incompatible and was left unchanged.',
+  'memberLevels.errors.schemaNotReady': 'The member business schema is not ready. Try again later.',
+  'memberLevels.errors.mutationDisabled':
+    'Member-level mutations remain read-only until isolated cutover is active.',
+  'memberLevels.errors.internal':
+    'The member-level service could not complete the request. Try again later.',
   'legacy.value.yes': 'Yes',
   'legacy.value.no': 'No',
   'legacy.table.actions': 'Actions',

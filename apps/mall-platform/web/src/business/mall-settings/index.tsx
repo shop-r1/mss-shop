@@ -1,12 +1,12 @@
 import { EditOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import {
   getRequestStatus,
+  type InitialState,
   PageContainer,
   PageEmpty,
   PageError,
   PageForbidden,
   PageLoading,
-  type InitialState,
 } from '@mss-boot-io/admin-web/runtime';
 import { useIntl, useModel } from '@umijs/max';
 import {
@@ -26,11 +26,12 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { mallGeneralSettingsAPI } from './api';
 import {
+  canUpdateMallGeneralSettings,
   emptyMallGeneralSettings,
   getMallGeneralSettingsCapabilities,
   isMallGeneralSettingsEmpty,
-  mallGeneralSettingsInput,
   mallGeneralSettingsFields,
+  mallGeneralSettingsInput,
   utf8ByteLength,
 } from './contract';
 import { localizeMallSettingsError } from './errors';
@@ -45,7 +46,9 @@ function readableValue(value: string): ReactNode {
 function MallGeneralSettingsPage() {
   const intl = useIntl();
   const { message } = App.useApp();
-  const { initialState } = useModel('@@initialState') as { initialState?: InitialState };
+  const { initialState } = useModel('@@initialState') as {
+    initialState?: InitialState;
+  };
   const capabilities = useMemo(
     () => getMallGeneralSettingsCapabilities(initialState?.currentUser),
     [initialState?.currentUser],
@@ -90,7 +93,11 @@ function MallGeneralSettingsPage() {
     try {
       const result = await mallGeneralSettingsAPI.load();
       setSettings(result);
-      form.setFieldsValue(result);
+      form.setFieldsValue(mallGeneralSettingsInput(result));
+      if (!result.operations.update) {
+        setEditing(false);
+        setSaveError(undefined);
+      }
     } catch (error) {
       setLoadError(error);
     } finally {
@@ -103,21 +110,22 @@ function MallGeneralSettingsPage() {
   }, [load]);
 
   const beginEditing = useCallback(() => {
-    form.setFieldsValue(settings ?? emptyMallGeneralSettings());
+    if (!settings?.operations.update) return;
+    form.setFieldsValue(mallGeneralSettingsInput(settings));
     setSaveError(undefined);
     setSaved(false);
     setEditing(true);
   }, [form, settings]);
 
   const cancelEditing = useCallback(() => {
-    form.setFieldsValue(settings ?? emptyMallGeneralSettings());
+    form.setFieldsValue(settings ? mallGeneralSettingsInput(settings) : emptyMallGeneralSettings());
     setSaveError(undefined);
     setEditing(false);
   }, [form, settings]);
 
   const save = useCallback(
     async (values: MallGeneralSettingsInput) => {
-      if (!capabilities.canUpdate) return;
+      if (!capabilities.canUpdate || !settings?.operations.update) return;
       const input = mallGeneralSettingsInput(values);
       setSaving(true);
       setSaveError(undefined);
@@ -126,19 +134,17 @@ function MallGeneralSettingsPage() {
         const persisted = await mallGeneralSettingsAPI.update(input);
         setSettings(persisted);
         setLoadError(undefined);
-        form.setFieldsValue(persisted);
+        form.setFieldsValue(mallGeneralSettingsInput(persisted));
         setEditing(false);
         setSaved(true);
-        void message.success(
-          format(`${localePrefix}.feedback.saved`, 'General settings saved.'),
-        );
+        void message.success(format(`${localePrefix}.feedback.saved`, 'General settings saved.'));
       } catch (error) {
         setSaveError(error);
       } finally {
         setSaving(false);
       }
     },
-    [capabilities.canUpdate, form, format, message],
+    [capabilities.canUpdate, form, format, message, settings?.operations.update],
   );
 
   const title = format(`${localePrefix}.title`, 'Mall settings');
@@ -190,6 +196,7 @@ function MallGeneralSettingsPage() {
   }
 
   const empty = settings ? isMallGeneralSettingsEmpty(settings) : true;
+  const canUpdate = canUpdateMallGeneralSettings(capabilities, settings);
   const descriptionItems = mallGeneralSettingsFields.map((field) => ({
     key: field.name,
     label: format(field.labelMessageId, field.defaultLabel),
@@ -235,15 +242,23 @@ function MallGeneralSettingsPage() {
           />
         ) : null}
 
+        {settings && !settings.operations.update ? (
+          <Alert
+            description={format(
+              `${localePrefix}.states.readOnlyDescription`,
+              'The isolated runtime can safely read this legacy configuration, but updates remain disabled until a reviewed writable cutover.',
+            )}
+            showIcon
+            title={format(`${localePrefix}.states.readOnly`, 'Mall settings are read-only')}
+            type="info"
+          />
+        ) : null}
+
         {editing ? (
           <Card
             title={format(`${localePrefix}.editor.title`, 'Edit general settings')}
             extra={
-              <Button
-                icon={<ReloadOutlined />}
-                loading={loading}
-                onClick={() => void load()}
-              >
+              <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void load()}>
                 {format(`${localePrefix}.actions.refresh`, 'Refresh')}
               </Button>
             }
@@ -315,10 +330,7 @@ function MallGeneralSettingsPage() {
                           allowClear
                           autoComplete={field.autoComplete}
                           maxLength={field.maxBytes}
-                          placeholder={format(
-                            field.placeholderMessageId,
-                            field.defaultPlaceholder,
-                          )}
+                          placeholder={format(field.placeholderMessageId, field.defaultPlaceholder)}
                           type={field.inputType}
                         />
                       </Form.Item>
@@ -327,12 +339,7 @@ function MallGeneralSettingsPage() {
                 })}
               </Row>
               <Space>
-                <Button
-                  htmlType="submit"
-                  icon={<SaveOutlined />}
-                  loading={saving}
-                  type="primary"
-                >
+                <Button htmlType="submit" icon={<SaveOutlined />} loading={saving} type="primary">
                   {format(`${localePrefix}.actions.save`, 'Save')}
                 </Button>
                 <Button disabled={saving} onClick={cancelEditing}>
@@ -350,7 +357,7 @@ function MallGeneralSettingsPage() {
                   'No general mall settings have been configured yet.',
                 )}
               />
-              {capabilities.canUpdate ? (
+              {canUpdate ? (
                 <div style={{ textAlign: 'center' }}>
                   <Button icon={<EditOutlined />} onClick={beginEditing} type="primary">
                     {format(`${localePrefix}.actions.configure`, 'Configure settings')}
@@ -363,14 +370,10 @@ function MallGeneralSettingsPage() {
           <Card
             extra={
               <Space>
-                <Button
-                  icon={<ReloadOutlined />}
-                  loading={loading}
-                  onClick={() => void load()}
-                >
+                <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void load()}>
                   {format(`${localePrefix}.actions.refresh`, 'Refresh')}
                 </Button>
-                {capabilities.canUpdate ? (
+                {canUpdate ? (
                   <Button icon={<EditOutlined />} onClick={beginEditing} type="primary">
                     {format(`${localePrefix}.actions.edit`, 'Edit')}
                   </Button>

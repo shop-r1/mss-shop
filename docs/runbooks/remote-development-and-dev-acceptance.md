@@ -20,21 +20,20 @@ persisted beside the receipt. No reconciliation, Admin runtime, complete
 Kubernetes system acceptance or isolated browser acceptance has executed;
 business acceptance remains 0/31.
 
-## Current development-first hold
+## Current authorized release sequence
 
-The project owner has directed the team to continue business development first
-and defer the formal validation, CI publication, reconciliation and acceptance
-sequence until the planned source restoration is complete. Therefore the
-ordered procedure below remains authoritative but is presently on hold: do not
-interpret source-complete modules, a local remote-server preview, or prior
-Revision C receipts as permission to advance a Kubernetes or database gate.
+The project owner has authorized the current release candidate to complete
+formal validation, CI publication, receipt-bound reconciliation, the bounded
+Member Levels projection test and Admin deployment in `mss-shop-dev`. The
+earlier development-first hold is lifted for this sequence only. Every ordered
+gate below remains mandatory, and all workload images must come from one new
+clean full SHA and its four fresh CI receipts.
 
-During this hold, remote local-process previews may use only repository-owned
-SQLite fixtures and loopback listeners. They are development aids, not system
-acceptance. They must not connect to or mutate `r1shop-dev`, `r1shop-prod`, or
-the isolated cluster datastore. When the hold is lifted, restart the procedure
-from a new clean full SHA and fresh four-image receipts; never reuse the
-temporary preview as evidence.
+This authorization does not permit writes to `r1shop-dev`, `r1shop-prod`, the
+legacy source database or either old Redis. It also does not enable Mall
+Settings or Member Levels business mutations: both runtime gates remain
+closed. A local-process preview and prior Revision C receipts remain
+non-deployment evidence and cannot replace any gate below.
 
 ## Fixed boundaries
 
@@ -502,7 +501,73 @@ inventory, counts and hashes. Delete the transient bootstrap Secret only
 through its separately reviewed lifecycle operation; never delete either
 application Secret ad hoc.
 
-### 10. Stage the Admin runtime in mss-shop-dev only
+### 10. Verify the fixed Member Levels projection
+
+The successful reconciler Job must still exist as immutable cluster evidence.
+From that same exact clean full SHA, use the same reconciler image digest and
+the same verified import receipt SHA. Declare creation of only
+`Job/mss-shop-ml-projection-<full-sha>` in `mss-shop-dev`. Expected impact: one
+repeatable-read, read-only verification transaction against the isolated
+PostgreSQL database; no application Deployment, legacy source, old development
+environment or production object is changed.
+
+Run the fixed renderer in its default non-persistent mode first:
+
+```shell
+go run ./services/reconciler/cmd/stage-jobs \
+  --mode projection-verifier \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --image-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  --import-receipt-sha256 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+```
+
+The command refuses a dirty or different checkout, a tag-only image, a
+different Namespace, receipt or digest, an incomplete reconciler Job, or a
+reconciler Job whose immutable Pod specification is not the exact same-SHA,
+same-digest prerequisite. It also validates the exact active-or-retired mall
+runtime Secret shape without printing any Secret value. Record the successful
+server dry-run and the exact one-Job write declaration, then repeat the
+identical command with `--create`. The only permitted persistent operation is
+`Create Job`; it never applies, patches, updates or deletes a resource.
+
+The Job reuses the PostgreSQL-only `legacy-verifier` network role, has no
+ServiceAccount token, mounts only the PostgreSQL CA, and receives only
+`database-runtime-dsn` from
+`Secret/mss-shop-mall-admin-aussibuy-runtime`. The runtime role has SELECT only
+on the fixed, no-parameter, single-row
+`mss_m_aussibuy_biz.r1_member_levels_projection_audit` view. That view remains
+owned by `mss_m_aussibuy_compat_owner`, uses `security_invoker=false`, revokes
+all PUBLIC privileges and does not expose row values. The verifier must assert:
+
+- fixed-tenant public `member_levels` rows = 4 and business-view rows = 4;
+- the bidirectional `EXCEPT ALL` difference over all 12 reviewed columns = 0;
+- business cross-tenant rows = 0;
+- flagged defaults = 1, active/enabled defaults = 1 and invalid defaults = 0;
+- active (`deleted_at IS NULL`) duplicate name groups = 0;
+- public and business `orders` rows = 0;
+- public and business `order_goods` rows = 0;
+- an independent business-view recount matches the audit view; and
+- catalog-OID checks return false for every table and column privilege of the
+  runtime role on all three public tables (`member_levels`, `orders`,
+  `order_goods`).
+
+Capture the complete, untruncated sole Pod stdout JSON, Pod UID, immutable image
+ID and successful Job condition before the TTL expires. A success document has
+version `mss-shop-member-levels-projection-verification/v1`, `verified=true`,
+all aggregate counts above (including `duplicateNameGroups=0`),
+`runtimePublicPrivileges=false`, and exact `namespace`, `podName`, `podUID`,
+full `revision`, `imageDigest` and `imageReference` bindings. It contains no
+DSN, password, token, certificate or source row value. A failure-version JSON
+is not acceptance evidence.
+
+**Gate:** only the complete success JSON bound to the declared Pod, receipt,
+revision and digest permits the Admin runtime stage. A host-side query, a query
+run as bootstrap/compatibility owner, or a partial log excerpt is not
+equivalent evidence.
+
+### 11. Stage the Admin runtime in mss-shop-dev only
 
 Once every previous gate passes, run the trusted operator without `--apply`
 for collision and server-side dry-run checks. Supply the two Admin digests from
@@ -523,7 +588,7 @@ Replace the revision and example digests with the verified receipt values.
 The operator is compiled for `mss-shop-dev`, rejects tag-only images, checks
 Ingress collisions cluster-wide and never forces a field conflict.
 
-### 11. Cluster system verification
+### 12. Cluster system verification
 
 Run every system-verification case in disposable, one-time Pods in
 `mss-shop-dev`. At minimum record:
@@ -538,7 +603,7 @@ Run every system-verification case in disposable, one-time Pods in
 Capture Pod logs before removing only the named test Pods. A health check or a
 generic compatibility list does not close any of the 31 business scenarios.
 
-### 12. In-app-browser acceptance and owner handoff
+### 13. In-app-browser acceptance and owner handoff
 
 Use the in-app browser against the two isolated provisional URLs. Verify login,
 authorized navigation, `zh-CN` and `en-US`, list/detail, empty/error states,

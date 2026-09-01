@@ -611,7 +611,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		evidence.KubernetesSystemAcceptance != "partial-datastore-import-and-verifier-only" ||
 		evidence.ProductionMigration != "forbidden-without-explicit-approval" ||
 		evidence.DeliveryCI != "four-image-publications-verified-through-revision-c-evidence" ||
-		evidence.RemoteDevelopmentPlan != "revision-c-ci-complete-reconciliation-secret-dry-run-not-executed" ||
+		evidence.RemoteDevelopmentPlan != "development-first-release-candidate-validation-authorized-revision-c-evidence-current" ||
 		evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
 		evidence.DatastoreReadinessJob != "passed-revision-6fed45f" ||
@@ -1267,7 +1267,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		"remoteDevelopmentDecision", "remoteDevelopmentRunbook", "catalogLogisticsDesignReview",
 		"originalDevelopmentEvidence", "postVerifierOriginalDevelopmentEvidence",
 		"isolatedImportAttemptEvidence", "isolatedImportSuccessEvidence", "isolatedImportReceipt",
-		"isolatedVerifierEvidence", "isolatedVerification",
+		"isolatedVerifierEvidence", "isolatedVerification", "memberLevelsDevelopment",
 	}
 	for _, name := range requiredSources {
 		if _, exists := status.Spec.SourcesOfTruth[name]; !exists {

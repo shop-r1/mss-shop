@@ -14,6 +14,11 @@ const (
 	updateComponent  = menuPath + "/permissions/update"
 
 	legacyConfigName = "appConfig"
+
+	// postgresPrivateRelation is the only PostgreSQL relation allowed to expose
+	// the raw appConfig document to this dedicated workflow. The generic
+	// system_configs compatibility view remains metadata-redacted and read-only.
+	postgresPrivateRelation = "r1_mall_settings_system_configs"
 )
 
 // legacyGeneralField is the complete reviewed mapping between the public DTO

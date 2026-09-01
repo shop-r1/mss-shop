@@ -116,6 +116,10 @@ compiled exception, exact network path and read-only transaction contract.
   business schemas, compatibility owners, snapshots, views and grants in one
   locked transaction. It must independently require the exact receipt marker
   and zero order-table counts.
+- A same-revision, same-reconciler-digest disposable verifier must then prove
+  the fixed tenant's four-row `member_levels` projection, one valid default,
+  zero order rows and absence of runtime privileges on the imported source
+  tables. Its complete success JSON is a hard gate before Admin runtime stage.
 - The Admin runtime operator is restricted to the eight named ConfigMap,
   Deployment, Service and Ingress objects in `mss-shop-dev`. It uses immutable
   image digest references, performs collision and dry-run checks, never forces
@@ -150,13 +154,15 @@ rather than an operator assumption.
 
 As of this decision update, the exact 24-object isolated boundary and six
 immutable foundation Secrets exist only in `mss-shop-dev`; PostgreSQL 17.6 and
-Redis 8.6.3 are ready, and a revision-bound disposable readiness Job passed.
-Two create-only importer Jobs are preserved as failed pre-target diagnostics:
-the first exposed a PostgreSQL catalog-alias defect and the second exposed the
-over-broad rejection of reviewed TimescaleDB extension routines. Neither
-reached the target import transaction, no receipt or imported marker exists,
-and a fresh readiness gate is required before a new revision may try once.
-No successful data import, reconciler/Admin runtime rollout, Kubernetes system
-acceptance or isolated in-app-browser acceptance has completed. Accepted
-business scenarios remain 0/31, and the original `r1shop-dev` environment and
-production remain unchanged.
+Redis 8.6.3 are ready, and three revision-bound readiness Jobs passed. Two
+create-only importer Jobs remain as failed pre-target diagnostics: the first
+exposed a PostgreSQL catalog-alias defect and the second exposed over-broad
+rejection of reviewed TimescaleDB extension routines. Neither opened the target
+transaction. A third revision completed the single bounded import, persisted
+the canonical receipt and kept `orders`/`order_goods` structure-only. A later
+disposable verifier independently matched all 51 receipt tables and both zero
+order counts. Reconciliation Secrets, reconciler, Member Levels projection
+verification, Admin runtime rollout, Kubernetes system acceptance and isolated
+in-app-browser acceptance remain pending. Accepted business scenarios remain
+0/31, and the original `r1shop-dev` environment and production remain
+unchanged.

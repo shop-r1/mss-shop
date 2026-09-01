@@ -9,13 +9,22 @@ const (
 	maximumDefaultSenderPhoneBytes = 64
 )
 
+// MutationAvailability is server-projected capability state. It is not derived
+// solely from MSS permissions because root users bypass policy checks while the
+// isolated PostgreSQL projection is intentionally SELECT-only.
+type MutationAvailability struct {
+	Update bool `json:"update"`
+}
+
 // GeneralSettings is deliberately closed over the four reviewed, non-secret
-// appConfig values. It never carries raw metadata or unrelated legacy fields.
+// appConfig values plus one stable capability object. It never carries raw
+// metadata or unrelated legacy fields.
 type GeneralSettings struct {
-	MallName           string `json:"mallName"`
-	OrderPrefix        string `json:"orderPrefix"`
-	DefaultSenderName  string `json:"defaultSenderName"`
-	DefaultSenderPhone string `json:"defaultSenderPhone"`
+	MallName           string               `json:"mallName"`
+	OrderPrefix        string               `json:"orderPrefix"`
+	DefaultSenderName  string               `json:"defaultSenderName"`
+	DefaultSenderPhone string               `json:"defaultSenderPhone"`
+	Operations         MutationAvailability `json:"operations"`
 }
 
 // UpdateGeneralSettingsInput uses pointers so PUT can require a complete

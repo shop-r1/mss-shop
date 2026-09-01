@@ -1,11 +1,11 @@
-import { hasPermission, type CurrentUser } from '@mss-boot-io/admin-web/runtime';
+import { type CurrentUser, hasPermission } from '@mss-boot-io/admin-web/runtime';
+import { mallGeneralSettingsPermissionPaths } from './paths';
 import type {
   MallGeneralSettings,
   MallGeneralSettingsCapabilities,
   MallGeneralSettingsFieldDefinition,
   MallGeneralSettingsInput,
 } from './types';
-import { mallGeneralSettingsPermissionPaths } from './paths';
 
 export const mallGeneralSettingsMaxBytes = {
   mallName: 256,
@@ -72,13 +72,18 @@ export const mallGeneralSettingsFields = [
 ] as const satisfies readonly MallGeneralSettingsFieldDefinition[];
 
 const responseKeys = mallGeneralSettingsFields.map((field) => field.name);
-const responseKeySet = new Set<string>(responseKeys);
+const responseEnvelopeKeys = new Set<string>([...responseKeys, 'operations']);
 
 interface MallGeneralSettingsCandidate {
   mallName?: unknown;
   orderPrefix?: unknown;
   defaultSenderName?: unknown;
   defaultSenderPhone?: unknown;
+  operations?: unknown;
+}
+
+interface MallGeneralSettingsOperationsCandidate {
+  update?: unknown;
 }
 
 export class MallGeneralSettingsContractError extends Error {
@@ -94,14 +99,29 @@ function candidateObject(value: unknown): MallGeneralSettingsCandidate {
   }
   const keys = Object.keys(value);
   if (
-    keys.length !== responseKeys.length ||
-    keys.some((key) => !responseKeySet.has(key))
+    keys.length !== responseEnvelopeKeys.size ||
+    keys.some((key) => !responseEnvelopeKeys.has(key))
   ) {
     throw new MallGeneralSettingsContractError(
       'Mall general settings contain missing or unsupported fields',
     );
   }
   return value as MallGeneralSettingsCandidate;
+}
+
+function operationsObject(value: unknown): MallGeneralSettingsOperationsCandidate {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new MallGeneralSettingsContractError(
+      'Mall general settings operations must be an object',
+    );
+  }
+  const keys = Object.keys(value);
+  if (keys.length !== 1 || keys[0] !== 'update') {
+    throw new MallGeneralSettingsContractError(
+      'Mall general settings operations contain missing or unsupported fields',
+    );
+  }
+  return value as MallGeneralSettingsOperationsCandidate;
 }
 
 function stringField(value: unknown, key: string, maxBytes: number): string {
@@ -113,12 +133,12 @@ function stringField(value: unknown, key: string, maxBytes: number): string {
 
 export function parseMallGeneralSettings(value: unknown): MallGeneralSettings {
   const candidate = candidateObject(value);
+  const operations = operationsObject(candidate.operations);
+  if (typeof operations.update !== 'boolean') {
+    throw new MallGeneralSettingsContractError('Mall general settings operation update is invalid');
+  }
   return {
-    mallName: stringField(
-      candidate.mallName,
-      'mallName',
-      mallGeneralSettingsMaxBytes.mallName,
-    ),
+    mallName: stringField(candidate.mallName, 'mallName', mallGeneralSettingsMaxBytes.mallName),
     orderPrefix: stringField(
       candidate.orderPrefix,
       'orderPrefix',
@@ -134,6 +154,7 @@ export function parseMallGeneralSettings(value: unknown): MallGeneralSettings {
       'defaultSenderPhone',
       mallGeneralSettingsMaxBytes.defaultSenderPhone,
     ),
+    operations: { update: operations.update },
   };
 }
 
@@ -152,7 +173,7 @@ export function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
 }
 
-export function emptyMallGeneralSettings(): MallGeneralSettings {
+export function emptyMallGeneralSettings(): MallGeneralSettingsInput {
   return {
     mallName: '',
     orderPrefix: '',
@@ -173,4 +194,11 @@ export function getMallGeneralSettingsCapabilities(
     canRead: canAccessRoute && hasPermission(user, mallGeneralSettingsPermissionPaths.read),
     canUpdate: canAccessRoute && hasPermission(user, mallGeneralSettingsPermissionPaths.update),
   };
+}
+
+export function canUpdateMallGeneralSettings(
+  capabilities: MallGeneralSettingsCapabilities,
+  settings?: MallGeneralSettings,
+): boolean {
+  return capabilities.canUpdate && settings?.operations.update === true;
 }
