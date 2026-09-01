@@ -65,8 +65,8 @@ spec:
     genericCompatibilityAPI: verified-local-read-only
     mallCompatibilityBackend: deployed-isolated-runtime-v3-smoke-passed-business-review-pending
     tenantSharedCatalogBackend: deployed-isolated-runtime-v3-smoke-passed-business-review-pending
-    mallAdminBusinessUI: pending-confirmed-login
-    tenantSharedCatalogUI: pending-confirmed-login
+    mallAdminBusinessUI: confirmed-login-workplace-smoke-passed-business-review-pending
+    tenantSharedCatalogUI: confirmed-login-workplace-smoke-passed-business-review-pending
     catalogAndLogisticsOwnershipContract: verified-target-mall-platform
     compatibilityOwnershipReassignment: deployed-isolated-mss-shop-dev-read-only
     catalogAndLogisticsDesignReview: awaiting-project-owner-review
@@ -102,12 +102,12 @@ spec:
       deployed: true
       acceptanceScenarioClosed: false
     inAppBrowserAcceptance:
-      mallPlatform: pending-confirmed-login
-      tenantPlatform: pending-confirmed-login
+      mallPlatform: confirmed-login-workplace-smoke-passed-detailed-business-review-pending
+      tenantPlatform: confirmed-login-workplace-smoke-passed-detailed-business-review-pending
     kubernetesSystemAcceptance: passed-final-release-v3-runtime-cluster-verification
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: four-image-publication-verified-final-release-3e64a57-run-33532383550
-    remoteDevelopmentPlan: final-release-deployed-isolated-browser-business-review-pending
+    deliveryCI: four-image-publication-verified-https-cutover-f202b094-run-33565434916
+    remoteDevelopmentPlan: https-cutover-deployed-isolated-confirmed-login-smoke-passed-business-review-pending
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
     originalDevelopmentFingerprint:
@@ -230,15 +230,18 @@ spec:
       businessOrderGoodsRows: 0
       runtimePublicPrivileges: false
     runtimeDeployment:
-      revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+      revision: f202b094fd5b2839a9020ff38db833fec40be704
       namespace: mss-shop-dev
       result: deployed
       tenantDeployment: mss-shop-tenant-admin
-      tenantImageDigest: sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+      tenantHost: tenant-admin.mss.r1shop.net
+      tenantImageDigest: sha256:75ed6e8e2b42aad4a88e618f6cd9b2d0197ad12f15392c47ea458b2f3433f39d
       tenantReadyReplicas: 1
       mallDeployment: mss-shop-mall-admin-aussibuy
-      mallImageDigest: sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+      mallHost: mall-admin.mss.r1shop.net
+      mallImageDigest: sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50
       mallReadyReplicas: 1
+      tls: letsencrypt-ready-http-redirects-to-https
       mutationMode: read-only
     runtimeClusterVerification:
       version: v3
@@ -250,7 +253,7 @@ spec:
       tenantPostgreSQL: role-bound-shared-read-public-denied-cross-mall-denied-ddl-denied-tls-required-ca-and-hostname-verified
       mallPostgreSQL: role-bound-member-levels-4-orders-0-order-goods-0-public-denied-cross-tenant-denied-dml-denied-tls-verified
       redis: tenant-db1-and-mall-db2-pong-tls-auth-ca-verified
-    isolatedInAppBrowserAcceptance: pending-confirmed-login
+    isolatedInAppBrowserAcceptance: confirmed-login-workplace-smoke-passed-detailed-business-review-pending
   acceptance:
     closedScenarios: 0
     requiredScenarios: 31
@@ -408,16 +411,16 @@ spec:
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
-      currentFourImagePublication: verified-final-release-3e64a57-deployed-isolated-dev
+      currentFourImagePublication: verified-https-cutover-f202b094-deployed-isolated-dev
       verifiedRun:
-        id: 33532383550
-        revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+        id: 33565434916
+        revision: f202b094fd5b2839a9020ff38db833fec40be704
         conclusion: success
-        scope: final-release-reconciled-projected-runtime-deployed-isolated-dev
-        tenantDigest: sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
-        mallDigest: sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
-        reconcilerDigest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
-        legacyImporterDigest: sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0
+        scope: dns-only-https-runtime-deployed-isolated-dev
+        tenantDigest: sha256:75ed6e8e2b42aad4a88e618f6cd9b2d0197ad12f15392c47ea458b2f3433f39d
+        mallDigest: sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50
+        reconcilerDigest: sha256:9687e5706481c6d0f8372b3d884c699c2f03e6d78f18200815d239dbd7a1cbb3
+        legacyImporterDigest: sha256:ea6caef74249251e349a736ceb56d15ee832cc11207963c6ba05ede54043e0ae
       verifierRun:
         id: 33497583981
         revision: 3eb4c72b485066e7b189446fab5b66a1047e66a2
@@ -467,6 +470,7 @@ spec:
     isolatedReconciliationEvidence: docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml
     isolatedMemberLevelsProjectionEvidence: docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json
     isolatedRuntimeSystemAcceptanceEvidence: docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml
+    isolatedAdminHTTPSCutoverEvidence: docs/evidence/mss-shop-dev/2026-09-02-admin-https-cutover.yaml
     isolatedBrowserAcceptanceReport: docs/acceptance/mss-shop-dev-2026-09-02-browser-acceptance.md
   safety:
     productionReadOnly: true
@@ -484,9 +488,9 @@ spec:
     legacyImportAttempts: 3
     legacyImportSucceeded: true
     postImportVerifierSucceeded: true
-    isolatedBrowserAcceptanceExecuted: false
+    isolatedBrowserAcceptanceExecuted: true
     currentWorkingTreeTested: true
     currentWorkingTreeRemoteLocalPreviewHealthy: true
     currentWorkingTreeProductionBuilt: true
-    deployedSourceRevision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+    deployedSourceRevision: f202b094fd5b2839a9020ff38db833fec40be704
     deployedSourceRevisionCommitted: true

@@ -2,19 +2,18 @@
 
 Last verified: 2026-09-02
 
-Current release-candidate note: source revision
-`3e64a57dae8bb3dd4d337a423015baae6c352b32` passed GitHub Actions run
-`33532383550`, published four digest-bound images, reconciled the already
-imported isolated database and deployed both Admin runtimes only in
-`mss-shop-dev`. Two disposable cluster verification Jobs then passed HTTP,
-database-role, schema-isolation, TLS and Redis checks. The canonical legacy
-import was not rerun: it remains the single 51-table snapshot bound to receipt
+Current development release: source revision
+`f202b094fd5b2839a9020ff38db833fec40be704` passed GitHub Actions run
+`33565434916`, published four digest-bound images and cut both Admin runtimes
+over to DNS-only, trusted HTTPS hosts only in `mss-shop-dev`. Both Deployments
+are 1/1 Ready; the in-app-browser sessions logged in as `admin` and reached
+their visible workspaces. The canonical legacy import was not rerun: it remains
+the single 51-table snapshot bound to receipt
 `fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`.
-The fixed-tenant Member Levels projection contains four matching rows and both
-order tables remain empty. In-app-browser login and UI review are still
-pending the project owner's confirmation to transmit the two generated demo
-passwords into their respective login forms. All earlier environment claims
-in this document apply only to their named revision.
+The fixed-tenant Member Levels projection still contains four matching rows and
+both order tables remain empty. This fast smoke cutover does not close any of
+the 31 business acceptance scenarios. All earlier environment claims in this
+document apply only to their named revision.
 
 ## Confirmed decisions
 
@@ -170,10 +169,11 @@ in this document apply only to their named revision.
   successful import revision-A image; run `33497583981` supplied the revision-B
   verifier image; run `33500133380` validates the later stage-annotation
   compatibility fix; and run `33503127917` validates revision-C evidence and
-  memory. Run `33532383550` published the four images used by the current
-  isolated deployment at source revision `3e64a57d...`. Older publications
-  remain historical evidence and were not substituted into this rollout. See
-  `docs/runbooks/ci-images.md`.
+  memory. Run `33532383550` published the four images used by the original
+  isolated deployment at source revision `3e64a57d...`; run `33565434916`
+  published the four images used by the DNS-only HTTPS Admin cutover at
+  revision `f202b094...`. Older publications remain historical evidence and
+  were not substituted into either rollout. See `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
   work and dependency order in
@@ -187,8 +187,10 @@ in this document apply only to their named revision.
   isolated infrastructure, foundation Secrets, revision-bound readiness, one
   successful legacy import, independent receipt verification, reconciliation,
   fixed projection verification, runtime rollout and disposable cluster
-  acceptance have executed. Browser login/review remains open. The receipt and
-  verifier output are persisted under the canonical receipt SHA.
+  acceptance have executed. Confirmed-login browser smoke review now passes on
+  both trusted HTTPS hosts; detailed business-route and locale review remains
+  open. The receipt and verifier output are persisted under the canonical
+  receipt SHA.
 - A catalog/logistics redesign review covering CL-01 through CL-12. Its
   recommendations for product/SKU identity, inventory, packing rules, courier
   adapters, credentials, outbox and replay remain **awaiting project-owner
@@ -205,7 +207,8 @@ in this document apply only to their named revision.
 - A generalized or production PostgreSQL/Kubernetes reconciler, persistent
   worker queue/inbox, or persistent desired/observed control-plane integration.
   The fixed first-tenant development driver has now passed its immutable-image
-  cluster rehearsal; browser acceptance remains open.
+  cluster rehearsal and confirmed-login browser smoke; detailed business
+  acceptance remains open.
 - Generalizing the fixed isolated reconciliation operator into a persistent
   control-plane lifecycle. The exact first-tenant Secrets and reconciler Job
   have executed in `mss-shop-dev`; that bounded evidence does not authorize
@@ -213,8 +216,9 @@ in this document apply only to their named revision.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
-- Completing the confirmed-login browser review of the deployed Mall Settings
-  and Member Levels read-only slices. PostgreSQL projection evidence and
+- Completing the detailed browser review of the deployed Mall Settings and
+  Member Levels read-only slices. Confirmed-login workspace smoke now passes;
+  PostgreSQL projection evidence and
   cluster system verification pass, while writable cutover semantics, business
   switches and credential rotation remain open; `CONFIG-001` and `MEMBER-001`
   are not closed.
@@ -235,26 +239,45 @@ in this document apply only to their named revision.
 - Legacy identity conversion (`tenants`, `users`, `roles`) and warehouse data
   scopes. The current fixed-tenant reconciliation deliberately does not claim
   generalized identity conversion.
-- Isolated UI acceptance, production migration or cutover. The two Admin
-  runtimes are deployed in `mss-shop-dev`, but the successful bounded import,
-  read-only system checks and eventual UI smoke review must not be confused
-  with complete business acceptance.
+- Detailed isolated UI business acceptance, production migration or cutover.
+  The two Admin runtimes and confirmed-login workspace smoke are deployed in
+  `mss-shop-dev`, but the successful bounded import and read-only system checks
+  must not be confused with complete business acceptance.
 - A storefront API image or production reconciler/worker image. Those
   components do not yet own complete production entrypoints and Dockerfiles.
 
 ## Current development sequence and later acceptance
 
-The current source, immutable-image, isolated reconciliation, runtime and
-disposable-Pod gates are complete for revision `3e64a57d...`. Finish the
-confirmed-login in-app-browser review and leave both isolated URLs available
-for owner inspection. Continue later domain work without treating these two
-read-only slices as full business restoration. Payment writes wait for
+The HTTPS Admin runtime and confirmed-login smoke gate is complete for revision
+`f202b094...`; both isolated URLs remain available for owner inspection.
+Continue the detailed route/locale review and later domain work without
+treating these two read-only slices as full business restoration. Payment
+writes wait for
 DEC-0008 approval, and product/logistics writes wait for the open CL review
 items. The original development environment and production remain unchanged.
 
 ## Verification evidence
 
 Verification evidence recorded on 2026-09-02:
+
+- GitHub Actions run
+  [`33565434916`](https://github.com/shop-r1/mss-shop/actions/runs/33565434916)
+  passed for source revision
+  `f202b094fd5b2839a9020ff38db833fec40be704` and published all four immutable
+  receipts. The deployed tenant and mall digests are
+  `sha256:75ed6e8e2b42aad4a88e618f6cd9b2d0197ad12f15392c47ea458b2f3433f39d`
+  and
+  `sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50`.
+- The create-only TLS stage created one solver NetworkPolicy, one namespaced
+  production ACME Issuer and two exact-host Certificates only in
+  `mss-shop-dev`. Both Certificates reached `Ready=True`, expire on
+  2026-11-30 and validate for their exact Admin hostnames.
+- The trusted runtime stage updated the fixed eight Admin objects. Both
+  Deployments rolled out 1/1 Ready, both Service cluster IPs stayed unchanged,
+  HTTP redirects to HTTPS, and both trusted HTTPS login pages resolve to 200.
+  In-app-browser login as `admin` reached `/workplace` on both hosts; password
+  values were neither logged nor committed. Detailed business-route review is
+  still open, so accepted business scenarios remain 0/31.
 
 - GitHub Actions run
   [`33532383550`](https://github.com/shop-r1/mss-shop/actions/runs/33532383550)
@@ -297,9 +320,9 @@ Verification evidence recorded on 2026-09-02:
   `7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`.
   The helper again recorded no Secret access, database connection or write.
   Production was neither read nor changed.
-- Confirmed-login browser acceptance remains pending. No administrator password
-  has been typed into a browser without the project owner's action-time
-  confirmation, and this pending UI step closes no business scenario.
+- The earlier revision's confirmed-login browser step was pending and is now
+  superseded by the bounded `f202b094...` smoke evidence above. That smoke
+  still closes no business scenario.
 
 Historical verification evidence recorded on 2026-09-01:
 

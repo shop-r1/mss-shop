@@ -191,6 +191,24 @@ Detailed immutable workload evidence is in
 This technical release and its read-only checks close none of the 31 business
 acceptance scenarios.
 
+Run
+[`33565434916`](https://github.com/shop-r1/mss-shop/actions/runs/33565434916)
+successfully validated and published all four images for the DNS-only HTTPS
+Admin cutover revision
+`f202b094fd5b2839a9020ff38db833fec40be704`:
+
+| Image | Manifest digest | Receipt-file SHA-256 |
+| --- | --- | --- |
+| tenant-platform | `sha256:75ed6e8e2b42aad4a88e618f6cd9b2d0197ad12f15392c47ea458b2f3433f39d` | `15aa8a0aff1522283c1a21afd1764eb3b29b2c48ee637be5b0803ca0f7bf308b` |
+| mall-platform | `sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50` | `1e97303375591f33e15b34248a1bde21574ff8c3c13692b89a23c68180a6df26` |
+| reconciler | `sha256:9687e5706481c6d0f8372b3d884c699c2f03e6d78f18200815d239dbd7a1cbb3` | `a7342e9de6a3ccf425d48b3274a56ebf1f254b9df3bed45d5be6091ce03f44c1` |
+| legacy-importer | `sha256:ea6caef74249251e349a736ceb56d15ee832cc11207963c6ba05ede54043e0ae` | `61b050286b0bc0cbe0def4ecfb8af6571ab2da27189c44039858b7035f4c6205` |
+
+Manual staging consumed the exact tenant and mall digests above. The TLS stage
+and eight-object runtime stage changed only `mss-shop-dev`; both trusted HTTPS
+hosts then passed confirmed-login workspace smoke review. CI itself still
+performed no deployment.
+
 ## Permissions and package source
 
 Validation and build-only jobs have read-only repository permission. Only the
@@ -247,9 +265,10 @@ reconciler, Member Levels projection verifier, eight-object Admin runtime and
 authoritative v3 disposable system checks have completed. The v1 and v2
 disposable-verifier attempts were test-harness failures, not application or
 database failures; they are retained only as non-authoritative diagnostics.
-In-app-browser review and explicit business workflow acceptance remain
-separate gates. Do not replace any repeat or later release with ad-hoc template
-substitution or `kubectl apply`.
+Confirmed-login in-app-browser workspace smoke passed for the later
+`f202b094...` HTTPS cutover. Detailed route/locale review and explicit business
+workflow acceptance remain separate gates. Do not replace any repeat or later
+release with ad-hoc template substitution or `kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

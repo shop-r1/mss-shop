@@ -58,6 +58,12 @@ const (
 	finalTenantDigest                  = "sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d"
 	finalMallDigest                    = "sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a"
 	finalImporterDigest                = "sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0"
+	adminHTTPSRevision                 = "f202b094fd5b2839a9020ff38db833fec40be704"
+	adminHTTPSCIRun              int64 = 33565434916
+	adminHTTPSTenantDigest             = "sha256:75ed6e8e2b42aad4a88e618f6cd9b2d0197ad12f15392c47ea458b2f3433f39d"
+	adminHTTPSMallDigest               = "sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50"
+	adminHTTPSReconcilerDigest         = "sha256:9687e5706481c6d0f8372b3d884c699c2f03e6d78f18200815d239dbd7a1cbb3"
+	adminHTTPSImporterDigest           = "sha256:ea6caef74249251e349a736ceb56d15ee832cc11207963c6ba05ede54043e0ae"
 )
 
 type legacyDeliveryRun struct {
@@ -708,15 +714,15 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if evidence.IndexesConstraintsAndRowCounts != "import-and-independent-post-import-verifier-passed" ||
 		evidence.KubernetesSystemAcceptance != "passed-final-release-v3-runtime-cluster-verification" ||
 		evidence.ProductionMigration != "forbidden-without-explicit-approval" ||
-		evidence.DeliveryCI != "four-image-publication-verified-final-release-3e64a57-run-33532383550" ||
-		evidence.RemoteDevelopmentPlan != "final-release-deployed-isolated-browser-business-review-pending" ||
+		evidence.DeliveryCI != "four-image-publication-verified-https-cutover-f202b094-run-33565434916" ||
+		evidence.RemoteDevelopmentPlan != "https-cutover-deployed-isolated-confirmed-login-smoke-passed-business-review-pending" ||
 		evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
 		evidence.DatastoreReadinessJob != "passed-revision-6fed45f" ||
 		evidence.PostImportVerifierJob != "passed-revision-b-3eb4c72" ||
 		evidence.ReconciliationSecretsOperator != "created-three-immutable-secrets-exact-retry-confirmed" ||
 		evidence.ReconcilerJob != "passed-final-release-3e64a57-after-two-transactional-rollbacks" ||
-		evidence.IsolatedInAppBrowserAcceptance != "pending-confirmed-login" {
+		evidence.IsolatedInAppBrowserAcceptance != "confirmed-login-workplace-smoke-passed-detailed-business-review-pending" {
 		t.Fatalf("isolated infrastructure evidence drifted: %#v", evidence)
 	}
 	fingerprint := evidence.OriginalDevelopmentFingerprint
@@ -766,10 +772,10 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		t.Fatalf("member-level projection evidence drifted: %#v", projection)
 	}
 	runtime := evidence.RuntimeDeployment
-	if runtime.Revision != finalReleaseRevision || runtime.Namespace != "mss-shop-dev" || runtime.Result != "deployed" ||
-		runtime.TenantDeployment != "mss-shop-tenant-admin" || runtime.TenantImageDigest != finalTenantDigest ||
+	if runtime.Revision != adminHTTPSRevision || runtime.Namespace != "mss-shop-dev" || runtime.Result != "deployed" ||
+		runtime.TenantDeployment != "mss-shop-tenant-admin" || runtime.TenantImageDigest != adminHTTPSTenantDigest ||
 		runtime.TenantReadyReplicas != 1 || runtime.MallDeployment != "mss-shop-mall-admin-aussibuy" ||
-		runtime.MallImageDigest != finalMallDigest || runtime.MallReadyReplicas != 1 || runtime.MutationMode != "read-only" {
+		runtime.MallImageDigest != adminHTTPSMallDigest || runtime.MallReadyReplicas != 1 || runtime.MutationMode != "read-only" {
 		t.Fatalf("isolated Admin runtime evidence drifted: %#v", runtime)
 	}
 	cluster := evidence.RuntimeClusterVerification
@@ -1381,15 +1387,15 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	}
 	images := status.Spec.LocalEvidence.DeliveryImages
 	verifiedRun := images.VerifiedRun
-	if images.CurrentFourImagePublication != "verified-final-release-3e64a57-deployed-isolated-dev" ||
-		verifiedRun.ID != finalReleaseCIRun ||
-		verifiedRun.Revision != finalReleaseRevision ||
+	if images.CurrentFourImagePublication != "verified-https-cutover-f202b094-deployed-isolated-dev" ||
+		verifiedRun.ID != adminHTTPSCIRun ||
+		verifiedRun.Revision != adminHTTPSRevision ||
 		verifiedRun.Conclusion != "success" ||
-		verifiedRun.Scope != "final-release-reconciled-projected-runtime-deployed-isolated-dev" ||
-		verifiedRun.TenantDigest != finalTenantDigest ||
-		verifiedRun.MallDigest != finalMallDigest ||
-		verifiedRun.ReconcilerDigest != finalReconcilerDigest ||
-		verifiedRun.LegacyImporterDigest != finalImporterDigest {
+		verifiedRun.Scope != "dns-only-https-runtime-deployed-isolated-dev" ||
+		verifiedRun.TenantDigest != adminHTTPSTenantDigest ||
+		verifiedRun.MallDigest != adminHTTPSMallDigest ||
+		verifiedRun.ReconcilerDigest != adminHTTPSReconcilerDigest ||
+		verifiedRun.LegacyImporterDigest != adminHTTPSImporterDigest {
 		t.Fatalf("verified four-image evidence drifted: %#v", images)
 	}
 	verifierRun := images.VerifierRun
@@ -1459,6 +1465,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		status.Spec.SourcesOfTruth["isolatedReconciliationEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml" ||
 		status.Spec.SourcesOfTruth["isolatedMemberLevelsProjectionEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json" ||
 		status.Spec.SourcesOfTruth["isolatedRuntimeSystemAcceptanceEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml" ||
+		status.Spec.SourcesOfTruth["isolatedAdminHTTPSCutoverEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-admin-https-cutover.yaml" ||
 		status.Spec.SourcesOfTruth["isolatedBrowserAcceptanceReport"] != "docs/acceptance/mss-shop-dev-2026-09-02-browser-acceptance.md" {
 		t.Fatalf("legacy decisions drifted: %#v", status.Spec.SourcesOfTruth)
 	}
@@ -1470,7 +1477,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		!safety.SystemTestsUseDisposableKubernetesPods || !safety.IsolatedInfrastructureStaged ||
 		!safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 3 ||
 		!safety.LegacyImportSucceeded || !safety.PostImportVerifierSucceeded ||
-		safety.IsolatedBrowserAcceptanceExecuted || safety.DeployedSourceRevision != finalReleaseRevision ||
+		!safety.IsolatedBrowserAcceptanceExecuted || safety.DeployedSourceRevision != adminHTTPSRevision ||
 		!safety.DeployedSourceRevisionCommitted {
 		t.Fatalf("unsafe legacy verification memory: %#v", status.Spec.Safety)
 	}

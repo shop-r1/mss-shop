@@ -2,14 +2,12 @@
 
 ## Status
 
-**User authorized password entry; deferred because HTTPS is not ready.** The
-project owner has supplied action-time authorization to use both generated
-administrator passwords. Neither password has been transmitted or typed:
-both planned records have been changed to DNS Only and now resolve directly to
-`167.17.68.242`, but the four-object TLS bootstrap, Certificates and new-host
-runtime cutover have not yet been recorded as deployed. The planned hostnames
-therefore do not yet have accepted trusted HTTPS; login and all authenticated
-assertions remain deferred.
+**DNS-only HTTPS cutover and confirmed-login smoke review passed.** The project
+owner supplied action-time authorization to use both generated administrator
+passwords. The passwords were read directly from their namespace-local runtime
+Secrets and entered into the intended HTTPS login forms without being printed,
+copied into evidence or committed. Both browser sessions reached the visible
+`/workplace` page as `admin` and remain open for owner review.
 
 This report is intentionally separate from the passing disposable Kubernetes
 system checks. HTTP 200, database isolation and Redis/TLS success do not prove
@@ -21,14 +19,16 @@ acceptance matrix.
 - Decision binding: DEC-0011 extends the DEC-0010 isolated stage with the
   DNS-only TLS bootstrap and Admin host cutover.
 - Namespace: `mss-shop-dev`
-- Planned tenant platform:
+- Tenant platform:
   `https://tenant-admin.mss.r1shop.net`
-- Planned mall platform:
+- Mall platform:
   `https://mall-admin.mss.r1shop.net`
-- New-host posture: host cutover and trusted HTTPS are not yet recorded as
-  deployed or accepted. DNS Only is confirmed, but no successful
-  `stage-admin-tls --apply`, Certificate Ready result or new-host
-  `stage-runtime --apply` is claimed; no authenticated browser session exists.
+- Deployed source revision:
+  `f202b094fd5b2839a9020ff38db833fec40be704`; successful GitHub Actions run
+  `33565434916`.
+- New-host posture: DNS Only resolves both names directly to `167.17.68.242`.
+  The create-only TLS stage and eight-object runtime cutover completed only in
+  `mss-shop-dev`; both Ingresses require HTTPS and use exact-host certificates.
 - Historical runtime evidence: revision
   `3e64a57dae8bb3dd4d337a423015baae6c352b32` proved one Ready/Available replica
   per platform, zero running Pod restarts and digest-bound images on
@@ -37,6 +37,32 @@ acceptance matrix.
   old hosts and must not be presented as evidence for the planned targets.
 - Data posture: fixed-tenant Member Levels projection has four matching rows;
   `orders` and `order_goods` remain structure-only and contain zero rows.
+
+## Executed cutover and smoke evidence
+
+- CI published and the runtime consumed exact tenant and mall image digests
+  `sha256:75ed6e8e2b42aad4a88e618f6cd9b2d0197ad12f15392c47ea458b2f3433f39d`
+  and
+  `sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50`.
+- `stage-admin-tls` passed server dry-run, then created only the reviewed
+  NetworkPolicy, Issuer and two Certificates. The Issuer and both Certificates
+  reached current-generation `Ready=True`; both certificates expire on
+  2026-11-30 and contain only their exact Admin hostname SAN.
+- `stage-runtime` passed dry-run, applied the exact eight Admin objects and
+  passed an exact post-apply dry-run. Both Deployments rolled out 1/1 Ready.
+  Existing Service cluster IPs remained `10.233.31.9` and `10.233.36.137`.
+- Public checks followed redirects to an HTTPS login response of 200 for both
+  hosts. Plain HTTP returned 308 to the corresponding HTTPS URL; both public
+  certificates were issued by Let's Encrypt and validated for the requested
+  hostname.
+- In the in-app browser, both administrator logins reported success and reached
+  `/workplace`. The tenant session visibly exposed its tenant/payment menus;
+  the mall session visibly exposed its business and migration-checkpoint menus.
+  Both headers identified the authenticated user as `admin`.
+- Credential values are intentionally absent. The source records remain
+  `Secret/mss-shop-tenant-admin-runtime` and
+  `Secret/mss-shop-mall-admin-aussibuy-runtime`, key
+  `initial-admin-password`, in `mss-shop-dev`.
 
 ## Review checklist
 
@@ -84,11 +110,11 @@ warning/error state for:
 
 ## Acceptance boundary
 
-The password-entry authorization and DNS Only change do not close the HTTPS
-gate. Until the create-only TLS stage, runtime cutover, trusted-host checks and
-authenticated checks above are completed, browser acceptance is not executed.
-Even after this smoke review passes, accepted business
-scenarios remain **0/31**: this release performs no representative legacy
+The HTTPS and confirmed-login smoke gate is closed for these two fixed Admin
+hosts. The owner still needs to perform the requested manual visual review, and
+the broader route, locale, empty-state and browser-diagnostic checklist above
+was not executed in this fast development cutover. Accepted business scenarios
+therefore remain **0/31**: this release performs no representative legacy
 write lifecycle, checkout/payment execution, order transition, inventory
 mutation or rollback test. The original `r1shop-dev` environment and
 production are outside the browser target and remain unchanged.
