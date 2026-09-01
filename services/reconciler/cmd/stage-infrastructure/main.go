@@ -47,10 +47,14 @@ const (
 	storageClassProvisioner    = "openebs.io/local"
 	nodeLocalDNSCIDR           = "169.254.25.10/32"
 	storageBinderImage         = "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
+	calicoContainerIDKey       = "cni.projectcalico.org/containerID"
+	calicoPodIPKey             = "cni.projectcalico.org/podIP"
+	calicoPodIPsKey            = "cni.projectcalico.org/podIPs"
 )
 
 var (
-	fullRevision = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	fullRevision      = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	calicoContainerID = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 	namespaceResource = schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}
 	nodeResource      = schema.GroupVersionResource{Version: "v1", Resource: "nodes"}
@@ -1497,15 +1501,12 @@ func allowedAnnotations(existing, canonical *unstructured.Unstructured) bool {
 			return false
 		}
 	}
+	if existing.GetKind() == "Pod" {
+		return allowedStorageBinderRuntimeAnnotations(existing, want, got)
+	}
 	for key, value := range got {
 		if expected, found := want[key]; found && expected == value {
 			continue
-		}
-		if existing.GetKind() == "Pod" && strings.TrimSpace(value) != "" {
-			switch key {
-			case "cni.projectcalico.org/containerID", "cni.projectcalico.org/podIP", "cni.projectcalico.org/podIPs":
-				continue
-			}
 		}
 		if existing.GetKind() != "PersistentVolumeClaim" || strings.TrimSpace(value) == "" {
 			return false
@@ -1522,6 +1523,107 @@ func allowedAnnotations(existing, canonical *unstructured.Unstructured) bool {
 		}
 	}
 	return true
+}
+
+func allowedStorageBinderRuntimeAnnotations(
+	pod *unstructured.Unstructured,
+	want map[string]string,
+	got map[string]string,
+) bool {
+	wantBinding := infrastructureEnvironment + ":Pod:" + pod.GetName()
+	if _, approved := storageBinderClaims[pod.GetName()]; !approved || pod.GetAPIVersion() != "v1" ||
+		pod.GetKind() != "Pod" || pod.GetNamespace() != infrastructureEnvironment || len(want) != 2 ||
+		want[operatorBindingKey] != wantBinding || want[contractKey] != infrastructureContract {
+		return false
+	}
+	extras := make(map[string]string, 3)
+	for key, value := range got {
+		if expected, found := want[key]; found && expected == value {
+			continue
+		}
+		switch key {
+		case calicoContainerIDKey, calicoPodIPKey, calicoPodIPsKey:
+			extras[key] = value
+		default:
+			return false
+		}
+	}
+	phase, phaseFound, phaseErr := unstructured.NestedString(pod.Object, "status", "phase")
+	if phaseErr != nil {
+		return false
+	}
+	if len(extras) == 0 {
+		return !phaseFound || phase == "Pending"
+	}
+	if len(extras) != 3 || !validCalicoContainerID(extras[calicoContainerIDKey]) || !phaseFound {
+		return false
+	}
+	switch phase {
+	case "Succeeded":
+		return extras[calicoPodIPKey] == "" && extras[calicoPodIPsKey] == "" &&
+			validCompletedStorageBinderStatus(pod)
+	case "Pending", "Running":
+		statusIP, valid := exactCalicoIPv4HostCIDR(extras[calicoPodIPKey])
+		return valid && extras[calicoPodIPsKey] == extras[calicoPodIPKey] &&
+			validSinglePodStatusIP(pod, statusIP)
+	default:
+		return false
+	}
+}
+
+func validCalicoContainerID(value string) bool {
+	return calicoContainerID.MatchString(value) && strings.Trim(value, "0") != ""
+}
+
+func exactCalicoIPv4HostCIDR(value string) (string, bool) {
+	ip, network, err := net.ParseCIDR(value)
+	if err != nil || ip.To4() == nil {
+		return "", false
+	}
+	ones, bits := network.Mask.Size()
+	canonicalIP := ip.To4().String()
+	if ones != 32 || bits != 32 || value != canonicalIP+"/32" {
+		return "", false
+	}
+	return canonicalIP, true
+}
+
+func validSinglePodStatusIP(pod *unstructured.Unstructured, want string) bool {
+	podIP, found, err := unstructured.NestedString(pod.Object, "status", "podIP")
+	parsed := net.ParseIP(podIP)
+	if err != nil || !found || podIP != want || parsed == nil || parsed.To4() == nil || parsed.To4().String() != podIP {
+		return false
+	}
+	podIPs, found, err := unstructured.NestedSlice(pod.Object, "status", "podIPs")
+	return err == nil && found && reflect.DeepEqual(podIPs, []any{map[string]any{"ip": podIP}})
+}
+
+func validCompletedStorageBinderStatus(pod *unstructured.Unstructured) bool {
+	podIP, found, err := unstructured.NestedString(pod.Object, "status", "podIP")
+	parsed := net.ParseIP(podIP)
+	if err != nil || !found || parsed == nil || parsed.To4() == nil || parsed.To4().String() != podIP ||
+		!validSinglePodStatusIP(pod, podIP) {
+		return false
+	}
+	statuses, found, err := unstructured.NestedSlice(pod.Object, "status", "containerStatuses")
+	if err != nil || !found || len(statuses) != 1 {
+		return false
+	}
+	status, ok := statuses[0].(map[string]any)
+	if !ok || status["name"] != "storage-binder" {
+		return false
+	}
+	state, ok := status["state"].(map[string]any)
+	if !ok {
+		return false
+	}
+	terminated, ok := state["terminated"].(map[string]any)
+	if !ok || terminated["reason"] != "Completed" || terminated["exitCode"] != int64(0) {
+		return false
+	}
+	_, running := state["running"]
+	_, waiting := state["waiting"]
+	return !running && !waiting
 }
 
 func comparableObjects(existing, canonical *unstructured.Unstructured) (any, any, error) {

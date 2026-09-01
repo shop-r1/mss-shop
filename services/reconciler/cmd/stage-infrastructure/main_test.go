@@ -19,7 +19,11 @@ import (
 	k8stesting "k8s.io/client-go/testing"
 )
 
-const testRevision = "0123456789abcdef0123456789abcdef01234567"
+const (
+	testRevision          = "0123456789abcdef0123456789abcdef01234567"
+	testBinderPodIP       = "10.233.75.21"
+	testCalicoContainerID = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
 
 func TestRenderTargetsLocksManifestOrderInventoryAndNodeLocalDNS(t *testing.T) {
 	manifest := readTestManifest(t)
@@ -162,6 +166,191 @@ func TestPersistedStorageBinderRejectsAdmissionAndLifecycleDrift(t *testing.T) {
 	}
 }
 
+func TestStorageBinderRuntimeAnnotationsAreStateAwareAndExact(t *testing.T) {
+	targets := loadTestTargets(t)
+	binderTarget := findTarget(t, targets, "Pod/mss-shop-postgres-storage-binder")
+	canonical := binderTarget.object.DeepCopy()
+
+	pending := binderTarget.object.DeepCopy()
+	_ = unstructured.SetNestedField(pending.Object, "Pending", "status", "phase")
+	if !allowedAnnotations(pending, canonical) {
+		t.Fatal("pre-CNI Pending binder without runtime annotations was rejected")
+	}
+
+	completed := binderTarget.object.DeepCopy()
+	setFakeCompletedStorageBinder(completed)
+	if !allowedAnnotations(completed, canonical) {
+		t.Fatal("exact completed binder with empty Calico IP annotations was rejected")
+	}
+
+	running := binderTarget.object.DeepCopy()
+	setFakeRunningStorageBinder(running)
+	if !allowedAnnotations(running, canonical) {
+		t.Fatal("exact Running binder with canonical Calico /32 annotations was rejected")
+	}
+
+	tests := map[string]struct {
+		base   *unstructured.Unstructured
+		mutate func(*unstructured.Unstructured)
+	}{
+		"missing-container-id-key": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				annotations := copyStringMap(pod.GetAnnotations())
+				delete(annotations, calicoContainerIDKey)
+				pod.SetAnnotations(annotations)
+			},
+		},
+		"missing-pod-ip-key": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				annotations := copyStringMap(pod.GetAnnotations())
+				delete(annotations, calicoPodIPKey)
+				pod.SetAnnotations(annotations)
+			},
+		},
+		"missing-pod-ips-key": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				annotations := copyStringMap(pod.GetAnnotations())
+				delete(annotations, calicoPodIPsKey)
+				pod.SetAnnotations(annotations)
+			},
+		},
+		"all-runtime-keys-missing-after-completion": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				annotations := copyStringMap(pod.GetAnnotations())
+				delete(annotations, calicoContainerIDKey)
+				delete(annotations, calicoPodIPKey)
+				delete(annotations, calicoPodIPsKey)
+				pod.SetAnnotations(annotations)
+			},
+		},
+		"unknown-runtime-key": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				annotations := copyStringMap(pod.GetAnnotations())
+				annotations["foreign.example/runtime"] = "injected"
+				pod.SetAnnotations(annotations)
+			},
+		},
+		"short-container-id": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoContainerIDKey, "abcdef")
+			},
+		},
+		"uppercase-container-id": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoContainerIDKey, strings.ToUpper(testCalicoContainerID))
+			},
+		},
+		"all-zero-container-id": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoContainerIDKey, strings.Repeat("0", 64))
+			},
+		},
+		"non-hex-container-id": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoContainerIDKey, strings.Repeat("g", 64))
+			},
+		},
+		"completed-nonempty-ip-annotations": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoPodIPKey, testBinderPodIP+"/32")
+				setAnnotation(pod, calicoPodIPsKey, testBinderPodIP+"/32")
+			},
+		},
+		"completed-nonzero-exit": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				statuses, _, _ := unstructured.NestedSlice(pod.Object, "status", "containerStatuses")
+				status := statuses[0].(map[string]any)
+				state := status["state"].(map[string]any)
+				terminated := state["terminated"].(map[string]any)
+				terminated["exitCode"] = int64(1)
+				_ = unstructured.SetNestedSlice(pod.Object, statuses, "status", "containerStatuses")
+			},
+		},
+		"completed-wrong-reason": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				statuses, _, _ := unstructured.NestedSlice(pod.Object, "status", "containerStatuses")
+				status := statuses[0].(map[string]any)
+				state := status["state"].(map[string]any)
+				terminated := state["terminated"].(map[string]any)
+				terminated["reason"] = "Error"
+				_ = unstructured.SetNestedSlice(pod.Object, statuses, "status", "containerStatuses")
+			},
+		},
+		"completed-missing-status-ip": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				unstructured.RemoveNestedField(pod.Object, "status", "podIP")
+			},
+		},
+		"failed-terminal-phase": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				_ = unstructured.SetNestedField(pod.Object, "Failed", "status", "phase")
+			},
+		},
+		"running-empty-ip-annotations": {
+			base: running,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoPodIPKey, "")
+				setAnnotation(pod, calicoPodIPsKey, "")
+			},
+		},
+		"running-non-host-cidr": {
+			base: running,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoPodIPKey, "10.233.75.0/24")
+				setAnnotation(pod, calicoPodIPsKey, "10.233.75.0/24")
+			},
+		},
+		"running-noncanonical-cidr": {
+			base: running,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoPodIPKey, "010.233.75.21/32")
+				setAnnotation(pod, calicoPodIPsKey, "010.233.75.21/32")
+			},
+		},
+		"running-pod-ips-mismatch": {
+			base: running,
+			mutate: func(pod *unstructured.Unstructured) {
+				setAnnotation(pod, calicoPodIPsKey, "10.233.75.22/32")
+			},
+		},
+		"running-status-ip-mismatch": {
+			base: running,
+			mutate: func(pod *unstructured.Unstructured) {
+				_ = unstructured.SetNestedField(pod.Object, "10.233.75.22", "status", "podIP")
+			},
+		},
+		"non-binder-pod": {
+			base: completed,
+			mutate: func(pod *unstructured.Unstructured) {
+				pod.SetName("foreign-storage-binder")
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			pod := test.base.DeepCopy()
+			test.mutate(pod)
+			if allowedAnnotations(pod, canonical) {
+				t.Fatal("unsafe storage binder runtime annotations were accepted")
+			}
+		})
+	}
+}
+
 func TestConvergePerformsExplicitTwoStageOrderedCreate(t *testing.T) {
 	targets := loadTestTargets(t)
 	harness := newFakeHarness(t, targets, nil)
@@ -271,6 +460,24 @@ func TestConvergeAllowsOnlyCanonicalExactRetry(t *testing.T) {
 	assertCanonicalizedAtLeastOnce(t, harness.canonicalDryRuns, targetIdentities(targets))
 	assertInitialFullGET(t, harness.client.Actions(), targets)
 	assertNoPersistentMutations(t, harness.client.Actions())
+}
+
+func TestConvergeRejectsUnsafeBinderRuntimeAnnotationCollisionBeforeCreate(t *testing.T) {
+	targets := loadTestTargets(t)
+	namespace := fakePersistedObject(targets[0].object, 1)
+	binderTarget := findTarget(t, targets, "Pod/mss-shop-postgres-storage-binder")
+	binder := fakePersistedObject(binderTarget.object, 2)
+	setAnnotation(binder, calicoPodIPsKey, "10.233.75.22/32")
+	harness := newFakeHarness(t, targets, []*unstructured.Unstructured{namespace, binder})
+
+	result, err := converge(context.Background(), harness.client, targets)
+	if err == nil || !strings.Contains(err.Error(), "unsafe annotations") {
+		t.Fatalf("unsafe binder annotation collision error = %v", err)
+	}
+	if len(result.created) != 0 || len(harness.realCreates) != 0 {
+		t.Fatalf("binder annotation collision created objects: result=%v actions=%v", result.created, harness.realCreates)
+	}
+	assertInitialFullGET(t, harness.client.Actions(), targets)
 }
 
 func TestConvergeRejectsCollisionBeforeAnyPersistentCreate(t *testing.T) {
@@ -739,7 +946,7 @@ func newFakeHarness(t *testing.T, targets []target, existing []*unstructured.Uns
 		persisted.SetResourceVersion(fmt.Sprintf("%d", harness.counter+10))
 		if _, binder := storageBinderClaims[persisted.GetName()]; persisted.GetKind() == "Pod" && binder && !harness.holdPVCsPending {
 			_ = unstructured.SetNestedField(persisted.Object, "dev-node", "spec", "nodeName")
-			_ = unstructured.SetNestedField(persisted.Object, "Succeeded", "status", "phase")
+			setFakeCompletedStorageBinder(persisted)
 		}
 		if err := client.Tracker().Create(action.GetResource(), persisted, action.GetNamespace()); err != nil {
 			return true, nil, err
@@ -786,7 +993,7 @@ func fakePersistedObject(desired *unstructured.Unstructured, sequence int) *unst
 	}
 	if _, binder := storageBinderClaims[object.GetName()]; object.GetKind() == "Pod" && binder {
 		_ = unstructured.SetNestedField(object.Object, "dev-node", "spec", "nodeName")
-		_ = unstructured.SetNestedField(object.Object, "Succeeded", "status", "phase")
+		setFakeCompletedStorageBinder(object)
 	}
 	return object
 }
@@ -865,9 +1072,47 @@ func bindTrackedStorageBinder(client *dynamicfake.FakeDynamicClient, name string
 	}
 	pod := tracked.(*unstructured.Unstructured).DeepCopy()
 	_ = unstructured.SetNestedField(pod.Object, "dev-node", "spec", "nodeName")
-	_ = unstructured.SetNestedField(pod.Object, "Succeeded", "status", "phase")
+	setFakeCompletedStorageBinder(pod)
 	pod.SetResourceVersion(pod.GetResourceVersion() + "-scheduled")
 	return client.Tracker().Update(podResource, pod, infrastructureEnvironment)
+}
+
+func setFakeCompletedStorageBinder(pod *unstructured.Unstructured) {
+	annotations := copyStringMap(pod.GetAnnotations())
+	annotations[calicoContainerIDKey] = testCalicoContainerID
+	annotations[calicoPodIPKey] = ""
+	annotations[calicoPodIPsKey] = ""
+	pod.SetAnnotations(annotations)
+	_ = unstructured.SetNestedField(pod.Object, "Succeeded", "status", "phase")
+	setFakeBinderPodStatusIP(pod, testBinderPodIP)
+	_ = unstructured.SetNestedSlice(pod.Object, []any{map[string]any{
+		"name":        "storage-binder",
+		"containerID": "containerd://" + strings.Repeat("b", 64),
+		"state": map[string]any{
+			"terminated": map[string]any{"reason": "Completed", "exitCode": int64(0)},
+		},
+	}}, "status", "containerStatuses")
+}
+
+func setFakeRunningStorageBinder(pod *unstructured.Unstructured) {
+	annotations := copyStringMap(pod.GetAnnotations())
+	annotations[calicoContainerIDKey] = testCalicoContainerID
+	annotations[calicoPodIPKey] = testBinderPodIP + "/32"
+	annotations[calicoPodIPsKey] = testBinderPodIP + "/32"
+	pod.SetAnnotations(annotations)
+	_ = unstructured.SetNestedField(pod.Object, "Running", "status", "phase")
+	setFakeBinderPodStatusIP(pod, testBinderPodIP)
+}
+
+func setFakeBinderPodStatusIP(pod *unstructured.Unstructured, value string) {
+	_ = unstructured.SetNestedField(pod.Object, value, "status", "podIP")
+	_ = unstructured.SetNestedSlice(pod.Object, []any{map[string]any{"ip": value}}, "status", "podIPs")
+}
+
+func setAnnotation(object *unstructured.Unstructured, key, value string) {
+	annotations := copyStringMap(object.GetAnnotations())
+	annotations[key] = value
+	object.SetAnnotations(annotations)
 }
 
 func fakePersistentVolume(pvc *unstructured.Unstructured) *unstructured.Unstructured {
