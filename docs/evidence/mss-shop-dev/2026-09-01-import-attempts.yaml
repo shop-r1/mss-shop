@@ -1,0 +1,64 @@
+apiVersion: r1shop.io/v1alpha1
+kind: IsolatedLegacyImportAttemptEvidence
+metadata:
+  namespace: mss-shop-dev
+  capturedAt: "2026-09-01"
+spec:
+  targetDatabase: mss_shop_dev
+  initialMarker: "r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty"
+  expectedSuccessMarkerFormat: "mss-shop-isolated-dev:legacy-import:v1:<receipt-sha256>"
+  attempts:
+    - sequence: 1
+      revision: a60ef82bf83f0661809aa87340178b3e58dff48d
+      imageDigest: sha256:532335acc7f8804be27d1fcd069704bb8a626523f93511d0c4bfd1bdf469dd01
+      readiness:
+        job: mss-shop-readiness-a60ef82bf83f0661809aa87340178b3e58dff48d
+        jobUID: 7121bc81-479e-42df-9589-f6b9277244a1
+        podUID: b7378954-a2ba-408f-9aa2-431a8673e439
+        result: passed
+        outputSHA256: 18488c6e284d917db3a74e497bd2ad69ceb83e50fda6436dd7c69d9b91585e69
+      importer:
+        job: mss-shop-legacy-import-a60ef82bf83f0661809aa87340178b3e58dff48d
+        jobUID: 8358479b-d43a-4226-ba14-806b849e2074
+        podUID: 38dea31a-d57e-411b-88a0-63ead5600cc2
+        result: failed
+        exitCode: 1
+        failureStage: before-target-transaction
+        safeFailure: inspect source column inventory failed
+        completeOutput: |
+          legacy import failed: inspect source column inventory failed
+        completeOutputSHA256: 68ce20335411c128f639ee009f4605036fc9ddbcf5fb8d54d34e1146f24a9325
+        targetTransactionStarted: false
+        receiptEmitted: false
+    - sequence: 2
+      revision: 12c6a682e38bfef165e09d108e0bd77c53ee73ca
+      imageDigest: sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05
+      readiness:
+        job: mss-shop-readiness-12c6a682e38bfef165e09d108e0bd77c53ee73ca
+        jobUID: c8efa994-a0ae-4858-88bb-c845b30c65e1
+        podUID: 73883c6f-1fb1-4492-9c76-53909b8740bc
+        result: passed
+        outputSHA256: 11283e02017397a0d5aa8b0d8c62c541086d5e6b0f1d0ea8f0157f1b623d82e6
+      importer:
+        job: mss-shop-legacy-import-12c6a682e38bfef165e09d108e0bd77c53ee73ca
+        jobUID: 949818a9-4352-480f-96cb-392616225c86
+        podUID: 719b9390-3920-46d6-a9e7-dcab4872368c
+        result: failed
+        exitCode: 1
+        failureStage: before-target-transaction
+        safeFailure: source public schema contains an unreviewed executable object or type
+        completeOutput: |
+          legacy import failed: source public schema contains an unreviewed executable object or type
+        completeOutputSHA256: 84792d56f491fc027f8e7decfc2afa2179d25b075512f37a5b0276819ffecdfb
+        targetTransactionStarted: false
+        receiptEmitted: false
+  currentState:
+    successfulImport: false
+    targetWritesFromAttempts: false
+    receiptEmitted: false
+    markerExpectedUnchanged: true
+    failedJobsObservedInClusterAtCapture: 2
+    successfulReadinessJobsObservedInClusterAtCapture: 2
+    completeFailureOutputsCaptured: true
+    completeFailureOutputsVersioned: true
+    sourceOrCredentialValuesRecorded: false

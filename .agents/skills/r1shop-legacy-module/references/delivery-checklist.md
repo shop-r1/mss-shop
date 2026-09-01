@@ -88,6 +88,11 @@
 
 ## Verification
 
+- Before legacy import, verify the exact reviewed source extension inventory,
+  zero unreviewed executable objects or standalone types, and the approved full
+  routine fingerprint. Treat any source restore, extension reinstall or OID
+  drift as a new source snapshot requiring review and a new revision; never
+  weaken the importer gate at runtime.
 - Run focused unit, repository, state-machine, permission and cross-tenant
   negative tests while iterating.
 - Run the Host's strict doctor, Skill validation and full verification with the

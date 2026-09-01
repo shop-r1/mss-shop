@@ -45,10 +45,22 @@ func TestValidateSourceCatalogAcceptsOnlyExactReviewedShape(t *testing.T) {
 			c.Relations[0].InheritanceEdges = 1
 		}},
 		{name: "public routine", mutate: func(c *sourceCatalog) {
-			c.PublicRoutines = 1
+			c.UnreviewedPublicRoutines = 1
 		}},
 		{name: "standalone type", mutate: func(c *sourceCatalog) {
 			c.StandaloneTypes = 1
+		}},
+		{name: "reviewed routine count", mutate: func(c *sourceCatalog) {
+			c.ReviewedPublicRoutines--
+		}},
+		{name: "additional reviewed routine", mutate: func(c *sourceCatalog) {
+			c.ReviewedPublicRoutines++
+		}},
+		{name: "reviewed routine fingerprint", mutate: func(c *sourceCatalog) {
+			c.ReviewedRoutineSHA256 = strings.Repeat("0", 64)
+		}},
+		{name: "source extension", mutate: func(c *sourceCatalog) {
+			c.Extensions[1] = "timescaledb|2.20.1|public"
 		}},
 	}
 	for _, test := range tests {
@@ -59,6 +71,35 @@ func TestValidateSourceCatalogAcceptsOnlyExactReviewedShape(t *testing.T) {
 				t.Fatal("validateSourceCatalog() accepted unsafe catalog")
 			}
 		})
+	}
+}
+
+func TestSourceExecutableInventoryExemptsOnlyReviewedTimescaleDBObjects(t *testing.T) {
+	for _, expected := range []string{
+		"dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass",
+		"dependency.objid = routine.oid",
+		"dependency.objsubid = 0",
+		"dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass",
+		"dependency.refobjsubid = 0",
+		"extension.oid = dependency.refobjid",
+		"dependency.deptype = 'e'",
+		"extension.extname = 'timescaledb'",
+		"extension.extversion = '2.20.2'",
+		"extension_namespace.nspname = 'public'",
+	} {
+		if count := strings.Count(sourceExecutableObjectInventorySQL, expected); count != 1 {
+			t.Fatalf("source executable inventory contains %d copies of %q, want 1", count, expected)
+		}
+	}
+	if !strings.Contains(sourceExecutableObjectInventorySQL, "pg_catalog.jsonb_agg(pg_catalog.to_jsonb(reviewed_routine)") {
+		t.Fatal("source executable inventory lacks the complete routine catalog fingerprint")
+	}
+	if strings.Contains(sourceExecutableObjectInventorySQL, "dependency.classid = 'pg_catalog.pg_type'") {
+		t.Fatal("source executable inventory exempts extension-owned standalone types")
+	}
+	if expectedSourceRoutineCount != 91 || len(expectedSourceRoutineSHA256) != 64 ||
+		expectedSourceRoutineSHA256 == strings.Repeat("0", 64) {
+		t.Fatal("reviewed source routine binding is incomplete")
 	}
 }
 
@@ -118,8 +159,11 @@ func safeSourceCatalog(tables []manifest.Table) sourceCatalog {
 	names = append(names, manifest.SourceIdentityNames()...)
 	sort.Strings(names)
 	catalog := sourceCatalog{
-		Relations: make([]sourceRelation, 0, len(names)),
-		Columns:   make(map[string][]manifest.Column, len(tables)),
+		Relations:              make([]sourceRelation, 0, len(names)),
+		Columns:                make(map[string][]manifest.Column, len(tables)),
+		Extensions:             []string{"plpgsql|1.0|pg_catalog", "timescaledb|2.20.2|public"},
+		ReviewedPublicRoutines: expectedSourceRoutineCount,
+		ReviewedRoutineSHA256:  expectedSourceRoutineSHA256,
 	}
 	for _, name := range names {
 		catalog.Relations = append(catalog.Relations, safeRelation(name))

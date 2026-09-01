@@ -50,9 +50,7 @@ function resource<const Resource extends string>(
  * catalogue. Product and logistics resources are tenant-owned mall data under
  * DEC-0009. Payment remains read-only while DEC-0008 is under review.
  */
-export const SHARED_CATALOG_RESOURCES = [
-  resource('payments', false),
-] as const;
+export const SHARED_CATALOG_RESOURCES = [resource('payments', false)] as const;
 
 export type SharedCatalogResourceName = (typeof SHARED_CATALOG_RESOURCES)[number]['resource'];
 export type SharedCatalogResource = (typeof SHARED_CATALOG_RESOURCES)[number];

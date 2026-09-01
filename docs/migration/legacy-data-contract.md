@@ -28,6 +28,18 @@ below. It also confirmed that 'public.shipping_warehouses' has 16 columns.
 Temporary schemas named 'compression_test_*' also exist. No credentials or row
 values were read into this document.
 
+The same fixed source currently has exactly `plpgsql 1.0` in `pg_catalog` and
+`timescaledb 2.20.2` in `public`. Its `public` schema has 91 routines, all
+object-level members of that exact TimescaleDB extension, and zero standalone
+types after table-row arrays are excluded. The importer binds the complete,
+OID-ordered `pg_proc` rows to SHA-256
+`32c0b88f3178e4a15647eef85da4a718b4e490070bd7fa2c77876101f386d81e`
+inside the same read-only repeatable-read snapshot used for the table import.
+Any extra or missing extension, routine, standalone type or changed routine
+catalog row fails closed. This fingerprint deliberately binds the current
+source database instance; a dump/restore, extension reinstall or catalog OID
+change requires a new read-only review instead of silently reusing it.
+
 This is a contract and assessment, not authorization to write production or
 development data. Production remains read-only. Current workspace policy also
 forbids copying 'orders' rows into development; development rehearsals may

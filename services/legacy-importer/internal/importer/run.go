@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"sort"
 
 	"github.com/jackc/pgx/v5"
@@ -274,18 +275,28 @@ SELECT current_setting('server_version_num')::integer / 10000 = 17,
 		return errors.New("verify read-only legacy source connection failed")
 	}
 	if err := connection.QueryRow(ctx, `
-SELECT COALESCE(array_agg(extname::text ORDER BY extname), ARRAY[]::text[])
-FROM pg_catalog.pg_extension
+SELECT COALESCE(array_agg(
+         extension.extname::text || '|' || extension.extversion::text || '|' || COALESCE(namespace.nspname::text, '')
+         ORDER BY extension.extname
+       ), ARRAY[]::text[])
+FROM pg_catalog.pg_extension AS extension
+LEFT JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = extension.extnamespace
 `).Scan(&extensions); err != nil {
 		return errors.New("verify legacy source extensions failed")
 	}
 	if !postgres17 || !eventTriggersDisabled || !readOnly || ssl || !databaseExact ||
 		!sessionIdentityExact || !indexScanDisabled || !bitmapScanDisabled ||
-		!indexOnlyDisabled || !parallelDisabled ||
-		!containsString(extensions, "plpgsql") || !containsString(extensions, "timescaledb") {
+		!indexOnlyDisabled || !parallelDisabled || !sourceExtensionInventoryReviewed(extensions) {
 		return errors.New("legacy source connection is outside the read-only reviewed boundary")
 	}
 	return nil
+}
+
+func sourceExtensionInventoryReviewed(extensions []string) bool {
+	return reflect.DeepEqual(extensions, []string{
+		"plpgsql|1.0|pg_catalog",
+		"timescaledb|2.20.2|public",
+	})
 }
 
 func sourceLockSQL() string {
@@ -308,13 +319,4 @@ func joinComma(values []string) string {
 		result += value
 	}
 	return result
-}
-
-func containsString(values []string, expected string) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
-		}
-	}
-	return false
 }

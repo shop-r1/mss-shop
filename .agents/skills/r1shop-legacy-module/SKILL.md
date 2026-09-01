@@ -87,4 +87,9 @@ description: Implement or review R1Shop Admin business capabilities that must pr
 11. Production remains read-only without explicit approval for the exact
     action. Database system acceptance runs in disposable Kubernetes Pods
     against an isolated development copy; production order rows are not copied
-    into development.
+    into development. Before a legacy import, require the reviewed source
+    catalog contract: exact extension versions and schemas, zero unreviewed
+    executable objects or standalone types, and the approved full routine
+    fingerprint. The routine fingerprint is deliberately bound to the current
+    source database instance; a dump/restore, extension reinstall or OID drift
+    requires a new reviewed revision rather than weakening the runtime gate.

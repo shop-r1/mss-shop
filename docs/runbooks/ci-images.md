@@ -57,8 +57,26 @@ matrix and receipt format existed. Its tenant digest was
 its mall digest was
 `sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e`.
 This remains historical build evidence only and cannot satisfy the current
-four-image deployment gate. No complete four-image publication is recorded as
-verified yet.
+four-image deployment gate.
+
+Run
+[`33487529898`](https://github.com/shop-r1/mss-shop/actions/runs/33487529898)
+later verified the complete four-image receipt contract for revision
+`12c6a682e38bfef165e09d108e0bd77c53ee73ca`. Its immutable digests were:
+
+- tenant-platform:
+  `sha256:8f6348da987fe8fcd30553583c19319feac862d69d33f5ed43651a70eeb02d35`;
+- mall-platform:
+  `sha256:5880261198942ad53507e3aa087bbb949e96a42f0472d0d110ea13e1e8ebdd15`;
+- reconciler:
+  `sha256:f53404fee6fed5b77c758358c14a28d7b4197a8172393f8003857e7fac56ac71`;
+- legacy-importer:
+  `sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05`.
+
+That revision passed readiness but its importer stopped before the target
+transaction on an over-broad source-routine policy. It is historical
+publication/readiness evidence only; a source change requires a new four-image
+run and its receipts can never be reused for another revision.
 
 ## Permissions and package source
 
@@ -101,9 +119,10 @@ Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
 9. run disposable-Pod system verification and in-app-browser acceptance.
 
 The importer Job renderer/create-only path, disposable verification runner and
-post-receipt application/bootstrap Secret operator are implementation gates
-until their repository commands and tests are finalized. Do not replace them
-with ad-hoc template substitution or `kubectl apply`.
+post-receipt application/bootstrap Secret operator are implemented and tested,
+but remain ordered deployment gates until a successful receipt-bound import is
+available. Do not replace them with ad-hoc template substitution or
+`kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

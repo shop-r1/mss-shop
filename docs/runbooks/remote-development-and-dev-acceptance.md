@@ -6,11 +6,17 @@ immutable read-only sources/reference state. Nothing in this runbook
 authorizes a write to them. It never authorizes a write to `r1shop-prod`, the
 production database or production Redis.
 
-The end-to-end run is currently **blocked at explicit implementation gates**
-identified below. Do not skip a gate or replace it with an ad-hoc command. At
-the time of this update, no isolated deployment, data import, Kubernetes system
-acceptance or isolated browser acceptance has been executed; business
-acceptance remains 0/31.
+The end-to-end run is currently **open at the successful-import gate**. Do not
+skip a gate or replace it with an ad-hoc command. The exact 24-object isolated
+boundary, six immutable foundation Secrets, PostgreSQL 17.6 and Redis 8.6.3
+are present in `mss-shop-dev`. Revision `12c6a682e38bfef165e09d108e0bd77c53ee73ca`
+passed the disposable readiness gate. Its importer and an earlier importer
+revision both failed before the target transaction and are preserved; no
+receipt or imported marker exists. A new clean revision must repeat the
+original-environment fingerprint and readiness gates before creating a new
+one-time importer Job. No Admin runtime, successful import, Kubernetes system
+acceptance or isolated browser acceptance has executed; business acceptance
+remains 0/31.
 
 ## Fixed boundaries
 
@@ -221,6 +227,17 @@ rendered with the reviewed full SHA and matching importer digest from the CI
 receipt. The resulting image reference must include both tag and digest. The
 Job is create-only, has no ServiceAccount token, and uses the
 `legacy-import` network role.
+
+Before opening the target transaction, the importer must prove in its fixed
+source repeatable-read snapshot that the extension inventory is exactly
+`plpgsql 1.0`/`pg_catalog` and `timescaledb 2.20.2`/`public`; the 91 `public`
+routines are exact object-level TimescaleDB members with complete ordered
+`pg_proc` SHA-256
+`32c0b88f3178e4a15647eef85da4a718b4e490070bd7fa2c77876101f386d81e`;
+and there are no other `public` routines or standalone types. The fingerprint
+is intentionally tied to this source database instance. A restore, extension
+reinstall, object OID drift or catalog change requires review and a new code
+revision; never weaken or bypass the check at run time.
 
 Declare creation of only
 `Job/mss-shop-legacy-import-<full-sha>` in `mss-shop-dev`. Expected impact: one

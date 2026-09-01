@@ -2,6 +2,8 @@ package importer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -13,11 +15,13 @@ import (
 )
 
 const (
-	targetDatabase           = "mss_shop_dev"
-	emptyDatabaseMarker      = "r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty"
-	importedMarkerPrefix     = "mss-shop-isolated-dev:legacy-import:v1:"
-	expectedTargetPG         = "170006"
-	sourceColumnInventorySQL = `
+	targetDatabase              = "mss_shop_dev"
+	emptyDatabaseMarker         = "r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty"
+	importedMarkerPrefix        = "mss-shop-isolated-dev:legacy-import:v1:"
+	expectedTargetPG            = "170006"
+	expectedSourceRoutineCount  = 91
+	expectedSourceRoutineSHA256 = "32c0b88f3178e4a15647eef85da4a718b4e490070bd7fa2c77876101f386d81e"
+	sourceColumnInventorySQL    = `
 SELECT relation.relname::text,
        attribute.attnum::integer,
        attribute.attname::text,
@@ -55,6 +59,57 @@ WHERE relation_namespace.nspname = 'public'
   AND attribute.attnum > 0
 ORDER BY relation.relname, attribute.attnum
 `
+	sourceExecutableObjectInventorySQL = `
+WITH public_routines AS (
+  SELECT routine.*
+    FROM pg_catalog.pg_proc AS routine
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+   WHERE namespace.nspname = 'public'
+),
+reviewed_routines AS (
+  SELECT routine.*
+    FROM public_routines AS routine
+    JOIN pg_catalog.pg_depend AS dependency
+      ON dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+     AND dependency.objid = routine.oid
+     AND dependency.objsubid = 0
+     AND dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+     AND dependency.refobjsubid = 0
+     AND dependency.deptype = 'e'
+    JOIN pg_catalog.pg_extension AS extension ON extension.oid = dependency.refobjid
+    JOIN pg_catalog.pg_namespace AS extension_namespace ON extension_namespace.oid = extension.extnamespace
+   WHERE extension.extname = 'timescaledb'
+     AND extension.extversion = '2.20.2'
+     AND extension_namespace.nspname = 'public'
+),
+standalone_types AS (
+  SELECT type_record.oid
+    FROM pg_catalog.pg_type AS type_record
+    JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
+   WHERE namespace.nspname = 'public'
+     AND type_record.typrelid = 0
+     AND NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_type AS element_type
+         JOIN pg_catalog.pg_class AS relation ON relation.reltype = element_type.oid
+        WHERE type_record.typelem = element_type.oid
+          AND type_record.typcategory = 'A'
+     )
+)
+SELECT (SELECT count(*) FROM public_routines) - (SELECT count(*) FROM reviewed_routines),
+       (SELECT count(*) FROM standalone_types),
+       (SELECT count(*) FROM reviewed_routines),
+       (SELECT COALESCE(
+          pg_catalog.jsonb_agg(pg_catalog.to_jsonb(reviewed_routine) ORDER BY reviewed_routine.oid),
+          '[]'::pg_catalog.jsonb
+        )::text FROM reviewed_routines AS reviewed_routine),
+       (SELECT COALESCE(array_agg(
+          extension.extname::text || '|' || extension.extversion::text || '|' || COALESCE(namespace.nspname::text, '')
+          ORDER BY extension.extname
+        ), ARRAY[]::text[])
+          FROM pg_catalog.pg_extension AS extension
+          LEFT JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = extension.extnamespace)
+`
 )
 
 type sourceRelation struct {
@@ -72,10 +127,13 @@ type sourceRelation struct {
 }
 
 type sourceCatalog struct {
-	Relations       []sourceRelation
-	Columns         map[string][]manifest.Column
-	PublicRoutines  int64
-	StandaloneTypes int64
+	Relations                []sourceRelation
+	Columns                  map[string][]manifest.Column
+	Extensions               []string
+	ReviewedPublicRoutines   int64
+	ReviewedRoutineSHA256    string
+	UnreviewedPublicRoutines int64
+	StandaloneTypes          int64
 }
 
 type targetBoundary struct {
@@ -202,31 +260,26 @@ ORDER BY relation.relname
 	if columnRows.Err() != nil {
 		return sourceCatalog{}, errors.New("inspect source column inventory failed")
 	}
-	if err := tx.QueryRow(ctx, `
-SELECT (SELECT count(*)
-          FROM pg_catalog.pg_proc AS routine
-          JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
-         WHERE namespace.nspname = 'public'),
-       (SELECT count(*)
-          FROM pg_catalog.pg_type AS type_record
-          JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = type_record.typnamespace
-         WHERE namespace.nspname = 'public'
-           AND type_record.typrelid = 0
-           AND NOT EXISTS (
-             SELECT 1
-               FROM pg_catalog.pg_type AS element_type
-               JOIN pg_catalog.pg_class AS relation ON relation.reltype = element_type.oid
-              WHERE type_record.typelem = element_type.oid
-                AND type_record.typcategory = 'A'
-           ))
-`).Scan(&catalog.PublicRoutines, &catalog.StandaloneTypes); err != nil {
+	var reviewedRoutineInventory string
+	if err := tx.QueryRow(ctx, sourceExecutableObjectInventorySQL).Scan(
+		&catalog.UnreviewedPublicRoutines,
+		&catalog.StandaloneTypes,
+		&catalog.ReviewedPublicRoutines,
+		&reviewedRoutineInventory,
+		&catalog.Extensions,
+	); err != nil {
 		return sourceCatalog{}, errors.New("inspect source executable object inventory failed")
 	}
+	routineDigest := sha256.Sum256([]byte(reviewedRoutineInventory))
+	catalog.ReviewedRoutineSHA256 = hex.EncodeToString(routineDigest[:])
 	return catalog, nil
 }
 
 func validateSourceCatalog(catalog sourceCatalog, tables []manifest.Table) error {
-	if catalog.PublicRoutines != 0 || catalog.StandaloneTypes != 0 {
+	if !sourceExtensionInventoryReviewed(catalog.Extensions) ||
+		catalog.ReviewedPublicRoutines != expectedSourceRoutineCount ||
+		catalog.ReviewedRoutineSHA256 != expectedSourceRoutineSHA256 ||
+		catalog.UnreviewedPublicRoutines != 0 || catalog.StandaloneTypes != 0 {
 		return errors.New("source public schema contains an unreviewed executable object or type")
 	}
 	expectedRelations := manifest.ImportNames()

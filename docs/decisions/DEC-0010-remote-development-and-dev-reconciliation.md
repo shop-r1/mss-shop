@@ -39,6 +39,14 @@ compiled exception, exact network path and read-only transaction contract.
   source-egress NetworkPolicy; its startup packet disables event triggers and
   every source transaction is repeatable-read and read-only. All new database
   connections use verified TLS.
+- The source catalog boundary is instance-bound. In the authoritative source
+  snapshot, the extension inventory is exactly `plpgsql 1.0` in `pg_catalog`
+  and `timescaledb 2.20.2` in `public`; all 91 `public` routines must be exact
+  object-level TimescaleDB members whose complete ordered `pg_proc` rows match
+  the reviewed SHA-256, and standalone `public` types must remain zero. This
+  check runs in the same repeatable-read transaction as the table inventory
+  and COPY stream. Restore or extension reinstall drift fails closed pending a
+  new review.
 - The original development Redis is neither a source nor a dependency and is
   not read or shared.
 - The trusted foundation-credential operator may perform Kubernetes GETs for
@@ -100,8 +108,9 @@ compiled exception, exact network path and read-only transaction contract.
   rows. Reconciliation cannot start before that evidence passes.
 - Only after receipt verification may a separate trusted operator create the
   two Admin application Secrets and the transient reconciler bootstrap Secret
-  in `mss-shop-dev`. The command and its tests are a delivery gate; until they
-  exist, no reconciler or Admin runtime may be staged.
+  in `mss-shop-dev`. The command and its tests exist, but successful receipt
+  verification remains their deployment gate; no reconciler or Admin runtime
+  may be staged before it passes.
 - The receipt-bound reconciler Job has no ServiceAccount token or Kubernetes
   API permission. It may reconcile only the fixed isolated roles, core/shared/
   business schemas, compatibility owners, snapshots, views and grants in one
@@ -139,7 +148,15 @@ a retry from silently taking ownership of a colliding resource. Receipt-bound
 import and reconciliation make data provenance part of the database state
 rather than an operator assumption.
 
-As of this decision update, the isolated manifests, operators and importer are
-repository implementation artifacts only. No `mss-shop-dev` rollout, legacy
-data import, Kubernetes system acceptance or isolated in-app-browser
-acceptance has been completed, and accepted business scenarios remain 0/31.
+As of this decision update, the exact 24-object isolated boundary and six
+immutable foundation Secrets exist only in `mss-shop-dev`; PostgreSQL 17.6 and
+Redis 8.6.3 are ready, and a revision-bound disposable readiness Job passed.
+Two create-only importer Jobs are preserved as failed pre-target diagnostics:
+the first exposed a PostgreSQL catalog-alias defect and the second exposed the
+over-broad rejection of reviewed TimescaleDB extension routines. Neither
+reached the target import transaction, no receipt or imported marker exists,
+and a fresh readiness gate is required before a new revision may try once.
+No successful data import, reconciler/Admin runtime rollout, Kubernetes system
+acceptance or isolated in-app-browser acceptance has completed. Accepted
+business scenarios remain 0/31, and the original `r1shop-dev` environment and
+production remain unchanged.

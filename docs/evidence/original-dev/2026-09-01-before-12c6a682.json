@@ -1,0 +1,281 @@
+{
+  "version": "mss-shop-original-dev-read-only-kubernetes-fingerprint/v1",
+  "revision": "12c6a682e38bfef165e09d108e0bd77c53ee73ca",
+  "environment": "r1shop-dev-read-only",
+  "accessMode": "kubernetes-fixed-get-list-only",
+  "selectedSafeFields": {
+    "originalNamespace": {
+      "object": {
+        "name": "r1shop-dev",
+        "namespace": "",
+        "uid": "a8554748-0682-4c00-9bb2-b90c40c14d1e",
+        "resourceVersion": "102394581",
+        "generation": 0
+      },
+      "phase": "Active",
+      "ready": true
+    },
+    "application": {
+      "deployment": {
+        "object": {
+          "name": "shop",
+          "namespace": "r1shop-dev",
+          "uid": "f1c65d9b-db13-4450-a571-6dfab677f2a5",
+          "resourceVersion": "119368003",
+          "generation": 30
+        },
+        "selector": "app=shop",
+        "observedGeneration": 30,
+        "desiredReplicas": 1,
+        "updatedReplicas": 1,
+        "readyReplicas": 1,
+        "availableReplicas": 1,
+        "ready": true,
+        "image": "ghcr.io/shop-r1/shop-go:82b970fa675a21e75ebec2926e62614131c65319"
+      },
+      "pod": {
+        "object": {
+          "name": "shop-59965bdd75-6smbr",
+          "namespace": "r1shop-dev",
+          "uid": "e94465c5-6337-4074-a27d-3c0ba5c6b452",
+          "resourceVersion": "119367989",
+          "generation": 0
+        },
+        "phase": "Running",
+        "ready": true,
+        "restartCount": 0,
+        "image": "ghcr.io/shop-r1/shop-go:82b970fa675a21e75ebec2926e62614131c65319",
+        "imageID": "ghcr.io/shop-r1/shop-go@sha256:286064abf5d8da3427c4cba7230add791aba7a102e90fde7b012701c723e2169"
+      },
+      "service": {
+        "object": {
+          "name": "shop",
+          "namespace": "r1shop-dev",
+          "uid": "2cf59073-7b98-4edd-9b53-0d0cf9f50a68",
+          "resourceVersion": "102394875",
+          "generation": 0
+        },
+        "selector": "app=shop",
+        "type": "ClusterIP",
+        "clusterIP": "10.233.53.143",
+        "port": 80
+      },
+      "ingress": {
+        "object": {
+          "name": "shop",
+          "namespace": "r1shop-dev",
+          "uid": "bc2601a5-84b5-4b83-8bec-eee1b63094b6",
+          "resourceVersion": "112782282",
+          "generation": 1
+        },
+        "host": "api-dev.r1shop.net",
+        "path": "/",
+        "pathType": "Prefix",
+        "serviceName": "shop",
+        "servicePort": 80,
+        "tls": false
+      },
+      "storage": {
+        "claimObject": {
+          "name": "public",
+          "namespace": "r1shop-dev",
+          "uid": "0eb4ba6e-5236-4a92-83ea-d7b5cb019ee4",
+          "resourceVersion": "102449751",
+          "generation": 0
+        },
+        "claimPhase": "Bound",
+        "claimVolumeName": "pvc-0eb4ba6e-5236-4a92-83ea-d7b5cb019ee4",
+        "claimStorageClass": "local",
+        "claimAccessModes": [
+          "ReadWriteOnce"
+        ],
+        "claimVolumeMode": "Filesystem",
+        "claimRequestedCapacity": "5Gi",
+        "claimCapacity": "5Gi",
+        "volumeObject": {
+          "name": "pvc-0eb4ba6e-5236-4a92-83ea-d7b5cb019ee4",
+          "namespace": "",
+          "uid": "8f26e641-b8ee-46c0-a975-0610b60d94e7",
+          "resourceVersion": "102449749",
+          "generation": 0
+        },
+        "volumePhase": "Bound",
+        "volumeStorageClass": "local",
+        "volumeAccessModes": [
+          "ReadWriteOnce"
+        ],
+        "volumeMode": "Filesystem",
+        "volumeCapacity": "5Gi",
+        "claimRefNamespace": "r1shop-dev",
+        "claimRefName": "public",
+        "claimRefUID": "0eb4ba6e-5236-4a92-83ea-d7b5cb019ee4"
+      }
+    },
+    "legacyDatabase": {
+      "statefulSet": {
+        "object": {
+          "name": "timescaledb-r1shop-dev",
+          "namespace": "database",
+          "uid": "5c1e919d-99eb-40f3-8180-c67c0bff6e87",
+          "resourceVersion": "102392638",
+          "generation": 1
+        },
+        "selector": "app.kubernetes.io/name=timescaledb-r1shop-dev",
+        "observedGeneration": 1,
+        "desiredReplicas": 1,
+        "updatedReplicas": 1,
+        "readyReplicas": 1,
+        "availableReplicas": 1,
+        "ready": true,
+        "image": "timescale/timescaledb:2.20.2-pg17"
+      },
+      "pod": {
+        "object": {
+          "name": "timescaledb-r1shop-dev-0",
+          "namespace": "database",
+          "uid": "860ce633-b838-4d55-8121-8c1da24ca7cf",
+          "resourceVersion": "102392635",
+          "generation": 0
+        },
+        "phase": "Running",
+        "ready": true,
+        "restartCount": 0,
+        "image": "timescale/timescaledb:2.20.2-pg17",
+        "imageID": "docker.io/timescale/timescaledb@sha256:a6fc1097505260ecfaa056639cf19595f67f64286ff0aa4634e26594defea401"
+      },
+      "service": {
+        "object": {
+          "name": "timescaledb-r1shop-dev",
+          "namespace": "database",
+          "uid": "c670721c-2bfc-442b-90df-fb9da826331e",
+          "resourceVersion": "102392468",
+          "generation": 0
+        },
+        "selector": "app.kubernetes.io/name=timescaledb-r1shop-dev",
+        "type": "ClusterIP",
+        "clusterIP": "10.233.59.93",
+        "port": 5432
+      },
+      "storage": {
+        "claimObject": {
+          "name": "data-timescaledb-r1shop-dev-0",
+          "namespace": "database",
+          "uid": "5f947ada-2bf6-4ae1-865b-a16a3d6357b6",
+          "resourceVersion": "102392525",
+          "generation": 0
+        },
+        "claimPhase": "Bound",
+        "claimVolumeName": "pvc-5f947ada-2bf6-4ae1-865b-a16a3d6357b6",
+        "claimStorageClass": "local",
+        "claimAccessModes": [
+          "ReadWriteOnce"
+        ],
+        "claimVolumeMode": "Filesystem",
+        "claimRequestedCapacity": "20Gi",
+        "claimCapacity": "20Gi",
+        "volumeObject": {
+          "name": "pvc-5f947ada-2bf6-4ae1-865b-a16a3d6357b6",
+          "namespace": "",
+          "uid": "5a50546e-4c0a-4f52-aa19-ed256e8078b5",
+          "resourceVersion": "102392523",
+          "generation": 0
+        },
+        "volumePhase": "Bound",
+        "volumeStorageClass": "local",
+        "volumeAccessModes": [
+          "ReadWriteOnce"
+        ],
+        "volumeMode": "Filesystem",
+        "volumeCapacity": "20Gi",
+        "claimRefNamespace": "database",
+        "claimRefName": "data-timescaledb-r1shop-dev-0",
+        "claimRefUID": "5f947ada-2bf6-4ae1-865b-a16a3d6357b6"
+      }
+    },
+    "legacyRedis": {
+      "statefulSet": {
+        "object": {
+          "name": "redis-r1shop-dev",
+          "namespace": "database",
+          "uid": "08050154-9b72-4d13-9f4d-092ee87778e6",
+          "resourceVersion": "102394716",
+          "generation": 1
+        },
+        "selector": "app.kubernetes.io/name=redis-r1shop-dev",
+        "observedGeneration": 1,
+        "desiredReplicas": 1,
+        "updatedReplicas": 1,
+        "readyReplicas": 1,
+        "availableReplicas": 1,
+        "ready": true,
+        "image": "redis:8.6.3"
+      },
+      "pod": {
+        "object": {
+          "name": "redis-r1shop-dev-0",
+          "namespace": "database",
+          "uid": "ceb7c3fe-24de-482b-9f1b-602df245bc94",
+          "resourceVersion": "102394713",
+          "generation": 0
+        },
+        "phase": "Running",
+        "ready": true,
+        "restartCount": 0,
+        "image": "redis:8.6.3",
+        "imageID": "docker.io/library/redis@sha256:4d25e2fe601f7ffaeb4437cb6ced3518bc36edf34ebe98863c80836943d94529"
+      },
+      "service": {
+        "object": {
+          "name": "redis-r1shop-dev",
+          "namespace": "database",
+          "uid": "0d3cd22d-6880-43cf-b65f-c99e83e1d323",
+          "resourceVersion": "102394615",
+          "generation": 0
+        },
+        "selector": "app.kubernetes.io/name=redis-r1shop-dev",
+        "type": "ClusterIP",
+        "clusterIP": "10.233.14.117",
+        "port": 6379
+      },
+      "storage": {
+        "claimObject": {
+          "name": "data-redis-r1shop-dev-0",
+          "namespace": "database",
+          "uid": "4aa2a36a-9136-4bd9-abea-42081189fe7e",
+          "resourceVersion": "102394662",
+          "generation": 0
+        },
+        "claimPhase": "Bound",
+        "claimVolumeName": "pvc-4aa2a36a-9136-4bd9-abea-42081189fe7e",
+        "claimStorageClass": "local",
+        "claimAccessModes": [
+          "ReadWriteOnce"
+        ],
+        "claimVolumeMode": "Filesystem",
+        "claimRequestedCapacity": "10Gi",
+        "claimCapacity": "10Gi",
+        "volumeObject": {
+          "name": "pvc-4aa2a36a-9136-4bd9-abea-42081189fe7e",
+          "namespace": "",
+          "uid": "a90ef1f4-70aa-4e94-90a9-0681223f186e",
+          "resourceVersion": "102394660",
+          "generation": 0
+        },
+        "volumePhase": "Bound",
+        "volumeStorageClass": "local",
+        "volumeAccessModes": [
+          "ReadWriteOnce"
+        ],
+        "volumeMode": "Filesystem",
+        "volumeCapacity": "10Gi",
+        "claimRefNamespace": "database",
+        "claimRefName": "data-redis-r1shop-dev-0",
+        "claimRefUID": "4aa2a36a-9136-4bd9-abea-42081189fe7e"
+      }
+    }
+  },
+  "selectedSafeFieldsSHA256": "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854",
+  "secretsAccessed": false,
+  "databaseConnectionsPerformed": false,
+  "writesPerformed": false
+}

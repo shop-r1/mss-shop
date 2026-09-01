@@ -33,6 +33,14 @@ spec:
       access: read-only-repeatable-read
       sslMode: disabled-fixed-source-exception
       fallbackEndpoints: forbidden
+      extensions:
+        - plpgsql|1.0|pg_catalog
+        - timescaledb|2.20.2|public
+      reviewedPublicRoutines: 91
+      unreviewedPublicRoutines: 0
+      standalonePublicTypes: 0
+      routineCatalogSHA256: 32c0b88f3178e4a15647eef85da4a718b4e490070bd7fa2c77876101f386d81e
+      fingerprintScope: current-source-instance-complete-pg-proc-rows-ordered-by-oid
     oldEnvironmentSecretReads:
       mode: exact-get-only
       resources:
@@ -67,22 +75,47 @@ spec:
     inAppBrowserAcceptance:
       mallPlatform: historical-pre-dec-0009-compatibility-surface
       tenantPlatform: pending
-    kubernetesSystemAcceptance: pending-not-deployed
+    kubernetesSystemAcceptance: partial-datastore-readiness-only
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: four-image-workflow-implemented-not-yet-published-together
-    remoteDevelopmentPlan: isolated-contract-implemented-not-deployed
-    isolatedInfrastructure: source-implemented-not-created
-    foundationSecrets: source-implemented-not-created
-    originalDevelopmentFingerprint: implemented-fixed-get-list-only-not-yet-run-from-committed-revision
-    datastoreReadinessJob: implemented-not-executed
+    deliveryCI: four-image-publication-verified-for-pre-current-source-fix
+    remoteDevelopmentPlan: isolated-infrastructure-ready-import-pending
+    isolatedInfrastructure: created-exact-24-objects
+    foundationSecrets: created-exact-six-immutable
+    originalDevelopmentFingerprint:
+      state: executed-revision-12c6a682-stable-safe-fields
+      evidencePath: docs/evidence/original-dev/2026-09-01-before-12c6a682.json
+      evidenceFileSHA256: e8be0f7661dba62b056b89bd4afefc0f4d1409128f7dc9c130b015def584fd3f
+      selectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
+    datastoreReadinessJob: passed-revision-12c6a682
     legacyImport:
       compiledTables: 51
       dataCopyEligibleTables: 49
       structureOnlyTables: [orders, order_goods]
       identityTablesNotCopied: [roles, tenants, users]
-      receipt: implemented-not-executed
-      marker: "mss-shop-isolated-dev:legacy-import:v1:<receipt-sha256>"
-      logsPersisted: false
+      attemptCount: 2
+      failedBeforeTargetTransaction: 2
+      receipt: pending-no-successful-import
+      currentMarker: "r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty"
+      expectedSuccessMarkerFormat: "mss-shop-isolated-dev:legacy-import:v1:<receipt-sha256>"
+      repositoryEvidence: docs/evidence/mss-shop-dev/2026-09-01-import-attempts.yaml
+      repositoryEvidenceFileSHA256: 25918a8463d68385f14d211f38f5dfc746e6949a2b439ee1e2da5c10745ef634
+      completeFailureOutputsCaptured: true
+      completeSuccessReceiptPersisted: false
+      attempts:
+        - revision: a60ef82bf83f0661809aa87340178b3e58dff48d
+          readinessJob: mss-shop-readiness-a60ef82bf83f0661809aa87340178b3e58dff48d
+          readinessResult: passed
+          importerJob: mss-shop-legacy-import-a60ef82bf83f0661809aa87340178b3e58dff48d
+          imageDigest: sha256:532335acc7f8804be27d1fcd069704bb8a626523f93511d0c4bfd1bdf469dd01
+          failureStage: before-target-transaction-source-column-inventory
+          receiptEmitted: false
+        - revision: 12c6a682e38bfef165e09d108e0bd77c53ee73ca
+          readinessJob: mss-shop-readiness-12c6a682e38bfef165e09d108e0bd77c53ee73ca
+          readinessResult: passed
+          importerJob: mss-shop-legacy-import-12c6a682e38bfef165e09d108e0bd77c53ee73ca
+          imageDigest: sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05
+          failureStage: before-target-transaction-source-catalog-policy
+          receiptEmitted: false
     postImportVerifierJob: implemented-not-executed
     reconciliationSecretsOperator: implemented-not-executed
     reconcilerJob: source-implemented-not-executed
@@ -126,13 +159,13 @@ spec:
       bilingualCatalogs: passed
       malformedResponseStringSafety: passed
     mssContracts:
-      ownershipAndMemoryContract: passed-remote-temporary-checkout
+      ownershipAndMemoryContract: passed-current-remote-checkout
       generatedModuleDryRun: unchanged
       featurePlan: passed
       strictDoctorMall: passed
       strictDoctorTenant: passed
-      fullVerifyMall: historical-pre-dec-0009
-      fullVerifyTenant: historical-pre-dec-0009
+      fullVerifyMall: passed-current-source-tree
+      fullVerifyTenant: passed-current-source-tree
     localMallBrowserFixture:
       reviewedTables: 50
       nonSensitiveRows: 10
@@ -166,7 +199,7 @@ spec:
       hostFacadeContractTests: passed
     memoryContracts:
       command: tools/check-project-memory.sh
-      result: passed-remote-temporary-checkout
+      result: passed-current-remote-checkout
     currentSourceValidation:
       rootGoTest: passed
       rootGoVet: passed
@@ -175,9 +208,18 @@ spec:
       tenantAdminWebTests: 26-passed
       mallAdminWebTests: 33-passed
       platformBoundaries: passed
-      kubernetesWrites: 0
+      isolatedCreateOnlyResources:
+        infrastructureObjects: 24
+        foundationSecrets: 6
+        successfulReadinessJobs: 2
+        failedImporterJobs: 2
+        total: 34
       originalDevelopmentReady: true
-      isolatedNamespaceExists: false
+      originalDevelopmentSelectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
+      isolatedNamespaceExists: true
+      isolatedPostgreSQLReady: true
+      isolatedRedisReady: true
+      successfulLegacyImport: false
     deliveryImages:
       workflow: .github/workflows/ci.yml
       pullRequestMode: build-without-push
@@ -185,14 +227,16 @@ spec:
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
-      currentFourImagePublication: pending
+      currentFourImagePublication: verified-historical-revision-12c6a682
       verifiedRun:
-        id: 33451906040
-        revision: ac74347cbbd6cd24f731dadd239c1044ff132e38
+        id: 33487529898
+        revision: 12c6a682e38bfef165e09d108e0bd77c53ee73ca
         conclusion: success
-        scope: historical-two-admin-images-only
-        tenantDigest: sha256:c4d0e651553263f8cf8127351ee3d14d13076c0b23052f64ecb017d8cd2dbef0
-        mallDigest: sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e
+        scope: historical-four-images-before-current-source-catalog-fix
+        tenantDigest: sha256:8f6348da987fe8fcd30553583c19319feac862d69d33f5ed43651a70eeb02d35
+        mallDigest: sha256:5880261198942ad53507e3aa087bbb949e96a42f0472d0d110ea13e1e8ebdd15
+        reconcilerDigest: sha256:f53404fee6fed5b77c758358c14a28d7b4197a8172393f8003857e7fac56ac71
+        legacyImporterDigest: sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05
       packages:
         - ghcr.io/shop-r1/mss-shop-tenant-platform
         - ghcr.io/shop-r1/mss-shop-mall-platform
@@ -221,6 +265,8 @@ spec:
     remoteDevelopmentDecision: docs/decisions/DEC-0010-remote-development-and-dev-reconciliation.md
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
+    originalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-before-12c6a682.json
+    isolatedImportAttemptEvidence: docs/evidence/mss-shop-dev/2026-09-01-import-attempts.yaml
   safety:
     productionReadOnly: true
     originalDevelopmentEnvironmentImmutable: true
@@ -232,6 +278,8 @@ spec:
     targetOrderRowsImported: false
     targetOrderGoodsRowsImported: false
     systemTestsUseDisposableKubernetesPods: true
-    kubernetesDeploymentExecuted: false
-    legacyImportExecuted: false
+    isolatedInfrastructureStaged: true
+    isolatedAdminRuntimeDeployed: false
+    legacyImportAttempts: 2
+    legacyImportSucceeded: false
     isolatedBrowserAcceptanceExecuted: false

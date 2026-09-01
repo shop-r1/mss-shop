@@ -84,9 +84,9 @@ describe('shared catalog transport contract', () => {
     expect(() =>
       parseSharedCatalogListResponse({ ...base, resource: unsafe }, resource('payments')),
     ).toThrow('not a safe field name');
-    expect(() => parseSharedCatalogListResponse({ ...base, page: 0 }, resource('payments'))).toThrow(
-      'page must be an integer greater than or equal to 1',
-    );
+    expect(() =>
+      parseSharedCatalogListResponse({ ...base, page: 0 }, resource('payments')),
+    ).toThrow('page must be an integer greater than or equal to 1');
   });
 
   it('rejects write capabilities advertised for any shared resource', () => {

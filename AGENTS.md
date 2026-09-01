@@ -48,7 +48,13 @@
   `orders` or `order_goods` rows. The importer is the only one-time exception
   to the reconciler's target-database mutation ownership: it may initialize
   only an empty, exact-marker `mss_shop_dev` target, emits a receipt, and has
-  no Kubernetes API identity. A deployment command must fail closed if it targets
+  no Kubernetes API identity. Its source snapshot must match the exact
+  `plpgsql 1.0`/`pg_catalog` and `timescaledb 2.20.2`/`public` inventory,
+  91 object-level TimescaleDB `public` routine members, zero other routines,
+  zero standalone types and the reviewed instance-bound complete `pg_proc`
+  SHA-256 recorded in the migration contract. A restore, extension reinstall
+  or OID drift requires a new read-only review; never relax this at run time.
+  A deployment command must fail closed if it targets
   `r1shop-dev`, `database/timescaledb-r1shop-dev`, or
   `database/redis-r1shop-dev` for mutation.
 - Work on `codex/...` branches. Do not push, deploy, merge to a production

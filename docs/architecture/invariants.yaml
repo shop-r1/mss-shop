@@ -34,7 +34,7 @@ invariants:
     statement: Old-environment access is limited to the exact read-only legacy database source and GET of its credential and the exact GHCR pull Secret; old Redis and every old-environment write are forbidden.
     owner: platform-operations
     decision: DEC-0010
-    enforced_by: [fixed-source-endpoint, source-read-only-transaction, source-plaintext-exception, exact-source-egress-policy, exact-secret-get-allowlist]
+    enforced_by: [fixed-source-endpoint, source-read-only-transaction, source-plaintext-exception, exact-source-egress-policy, exact-secret-get-allowlist, exact-extension-inventory, instance-bound-routine-catalog-fingerprint, zero-unreviewed-executable-objects-and-types]
   - id: API-001
     statement: Storefront clients use /app/v1 and never use the MSS Admin API.
     owner: storefront-api

@@ -261,10 +261,14 @@ independently proves that marker and zero target rows in `orders` and
 Admin runtime objects be staged. Production is outside this workflow. See
 [`remote-development-and-dev-acceptance.md`](../runbooks/remote-development-and-dev-acceptance.md).
 
-This is the target delivery topology, not current runtime evidence. The
-isolated environment has not yet been deployed or imported, Kubernetes system
-and isolated browser acceptance remain pending, and the business matrix is
-still 0/31.
+This remains the target delivery topology rather than completed runtime
+acceptance. Its exact 24-object infrastructure boundary, six immutable
+foundation Secrets and dedicated PostgreSQL/Redis datastores now exist only in
+`mss-shop-dev`, and two revision-bound readiness Jobs passed. Two importer
+attempts then failed before opening the target transaction, so no successful
+import receipt or Admin runtime deployment exists. Kubernetes system and
+isolated browser acceptance remain pending, the original `r1shop-dev` is
+unchanged, and the business matrix is still 0/31.
 
 ## Mobile boundary
 

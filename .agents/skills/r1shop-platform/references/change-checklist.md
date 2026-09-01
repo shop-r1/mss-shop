@@ -9,7 +9,7 @@
 | Locale/message/content format | i18n architecture, DEC-0004 | catalog parity and both-client-target tests |
 | MSS module | `.mss` spec and `mss-thin-host` Skill | `mss verify --module` and `--all` as scoped |
 | Reconciler or stage operator | DEC-0006, DEC-0010 and lifecycle invariants | transaction replay/fault test, no-overwrite pre/postflight, least privilege and production-mode rejection |
-| Data migration | migration roadmap and runbook | dev-only rehearsal, row counts and rollback |
+| Data migration | migration roadmap and runbook | dev-only rehearsal, row counts, transaction rollback before commit; after commit or receipt loss use reviewed recovery rather than clearing and rerunning |
 
 For production-impacting work, stop before mutation until the user approves the
 namespace/resource/action and expected impact in the current conversation.
