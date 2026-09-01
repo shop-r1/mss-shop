@@ -37,6 +37,12 @@ func TestCaptureUsesOnlyFixedGetAndListAndProducesCanonicalSafeFingerprint(t *te
 	if result.SecretsAccessed || result.DatabaseConnectionsPerformed || result.WritesPerformed ||
 		result.SelectedSafeFields.Application.Ingress.Host != applicationHost ||
 		!result.SelectedSafeFields.Application.Pod.Ready ||
+		result.SelectedSafeFields.Application.Storage.ClaimObject.Name != applicationClaim ||
+		result.SelectedSafeFields.Application.Storage.ClaimStorageClass != "local" ||
+		result.SelectedSafeFields.Application.Storage.ClaimCapacity != "5Gi" ||
+		result.SelectedSafeFields.Application.Storage.ClaimVolumeMode != string(corev1.PersistentVolumeFilesystem) ||
+		len(result.SelectedSafeFields.Application.Storage.ClaimAccessModes) != 1 ||
+		result.SelectedSafeFields.Application.Storage.ClaimAccessModes[0] != string(corev1.ReadWriteOnce) ||
 		!result.SelectedSafeFields.LegacyDatabase.Pod.Ready ||
 		!result.SelectedSafeFields.LegacyRedis.Pod.Ready {
 		t.Fatal("safe fingerprint did not contain the reviewed ready boundary")
@@ -99,6 +105,20 @@ func TestCaptureFailsClosedOnCollisionMultiplePodsAndNonReadyState(t *testing.T)
 			},
 		},
 		{
+			name: "application public claim mount collision",
+			mutate: func(objects []runtime.Object) []runtime.Object {
+				findPod(t, objects, applicationNS, "shop-59965bdd75-6smbr").Spec.Volumes[0].PersistentVolumeClaim.ClaimName = "foreign"
+				return objects
+			},
+		},
+		{
+			name: "application public claim shape collision",
+			mutate: func(objects []runtime.Object) []runtime.Object {
+				findClaim(t, objects, applicationNS, applicationClaim).Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteMany}
+				return objects
+			},
+		},
+		{
 			name: "non-ready database pod",
 			mutate: func(objects []runtime.Object) []runtime.Object {
 				pod := findPod(t, objects, databaseNS, databaseName+"-0")
@@ -110,7 +130,7 @@ func TestCaptureFailsClosedOnCollisionMultiplePodsAndNonReadyState(t *testing.T)
 		{
 			name: "unbound redis claim",
 			mutate: func(objects []runtime.Object) []runtime.Object {
-				findClaim(t, objects, redisClaim).Status.Phase = corev1.ClaimPending
+				findClaim(t, objects, databaseNS, redisClaim).Status.Phase = corev1.ClaimPending
 				return objects
 			},
 		},
@@ -141,14 +161,14 @@ func TestCaptureRedactsAPIErrors(t *testing.T) {
 
 func TestCaptureRejectsUnreviewedVolumeNameBeforePVLookup(t *testing.T) {
 	objects := testObjects()
-	findClaim(t, objects, databaseClaim).Spec.VolumeName = "foreign/volume"
+	findClaim(t, objects, databaseNS, databaseClaim).Spec.VolumeName = "foreign/volume"
 	client := fake.NewSimpleClientset(objects...)
 	if _, err := captureOriginalDev(context.Background(), &typedClusterReader{client: client}, testRevision); err == nil {
 		t.Fatal("unreviewed PersistentVolume name was accepted")
 	}
 	for _, action := range client.Actions() {
-		if action.GetResource().Resource == "persistentvolumes" {
-			t.Fatal("PersistentVolume was read before the fixed claim boundary was validated")
+		if action.GetResource().Resource == "persistentvolumes" && actionName(action) == "foreign/volume" {
+			t.Fatal("unreviewed PersistentVolume was read before the fixed claim boundary was validated")
 		}
 	}
 	assertNoSecretsOrWrites(t, client.Actions())
@@ -223,8 +243,12 @@ func testObjects() []runtime.Object {
 		"ghcr.io/shop-r1/shop-go:0123456789abcdef0123456789abcdef01234567",
 		"ghcr.io/shop-r1/shop-go@sha256:"+strings.Repeat("1", 64), &metav1.OwnerReference{
 			APIVersion: "apps/v1", Kind: "ReplicaSet", Name: "shop-59965bdd75", UID: testUID(6), Controller: &controller,
-		}, "")
+		}, applicationClaim)
 	applicationPod.Labels["pod-template-hash"] = "59965bdd75"
+	applicationPod.Spec.Volumes[0].Name = applicationVolume
+	applicationPod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{
+		Name: applicationVolume, MountPath: applicationMount,
+	}}
 	objects := []runtime.Object{
 		&corev1.Namespace{
 			ObjectMeta: testMetadata("", applicationNS, 1, 1),
@@ -235,6 +259,7 @@ func testObjects() []runtime.Object {
 		applicationIngress(),
 		applicationPod,
 	}
+	objects = append(objects, boundStorageObjects(applicationNS, applicationClaim, "5Gi", 7)...)
 	objects = append(objects, statefulObjects(databaseName, "timescaledb", databaseClaim, 5432,
 		"timescale/timescaledb:2.20.2-pg17", "docker.io/timescale/timescaledb@sha256:"+strings.Repeat("2", 64), 20)...)
 	objects = append(objects, statefulObjects(redisName, "redis", redisClaim, 6379,
@@ -251,9 +276,18 @@ func applicationDeployment() *appsv1.Deployment {
 			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": applicationName}},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": applicationName}},
-				Spec: corev1.PodSpec{Containers: []corev1.Container{{
-					Name: applicationName, Image: "ghcr.io/shop-r1/shop-go:0123456789abcdef0123456789abcdef01234567",
-				}}},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name: applicationName, Image: "ghcr.io/shop-r1/shop-go:0123456789abcdef0123456789abcdef01234567",
+						VolumeMounts: []corev1.VolumeMount{{Name: applicationVolume, MountPath: applicationMount}},
+					}},
+					Volumes: []corev1.Volume{{
+						Name: applicationVolume,
+						VolumeSource: corev1.VolumeSource{PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: applicationClaim,
+						}},
+					}},
+				},
 			},
 		},
 		Status: appsv1.DeploymentStatus{
@@ -296,7 +330,6 @@ func statefulObjects(
 	replicas := int32(1)
 	statefulUID := testUID(base)
 	selector := map[string]string{"app.kubernetes.io/name": name}
-	storageClass := "local"
 	controller := true
 	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -317,35 +350,44 @@ func statefulObjects(
 		APIVersion: "apps/v1", Kind: "StatefulSet", Name: name, UID: statefulUID, Controller: &controller,
 	}, claimName)
 	service := serviceObject(databaseNS, name, selector, port, base+2)
-	claimUID := testUID(base + 3)
+	result := []runtime.Object{statefulSet, service, pod}
+	return append(result, boundStorageObjects(databaseNS, claimName, "10Gi", base+3)...)
+}
+
+func boundStorageObjects(namespace, claimName, capacity string, base int) []runtime.Object {
+	storageClass := "local"
+	volumeMode := corev1.PersistentVolumeFilesystem
+	claimUID := testUID(base)
 	volumeName := "pvc-" + string(claimUID)
 	claim := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: claimName, Namespace: databaseNS, UID: claimUID,
-			ResourceVersion: resourceVersion(base + 3),
+			Name: claimName, Namespace: namespace, UID: claimUID,
+			ResourceVersion: resourceVersion(base),
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			VolumeName: volumeName, StorageClassName: &storageClass,
-			Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")}},
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, VolumeMode: &volumeMode,
+			Resources: corev1.VolumeResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(capacity)}},
 		},
 		Status: corev1.PersistentVolumeClaimStatus{
-			Phase: corev1.ClaimBound, Capacity: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+			Phase: corev1.ClaimBound, Capacity: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(capacity)},
 		},
 	}
 	volume := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: volumeName, UID: testUID(base + 4), ResourceVersion: resourceVersion(base + 4),
+			Name: volumeName, UID: testUID(base + 1), ResourceVersion: resourceVersion(base + 1),
 		},
 		Spec: corev1.PersistentVolumeSpec{
 			StorageClassName: storageClass,
-			Capacity:         corev1.ResourceList{corev1.ResourceStorage: resource.MustParse("10Gi")},
+			AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, VolumeMode: &volumeMode,
+			Capacity: corev1.ResourceList{corev1.ResourceStorage: resource.MustParse(capacity)},
 			ClaimRef: &corev1.ObjectReference{
-				Namespace: databaseNS, Name: claimName, UID: claimUID,
+				Namespace: namespace, Name: claimName, UID: claimUID,
 			},
 		},
 		Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound},
 	}
-	return []runtime.Object{statefulSet, service, pod, claim, volume}
+	return []runtime.Object{claim, volume}
 }
 
 func readyPod(
@@ -441,20 +483,22 @@ func replaceOption(arguments []string, name, value string) []string {
 func assertOnlyReviewedReadActions(t *testing.T, actions []ktesting.Action) {
 	t.Helper()
 	allowed := map[string]struct{}{
-		"get|namespaces||" + applicationNS:                               {},
-		"get|deployments|" + applicationNS + "|" + applicationName:       {},
-		"get|services|" + applicationNS + "|" + applicationName:          {},
-		"get|ingresses|" + applicationNS + "|" + applicationName:         {},
-		"list|pods|" + applicationNS + "|":                               {},
-		"get|statefulsets|" + databaseNS + "|" + databaseName:            {},
-		"get|services|" + databaseNS + "|" + databaseName:                {},
-		"list|pods|" + databaseNS + "|":                                  {},
-		"get|persistentvolumeclaims|" + databaseNS + "|" + databaseClaim: {},
-		"get|persistentvolumes||pvc-" + string(testUID(23)):              {},
-		"get|statefulsets|" + databaseNS + "|" + redisName:               {},
-		"get|services|" + databaseNS + "|" + redisName:                   {},
-		"get|persistentvolumeclaims|" + databaseNS + "|" + redisClaim:    {},
-		"get|persistentvolumes||pvc-" + string(testUID(43)):              {},
+		"get|namespaces||" + applicationNS:                                     {},
+		"get|deployments|" + applicationNS + "|" + applicationName:             {},
+		"get|services|" + applicationNS + "|" + applicationName:                {},
+		"get|ingresses|" + applicationNS + "|" + applicationName:               {},
+		"list|pods|" + applicationNS + "|":                                     {},
+		"get|persistentvolumeclaims|" + applicationNS + "|" + applicationClaim: {},
+		"get|persistentvolumes||pvc-" + string(testUID(7)):                     {},
+		"get|statefulsets|" + databaseNS + "|" + databaseName:                  {},
+		"get|services|" + databaseNS + "|" + databaseName:                      {},
+		"list|pods|" + databaseNS + "|":                                        {},
+		"get|persistentvolumeclaims|" + databaseNS + "|" + databaseClaim:       {},
+		"get|persistentvolumes||pvc-" + string(testUID(23)):                    {},
+		"get|statefulsets|" + databaseNS + "|" + redisName:                     {},
+		"get|services|" + databaseNS + "|" + redisName:                         {},
+		"get|persistentvolumeclaims|" + databaseNS + "|" + redisClaim:          {},
+		"get|persistentvolumes||pvc-" + string(testUID(43)):                    {},
 	}
 	for _, action := range actions {
 		key := action.GetVerb() + "|" + action.GetResource().Resource + "|" + action.GetNamespace() + "|" + actionName(action)
@@ -470,8 +514,8 @@ func assertOnlyReviewedReadActions(t *testing.T, actions []ktesting.Action) {
 			}
 		}
 	}
-	if len(actions) != 15 {
-		t.Fatalf("expected 15 fixed GET/LIST actions, got %d", len(actions))
+	if len(actions) != 17 {
+		t.Fatalf("expected 17 fixed GET/LIST actions, got %d", len(actions))
 	}
 	assertNoSecretsOrWrites(t, actions)
 }
@@ -517,10 +561,10 @@ func findPod(t *testing.T, objects []runtime.Object, namespace, name string) *co
 	return nil
 }
 
-func findClaim(t *testing.T, objects []runtime.Object, name string) *corev1.PersistentVolumeClaim {
+func findClaim(t *testing.T, objects []runtime.Object, namespace, name string) *corev1.PersistentVolumeClaim {
 	t.Helper()
 	for _, object := range objects {
-		if claim, ok := object.(*corev1.PersistentVolumeClaim); ok && claim.Namespace == databaseNS && claim.Name == name {
+		if claim, ok := object.(*corev1.PersistentVolumeClaim); ok && claim.Namespace == namespace && claim.Name == name {
 			return claim
 		}
 	}

@@ -98,11 +98,14 @@ coexist with it.
 The helper performs only fixed Kubernetes GET/LIST operations. It never reads
 a Secret, opens a database connection, execs into a Pod, or writes a resource.
 It captures the exact old `shop` Deployment, Service, Ingress and unique ready
-Pod, plus the old TimescaleDB and Redis StatefulSet, Service, unique ready Pod,
-PVC and bound PV metadata. Its strict, non-secret output includes UID,
-resourceVersion, generation, readiness, restart count, image/imageID, Ingress
-host, PVC/PV claim binding and a canonical SHA-256 over the selected safe
-fields.
+Pod, the old application's exact `r1shop-dev/public` PVC and bound PV, plus the
+old TimescaleDB and Redis StatefulSet, Service, unique ready Pod, PVC and bound
+PV metadata. The application storage gate requires the reviewed `public` volume
+mounted at `/app/public`, with `local`, `5Gi`, `ReadWriteOnce` and `Filesystem`
+PVC/PV shape and an exact claim UID binding. Its strict, non-secret output
+includes UID, resourceVersion, generation, readiness, restart count,
+image/imageID, Ingress host, requested/capacity storage, access and volume modes,
+PVC/PV claim binding and a canonical SHA-256 over the selected safe fields.
 
 The source database identity, TLS-disabled boundary, exact 54-table inventory
 and catalog fingerprint remain the compiled importer's independent read-only

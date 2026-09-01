@@ -17,6 +17,9 @@ func TestOriginalDevelopmentFingerprintCommandIsMetadataOnlyAndFixed(t *testing.
 		`databaseNS         = "database"`,
 		`applicationName    = "shop"`,
 		`applicationHost    = "api-dev.r1shop.net"`,
+		`applicationClaim   = "public"`,
+		`applicationVolume  = "public"`,
+		`applicationMount   = "/app/public"`,
 		`databaseName       = "timescaledb-r1shop-dev"`,
 		`redisName          = "redis-r1shop-dev"`,
 		`GetNamespace(context.Context, string)`,
@@ -27,6 +30,13 @@ func TestOriginalDevelopmentFingerprintCommandIsMetadataOnlyAndFixed(t *testing.
 		`ListPods(context.Context, string, string)`,
 		`GetPersistentVolumeClaim(context.Context, string, string)`,
 		`GetPersistentVolume(context.Context, string)`,
+		`Storage    storageFingerprint  ` + "`json:\"storage\"`",
+		`reader.GetPersistentVolumeClaim(ctx, applicationNS, applicationClaim)`,
+		`storageClass:           "local"`,
+		`capacity:               "5Gi"`,
+		`accessMode:             corev1.ReadWriteOnce`,
+		`volumeMode:             corev1.PersistentVolumeFilesystem`,
+		`volumeNameFromClaimUID: true`,
 		`SelectedSafeFieldsSHA256`,
 		`SecretsAccessed:              false`,
 		`DatabaseConnectionsPerformed: false`,
@@ -61,6 +71,8 @@ func TestOriginalDevelopmentFingerprintRunbookUsesTheFixedReadOnlyCommand(t *tes
 		"preflight responsibility",
 		"do not overwrite or reinterpret the",
 		"2026-09-01-before.json",
+		"old application's exact `r1shop-dev/public` PVC and bound PV",
+		"`local`, `5Gi`, `ReadWriteOnce` and `Filesystem`",
 	} {
 		if !strings.Contains(runbook, required) {
 			t.Fatalf("original development fingerprint runbook lacks %q", required)

@@ -25,6 +25,9 @@ const (
 	databaseNS         = "database"
 	applicationName    = "shop"
 	applicationHost    = "api-dev.r1shop.net"
+	applicationClaim   = "public"
+	applicationVolume  = "public"
+	applicationMount   = "/app/public"
 	databaseName       = "timescaledb-r1shop-dev"
 	redisName          = "redis-r1shop-dev"
 	databaseClaim      = "data-timescaledb-r1shop-dev-0"
@@ -146,18 +149,23 @@ type ingressFingerprint struct {
 }
 
 type storageFingerprint struct {
-	ClaimObject        objectFingerprint `json:"claimObject"`
-	ClaimPhase         string            `json:"claimPhase"`
-	ClaimVolumeName    string            `json:"claimVolumeName"`
-	ClaimStorageClass  string            `json:"claimStorageClass"`
-	ClaimCapacity      string            `json:"claimCapacity"`
-	VolumeObject       objectFingerprint `json:"volumeObject"`
-	VolumePhase        string            `json:"volumePhase"`
-	VolumeStorageClass string            `json:"volumeStorageClass"`
-	VolumeCapacity     string            `json:"volumeCapacity"`
-	ClaimRefNamespace  string            `json:"claimRefNamespace"`
-	ClaimRefName       string            `json:"claimRefName"`
-	ClaimRefUID        string            `json:"claimRefUID"`
+	ClaimObject            objectFingerprint `json:"claimObject"`
+	ClaimPhase             string            `json:"claimPhase"`
+	ClaimVolumeName        string            `json:"claimVolumeName"`
+	ClaimStorageClass      string            `json:"claimStorageClass"`
+	ClaimAccessModes       []string          `json:"claimAccessModes"`
+	ClaimVolumeMode        string            `json:"claimVolumeMode"`
+	ClaimRequestedCapacity string            `json:"claimRequestedCapacity"`
+	ClaimCapacity          string            `json:"claimCapacity"`
+	VolumeObject           objectFingerprint `json:"volumeObject"`
+	VolumePhase            string            `json:"volumePhase"`
+	VolumeStorageClass     string            `json:"volumeStorageClass"`
+	VolumeAccessModes      []string          `json:"volumeAccessModes"`
+	VolumeMode             string            `json:"volumeMode"`
+	VolumeCapacity         string            `json:"volumeCapacity"`
+	ClaimRefNamespace      string            `json:"claimRefNamespace"`
+	ClaimRefName           string            `json:"claimRefName"`
+	ClaimRefUID            string            `json:"claimRefUID"`
 }
 
 type applicationFingerprint struct {
@@ -165,6 +173,17 @@ type applicationFingerprint struct {
 	Pod        podFingerprint      `json:"pod"`
 	Service    serviceFingerprint  `json:"service"`
 	Ingress    ingressFingerprint  `json:"ingress"`
+	Storage    storageFingerprint  `json:"storage"`
+}
+
+type storageContract struct {
+	namespace              string
+	claim                  string
+	storageClass           string
+	capacity               string
+	accessMode             corev1.PersistentVolumeAccessMode
+	volumeMode             corev1.PersistentVolumeMode
+	volumeNameFromClaimUID bool
 }
 
 type statefulServiceFingerprint struct {
@@ -317,11 +336,36 @@ func fingerprintApplication(ctx context.Context, reader clusterReader) (applicat
 	if err != nil {
 		return applicationFingerprint{}, err
 	}
+	applicationStorage := storageContract{
+		namespace:              applicationNS,
+		claim:                  applicationClaim,
+		storageClass:           "local",
+		capacity:               "5Gi",
+		accessMode:             corev1.ReadWriteOnce,
+		volumeMode:             corev1.PersistentVolumeFilesystem,
+		volumeNameFromClaimUID: true,
+	}
+	claim, err := reader.GetPersistentVolumeClaim(ctx, applicationNS, applicationClaim)
+	if err != nil {
+		return applicationFingerprint{}, errors.New("read original development application PersistentVolumeClaim failed")
+	}
+	if err := validateClaimForVolumeLookup(claim, applicationStorage); err != nil {
+		return applicationFingerprint{}, err
+	}
+	volume, err := reader.GetPersistentVolume(ctx, claim.Spec.VolumeName)
+	if err != nil {
+		return applicationFingerprint{}, errors.New("read original development application PersistentVolume failed")
+	}
+	storage, err := fingerprintStorage(claim, volume, applicationStorage)
+	if err != nil {
+		return applicationFingerprint{}, err
+	}
 	return applicationFingerprint{
 		Deployment: deploymentResult,
 		Pod:        podResult,
 		Service:    serviceResult,
 		Ingress:    ingressResult,
+		Storage:    storage,
 	}, nil
 }
 
@@ -378,14 +422,15 @@ func fingerprintStatefulService(
 	if err != nil {
 		return statefulServiceFingerprint{}, errors.New("read original data service PersistentVolumeClaim failed")
 	}
-	if err := validateClaimForVolumeLookup(claim, contract.claim); err != nil {
+	storageBoundary := storageContract{namespace: databaseNS, claim: contract.claim}
+	if err := validateClaimForVolumeLookup(claim, storageBoundary); err != nil {
 		return statefulServiceFingerprint{}, err
 	}
 	volume, err := reader.GetPersistentVolume(ctx, claim.Spec.VolumeName)
 	if err != nil {
 		return statefulServiceFingerprint{}, errors.New("read original data service PersistentVolume failed")
 	}
-	storage, err := fingerprintStorage(claim, volume, contract.claim)
+	storage, err := fingerprintStorage(claim, volume, storageBoundary)
 	if err != nil {
 		return statefulServiceFingerprint{}, err
 	}
@@ -404,7 +449,8 @@ func fingerprintDeployment(deployment *appsv1.Deployment, selector string) (work
 		deployment.Status.UpdatedReplicas != 1 ||
 		deployment.Status.ReadyReplicas != 1 || deployment.Status.AvailableReplicas != 1 ||
 		deployment.Status.UnavailableReplicas != 0 || len(deployment.Spec.Template.Spec.InitContainers) != 0 ||
-		len(deployment.Spec.Template.Spec.Containers) != 1 || deployment.Spec.Template.Spec.Containers[0].Name != applicationName {
+		len(deployment.Spec.Template.Spec.Containers) != 1 || deployment.Spec.Template.Spec.Containers[0].Name != applicationName ||
+		!hasExactPersistentVolumeClaim(&deployment.Spec.Template.Spec, "") {
 		return workloadFingerprint{}, "", errors.New("original development Deployment is not a single ready reviewed workload")
 	}
 	image := deployment.Spec.Template.Spec.Containers[0].Image
@@ -500,7 +546,7 @@ func fingerprintSingleReadyPod(
 		pod.Status.ContainerStatuses[0].Name != containerName || !pod.Status.ContainerStatuses[0].Ready ||
 		pod.Status.ContainerStatuses[0].RestartCount < 0 || pod.Status.ContainerStatuses[0].ImageID == "" ||
 		pod.Status.ContainerStatuses[0].State.Running == nil || !validImageID(pod.Status.ContainerStatuses[0].ImageID) ||
-		!labelsMatch(pod.Labels, selector) || !hasExactPersistentVolumeClaim(pod, expectedName) {
+		!labelsMatch(pod.Labels, selector) || !hasExactPersistentVolumeClaim(&pod.Spec, expectedName) {
 		return podFingerprint{}, errors.New("original workload Pod is not the unique ready reviewed instance")
 	}
 	if statefulSetUID != nil && !ownedByStatefulSet(pod, expectedName[:len(expectedName)-2], *statefulSetUID) {
@@ -520,21 +566,46 @@ func fingerprintSingleReadyPod(
 	}, nil
 }
 
-func hasExactPersistentVolumeClaim(pod *corev1.Pod, expectedPodName string) bool {
-	claims := make([]string, 0, 1)
-	for _, volume := range pod.Spec.Volumes {
-		if volume.PersistentVolumeClaim != nil {
-			claims = append(claims, volume.PersistentVolumeClaim.ClaimName)
-		}
-	}
-	if expectedPodName == "" {
-		return len(claims) == 0
+func hasExactPersistentVolumeClaim(podSpec *corev1.PodSpec, expectedPodName string) bool {
+	if podSpec == nil {
+		return false
 	}
 	expectedClaim := databaseClaim
-	if strings.HasPrefix(expectedPodName, redisName+"-") {
+	expectedVolume := ""
+	if expectedPodName == "" {
+		expectedClaim = applicationClaim
+		expectedVolume = applicationVolume
+	} else if strings.HasPrefix(expectedPodName, redisName+"-") {
 		expectedClaim = redisClaim
 	}
-	return len(claims) == 1 && claims[0] == expectedClaim
+	claimCount := 0
+	for _, volume := range podSpec.Volumes {
+		if volume.PersistentVolumeClaim != nil {
+			claimCount++
+			if volume.PersistentVolumeClaim.ClaimName != expectedClaim || volume.PersistentVolumeClaim.ReadOnly ||
+				(expectedVolume != "" && volume.Name != expectedVolume) {
+				return false
+			}
+		}
+	}
+	if claimCount != 1 {
+		return false
+	}
+	if expectedPodName != "" {
+		return true
+	}
+	mountCount := 0
+	for _, mount := range podSpec.Containers[0].VolumeMounts {
+		if mount.Name != applicationVolume {
+			continue
+		}
+		mountCount++
+		if mount.MountPath != applicationMount || mount.ReadOnly || mount.SubPath != "" ||
+			mount.SubPathExpr != "" || mount.MountPropagation != nil {
+			return false
+		}
+	}
+	return mountCount == 1
 }
 
 func ownedByStatefulSet(pod *corev1.Pod, name string, uid types.UID) bool {
@@ -634,45 +705,142 @@ func fingerprintIngress(ingress *networkingv1.Ingress) (ingressFingerprint, erro
 func fingerprintStorage(
 	claim *corev1.PersistentVolumeClaim,
 	volume *corev1.PersistentVolume,
-	expectedClaim string,
+	contract storageContract,
 ) (storageFingerprint, error) {
-	claimObject, claimErr := fingerprintObject(claim, databaseNS, expectedClaim)
-	if claimErr != nil || claim.Status.Phase != corev1.ClaimBound || claim.Spec.VolumeName == "" ||
-		!safeDNSLabel.MatchString(claim.Spec.VolumeName) || claim.Spec.StorageClassName == nil ||
-		*claim.Spec.StorageClassName == "" || claim.Status.Capacity.Storage() == nil {
-		return storageFingerprint{}, errors.New("original data service PersistentVolumeClaim is not exactly bound")
+	if err := validateClaimForVolumeLookup(claim, contract); err != nil {
+		return storageFingerprint{}, err
 	}
+	claimObject, _ := fingerprintObject(claim, contract.namespace, contract.claim)
+	claimAccessModes, claimModesValid := safeAccessModes(claim.Spec.AccessModes)
+	claimVolumeMode, claimModeValid := safeVolumeMode(claim.Spec.VolumeMode)
+	claimRequestedCapacity := claim.Spec.Resources.Requests.Storage()
 	volumeObject, volumeErr := fingerprintObject(volume, "", claim.Spec.VolumeName)
+	volumeAccessModes, volumeModesValid := safeAccessModes(volume.Spec.AccessModes)
+	volumeMode, volumeModeValid := safeVolumeMode(volume.Spec.VolumeMode)
 	if volumeErr != nil || volume.Status.Phase != corev1.VolumeBound || volume.Spec.ClaimRef == nil ||
-		volume.Spec.ClaimRef.Namespace != databaseNS || volume.Spec.ClaimRef.Name != expectedClaim ||
+		volume.Spec.ClaimRef.Namespace != contract.namespace || volume.Spec.ClaimRef.Name != contract.claim ||
 		volume.Spec.ClaimRef.UID != claim.UID || volume.Spec.StorageClassName != *claim.Spec.StorageClassName ||
-		volume.Spec.Capacity.Storage() == nil {
-		return storageFingerprint{}, errors.New("original data service PersistentVolume claim binding is invalid")
+		volume.Spec.Capacity.Storage() == nil || !claimModesValid || !claimModeValid ||
+		!volumeModesValid || !volumeModeValid ||
+		!storageContractMatchesVolume(volume, volumeAccessModes, volumeMode, contract) {
+		return storageFingerprint{}, errors.New("original PersistentVolume claim binding is invalid")
 	}
 	return storageFingerprint{
-		ClaimObject:        claimObject,
-		ClaimPhase:         string(claim.Status.Phase),
-		ClaimVolumeName:    claim.Spec.VolumeName,
-		ClaimStorageClass:  *claim.Spec.StorageClassName,
-		ClaimCapacity:      claim.Status.Capacity.Storage().String(),
-		VolumeObject:       volumeObject,
-		VolumePhase:        string(volume.Status.Phase),
-		VolumeStorageClass: volume.Spec.StorageClassName,
-		VolumeCapacity:     volume.Spec.Capacity.Storage().String(),
-		ClaimRefNamespace:  volume.Spec.ClaimRef.Namespace,
-		ClaimRefName:       volume.Spec.ClaimRef.Name,
-		ClaimRefUID:        string(volume.Spec.ClaimRef.UID),
+		ClaimObject:            claimObject,
+		ClaimPhase:             string(claim.Status.Phase),
+		ClaimVolumeName:        claim.Spec.VolumeName,
+		ClaimStorageClass:      *claim.Spec.StorageClassName,
+		ClaimAccessModes:       claimAccessModes,
+		ClaimVolumeMode:        claimVolumeMode,
+		ClaimRequestedCapacity: claimRequestedCapacity.String(),
+		ClaimCapacity:          claim.Status.Capacity.Storage().String(),
+		VolumeObject:           volumeObject,
+		VolumePhase:            string(volume.Status.Phase),
+		VolumeStorageClass:     volume.Spec.StorageClassName,
+		VolumeAccessModes:      volumeAccessModes,
+		VolumeMode:             volumeMode,
+		VolumeCapacity:         volume.Spec.Capacity.Storage().String(),
+		ClaimRefNamespace:      volume.Spec.ClaimRef.Namespace,
+		ClaimRefName:           volume.Spec.ClaimRef.Name,
+		ClaimRefUID:            string(volume.Spec.ClaimRef.UID),
 	}, nil
 }
 
-func validateClaimForVolumeLookup(claim *corev1.PersistentVolumeClaim, expectedClaim string) error {
-	_, err := fingerprintObject(claim, databaseNS, expectedClaim)
-	if err != nil || claim.Status.Phase != corev1.ClaimBound || claim.Spec.VolumeName == "" ||
+func validateClaimForVolumeLookup(claim *corev1.PersistentVolumeClaim, contract storageContract) error {
+	_, err := fingerprintObject(claim, contract.namespace, contract.claim)
+	if err != nil {
+		return errors.New("original PersistentVolumeClaim is not exactly bound")
+	}
+	accessModes, accessModesValid := safeAccessModes(claim.Spec.AccessModes)
+	volumeMode, volumeModeValid := safeVolumeMode(claim.Spec.VolumeMode)
+	requestedCapacity := claim.Spec.Resources.Requests.Storage()
+	if claim.Status.Phase != corev1.ClaimBound || claim.Spec.VolumeName == "" ||
 		!safeDNSLabel.MatchString(claim.Spec.VolumeName) || claim.Spec.StorageClassName == nil ||
-		*claim.Spec.StorageClassName == "" || claim.Status.Capacity.Storage() == nil {
-		return errors.New("original data service PersistentVolumeClaim is not exactly bound")
+		*claim.Spec.StorageClassName == "" || requestedCapacity == nil || claim.Status.Capacity.Storage() == nil ||
+		!accessModesValid || !volumeModeValid ||
+		!storageContractMatchesClaim(claim, accessModes, volumeMode, contract) {
+		return errors.New("original PersistentVolumeClaim is not exactly bound")
 	}
 	return nil
+}
+
+func storageContractMatchesClaim(
+	claim *corev1.PersistentVolumeClaim,
+	accessModes []string,
+	volumeMode string,
+	contract storageContract,
+) bool {
+	if contract.storageClass != "" && *claim.Spec.StorageClassName != contract.storageClass {
+		return false
+	}
+	if contract.capacity != "" &&
+		(claim.Spec.Resources.Requests.Storage().String() != contract.capacity ||
+			claim.Status.Capacity.Storage().String() != contract.capacity) {
+		return false
+	}
+	if contract.accessMode != "" &&
+		(len(accessModes) != 1 || accessModes[0] != string(contract.accessMode)) {
+		return false
+	}
+	if contract.volumeMode != "" && volumeMode != string(contract.volumeMode) {
+		return false
+	}
+	if contract.volumeNameFromClaimUID && claim.Spec.VolumeName != "pvc-"+string(claim.UID) {
+		return false
+	}
+	return true
+}
+
+func storageContractMatchesVolume(
+	volume *corev1.PersistentVolume,
+	accessModes []string,
+	volumeMode string,
+	contract storageContract,
+) bool {
+	if contract.storageClass != "" && volume.Spec.StorageClassName != contract.storageClass {
+		return false
+	}
+	if contract.capacity != "" && volume.Spec.Capacity.Storage().String() != contract.capacity {
+		return false
+	}
+	if contract.accessMode != "" &&
+		(len(accessModes) != 1 || accessModes[0] != string(contract.accessMode)) {
+		return false
+	}
+	return contract.volumeMode == "" || volumeMode == string(contract.volumeMode)
+}
+
+func safeAccessModes(modes []corev1.PersistentVolumeAccessMode) ([]string, bool) {
+	if len(modes) == 0 {
+		return nil, false
+	}
+	result := make([]string, 0, len(modes))
+	seen := make(map[corev1.PersistentVolumeAccessMode]struct{}, len(modes))
+	for _, mode := range modes {
+		switch mode {
+		case corev1.ReadOnlyMany, corev1.ReadWriteOnce, corev1.ReadWriteMany, corev1.ReadWriteOncePod:
+		default:
+			return nil, false
+		}
+		if _, exists := seen[mode]; exists {
+			return nil, false
+		}
+		seen[mode] = struct{}{}
+		result = append(result, string(mode))
+	}
+	return result, true
+}
+
+func safeVolumeMode(mode *corev1.PersistentVolumeMode) (string, bool) {
+	if mode == nil {
+		return "", false
+	}
+	switch *mode {
+	case corev1.PersistentVolumeBlock, corev1.PersistentVolumeFilesystem:
+		return string(*mode), true
+	default:
+		return "", false
+	}
 }
 
 func fingerprintObject(object metav1.Object, namespace, name string) (objectFingerprint, error) {
