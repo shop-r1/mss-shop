@@ -1,6 +1,6 @@
 # Mall Settings development checkpoint
 
-Status date: 2026-09-01.
+Status date: 2026-09-02.
 
 ## Current status
 
@@ -10,11 +10,12 @@ suite, vet, frontend contract tests, TypeScript/lint, production build, strict
 MSS doctor checks and the MSS v1.3.7 ten-check `verify --all` gate. The
 published migration `66966149766804` remains byte-for-byte unchanged.
 
-This source evidence is not deployment or business acceptance. Immutable-image
-CI, isolated PostgreSQL reconciliation, the fixed projection verifier,
-Kubernetes rollout and in-app-browser review remain required. This checkpoint
-therefore closes none of the 31 business acceptance scenarios and does not
-close `CONFIG-001`.
+Immutable-image CI, isolated PostgreSQL reconciliation, Kubernetes rollout and
+disposable cluster verification now pass at source revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`. The deployed workflow remains
+read-only, and confirmed-login in-app-browser review is pending. This
+checkpoint therefore closes none of the 31 business acceptance scenarios and
+does not close `CONFIG-001`.
 
 ## Typed contract
 
@@ -131,6 +132,8 @@ asynchronous-chunk limits remain unchanged.
 
 The earlier bounded local-process preview is historical exploration only. It
 used the repository-owned demo SQLite database and did not access Kubernetes,
-`r1shop-dev`, the isolated PostgreSQL/Redis or production. PostgreSQL mutation
-semantics, cluster reconciliation, immutable images and UI acceptance remain
-open, and the deployed manifest keeps this workflow read-only.
+`r1shop-dev`, the isolated PostgreSQL/Redis or production. The current isolated
+deployment reads the reconciled fixed relation through a least-privilege role;
+cluster HTTP, database-isolation and TLS checks pass. PostgreSQL mutation
+semantics and confirmed-login UI acceptance remain open, and the deployed
+manifest keeps this workflow read-only.

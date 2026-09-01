@@ -23,6 +23,15 @@ or agent can verify and maintain.
   import. The content-addressed directory avoids self-referential Git evidence;
   both artifacts must contain no DSN, credential, certificate material or row
   value.
+- `docs/evidence/mss-shop-dev/`: safe, immutable-stage and runtime evidence for
+  the isolated namespace. Reconciliation and system-acceptance records bind the
+  full source revision, CI image digests, object/Pod identities, restart and
+  completion state, exact assertions and SHA-256 of ephemeral Job stdout;
+  Secret values, DSNs, certificates and business row values remain forbidden.
+- `docs/evidence/original-dev/`: metadata-only fingerprints before and after an
+  isolated milestone. Each capture records whether Secret access, database
+  connections or writes occurred and must preserve the reviewed safe-field
+  digest when the original environment was untouched.
 - `.mss/features/`: executable contracts for handwritten cross-table or
   workflow behavior that the AdminModule generator does not support.
 - `.agents/skills/`: non-obvious repeatable workflows triggered by a task.
@@ -72,6 +81,15 @@ redacted by construction, and is reviewed before commit.
   rejected preflight never increase resource counts or close an acceptance
   row. An immutable receipt ConfigMap remains bound to the verifier revision
   that created it; do not delete or rewrite it to force a later verifier run.
+- Preserve failed-closed reconciliation and disposable verifier attempts when
+  they explain a repaired release gate. Distinguish a rolled-back database
+  transaction from Kubernetes Job deletion, and distinguish a test-harness
+  defect from an application failure. Only the final authoritative Job may be
+  cited as passing evidence.
+- Browser acceptance is a separate human-visible layer. Do not infer it from
+  HTTP 200 checks, screenshots of an unauthenticated page or a successful API
+  Job; record the exact environment, confirmed login, routes/locales reviewed,
+  browser errors and the scope left for owner inspection.
 - Every trusted stage command that can persist a Kubernetes object defaults to
   a non-persistent API-server dry-run. "Dry-run" means the exact Create or
   Update is submitted with `DryRunAll`; a local render or collision preflight
@@ -106,7 +124,9 @@ Before a milestone is committed, review these artifacts as one change set:
    not evidence artifacts.
    An isolated import additionally persists its safe full output, deterministic
    receipt, receipt-marker match and independent zero counts for `orders` and
-   `order_goods` before reconciliation evidence can be recorded.
+   `order_goods` before reconciliation evidence can be recorded. Runtime
+   acceptance persists exact object/workload identities and hashes of
+   short-lived verifier logs before their TTL can remove the Pods.
 5. The topology record proves that the 24 infrastructure objects are
    create-only, with NetworkPolicies before two inert storage binders and a
    stable, cluster-wide node/local-path exclusivity gate before StatefulSets;

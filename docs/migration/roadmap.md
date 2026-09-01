@@ -49,13 +49,14 @@ Exit: create, retry, suspend and resume work in the development environment;
 failure injection converges without duplicate resources or leaked credentials.
 
 The in-memory domain/controller, fault injection and tenant-scoped worker inbox
-are implemented. A real, fixed `mss-shop-dev` PostgreSQL driver,
-least-privilege role/schema plan, DB-only Job and trusted operator resource path
-now exist in source. The original `r1shop-dev` database is only the importer's
-exact read-only source. Immutable-image cluster rehearsal,
-idempotency/isolation evidence and persistent desired/observed control-plane
-integration remain before the exit criteria are met; this is not a generalized
-or production driver.
+are implemented. The real fixed `mss-shop-dev` PostgreSQL driver,
+least-privilege role/schema plan, DB-only Job and trusted operator path passed
+their immutable-image cluster rehearsal and isolation checks at revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`. The original `r1shop-dev`
+database remained only the importer's exact read-only source. Persistent
+desired/observed control-plane integration and generalized multi-tenant
+lifecycle evidence remain before the exit criteria are met; this is not a
+production driver.
 
 ## Phase 3 — first mall runtime
 
@@ -68,12 +69,12 @@ or production driver.
 Exit: one development tenant operates end-to-end with fixed connections and
 passes isolation tests in disposable Kubernetes Pods.
 
-The source compatibility backends and Admin UIs allocate 50 mall resources and
-one tenant payment resource. The seven moved product/logistics resources use
-the fixed mall business schema and forward-only authorization migrations. All
-51 resources are read-only. Local source verification does not mean those
-migrations were applied or deployed to an environment; tenant data conversion,
-development evidence and disposable-Pod acceptance remain open. Generic create,
+The compatibility backends and Admin UIs allocate 50 mall resources and one
+tenant payment resource. The seven moved product/logistics resources use the
+fixed mall business schema and forward-only authorization migrations. All 51
+resources are read-only. The isolated fixed-tenant data projection, runtime
+deployment and disposable-Pod HTTP/data-system checks now pass; confirmed-login
+browser review and every qualified write lifecycle remain open. Generic create,
 update and delete fail closed until each resource independently restores and
 proves its legacy validation, relationship/tenant constraints, model hooks,
 authorization and deletion semantics, so Phase 3 is not complete.
@@ -104,6 +105,14 @@ build targets. Catalog browsing, customer login, cart and checkout remain.
 
 Exit: the user approves the exact production runbook. No production action is
 implied by completing earlier phases.
+
+The first isolated data rehearsal is complete: 49 eligible legacy tables were
+copied once, `orders` and `order_goods` were created structure-only, and the
+51-table receipt, independent verification, fixed-schema reconciliation and
+four-row Member Levels projection all passed. This is a partial migration test,
+not production readiness: complete domain relationship/money checks, writable
+business acceptance, rollback rehearsal and the owner-approved production
+runbook remain open.
 
 ## Non-negotiable migration checks
 

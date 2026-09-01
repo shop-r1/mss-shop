@@ -6,19 +6,23 @@ immutable read-only sources/reference state. Nothing in this runbook
 authorizes a write to them. It never authorizes a write to `r1shop-prod`, the
 production database or production Redis.
 
-The end-to-end run is currently **open at the reconciliation-evidence gate**. Do not
-skip a gate or replace it with an ad-hoc command. The exact 24-object isolated
-boundary, six immutable foundation Secrets, PostgreSQL 17.6 and Redis 8.6.3
-are present in `mss-shop-dev`. Revision
+The isolated technical run has completed through receipt-bound reconciliation,
+the Member Levels projection verifier, the eight-object Admin runtime and the
+authoritative v3 disposable system checks. Do not skip a gate or replace it
+with an ad-hoc command on a repeat run. The exact 24-object isolated boundary,
+six immutable foundation Secrets, PostgreSQL 17.6 and Redis 8.6.3 are present
+in `mss-shop-dev`. Revision
 `6fed45f354e93efe104045c6dde86ac33c368d6d` passed readiness and completed the
 bounded one-time import; its canonical receipt is committed under
 `docs/evidence/legacy-import/`. Two earlier pre-transaction failures remain
 preserved as historical evidence. Revision B
 `3eb4c72b485066e7b189446fab5b66a1047e66a2` supplied the immutable receipt
 ConfigMap and one successful disposable verifier Job; its exact output is now
-persisted beside the receipt. No reconciliation, Admin runtime, complete
-Kubernetes system acceptance or isolated browser acceptance has executed;
-business acceptance remains 0/31.
+persisted beside the receipt. Final isolated Admin revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` is running and has passed the
+bounded cluster-side health, datastore, TLS and least-privilege checks. The
+in-app-browser review and explicit business workflow acceptance remain
+separate; business acceptance is still 0/31.
 
 ## Current authorized release sequence
 
@@ -34,6 +38,81 @@ legacy source database or either old Redis. It also does not enable Mall
 Settings or Member Levels business mutations: both runtime gates remain
 closed. A local-process preview and prior Revision C receipts remain
 non-deployment evidence and cannot replace any gate below.
+
+## 2026-09-02 isolated execution record
+
+GitHub Actions run
+[`33532383550`](https://github.com/shop-r1/mss-shop/actions/runs/33532383550)
+completed successfully for full revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`. The deployed immutable digests
+are reconciler
+`sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd`,
+tenant Admin
+`sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d`
+and mall Admin
+`sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a`.
+The verified legacy import receipt remains
+`fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`.
+
+Two reconciler revisions failed before the final success:
+
+- `43e0fd5f18af903f076ec166efff68365dcb3a55` failed in
+  `copy-and-audit-snapshot-brands` because the reviewed PL/pgSQL audit query
+  had ambiguous column references;
+- `ddb67bef4bf0b4eeae7408eb5706ad63e687dce6` failed in
+  `validate-application-role-realm-mss_t_dev_migrator` because PostgreSQL 17
+  rejected the `collation` query alias.
+
+Both Jobs failed closed. Their transactions did not commit, and the bounded
+post-attempt inventory returned zero managed schemas, roles and relations.
+The failed Jobs and Pods remain in the isolated namespace as immutable failure
+evidence; “rolled back” here means the database transaction was completely
+rolled back, not that those evidence objects were deleted. Neither attempt
+advanced an acceptance gate.
+
+The final reconciler Job UID is
+`bc290833-126f-4e47-8771-207fa733d7df`; its sole successful Pod UID is
+`a47bccc1-eb75-40b0-9537-8944820aa059`. It completed one batch containing 252
+statements, 46 views and seven snapshots with zero restarts. The same-SHA
+projection Job UID is `21519f34-73ce-4783-95b4-6e173a171a2f`, and its Pod UID
+is `485a6170-c916-4571-b247-47029548a5c5`. Its byte-exact sole stdout is
+committed as
+`docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json`.
+It proved four public and four business Member Levels rows, zero differences,
+zero cross-tenant rows, one valid enabled default, no duplicate active names,
+zero orders/order goods and no PUBLIC runtime privileges.
+
+The eight runtime objects then converged to one ready tenant Pod and one ready
+mall Pod, both with zero restarts and exact digest-matching image IDs. The
+authoritative `v3` HTTP Job
+`mss-shop-runtime-http-verify-3e64a57-v3` and datastore Job
+`mss-shop-runtime-data-verify-3e64a57-v3` each completed once with no failure.
+They proved both UI/health/readiness endpoints, unauthenticated API denial,
+role and fixed-schema binding, public/cross-platform/DML/DDL denial,
+PostgreSQL TLS/CA/hostname verification, Redis TLS/authentication/CA checks,
+Member Levels count four and both order tables zero.
+
+The preceding v1 and v2 disposable verifier Jobs are explicitly classified as
+test-harness failures rather than system failures. The v1 containers never
+started because `runAsNonRoot` could not validate the images' configured users;
+the Jobs then reached their active deadline. In v2, the HTTP script incorrectly
+required non-empty bodies from valid 200 health endpoints, while the PostgreSQL
+script used an unsupported libpq URI `search_path` parameter; its Redis check
+passed. The corrected v3 harness is the only authoritative runtime-system
+result. No v1/v2 result closes or invalidates a business scenario.
+
+Structured evidence is stored in:
+
+- `docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml`;
+- `docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json`;
+- `docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml`; and
+- `docs/evidence/original-dev/2026-09-02-post-isolated-acceptance.json`.
+
+The final original-development capture retained selected-safe-fields SHA-256
+`7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`
+and reports no Secret access, database connection or write. Production was not
+read or written by this isolated release. Browser review is still documented
+separately and business acceptance remains 0/31.
 
 ## Fixed boundaries
 
@@ -460,13 +539,13 @@ in-cluster reconciler independently queries the exact database marker and
 requires `public.orders` and `public.order_goods` to remain empty before any
 DDL.
 
-**Gate:** the importer receipt and disposable-verifier evidence are committed;
-the reconciliation-secret operator has not yet been executed. Until its exact
-clean-checkout API-server dry-run passes, no application/bootstrap Secret,
-reconciler or Admin runtime may be created. Dry-run success is not write
-authorization: the explicit three-resource declaration is still required
-before `--create`. Do not fabricate placeholder evidence or infer a write
-authorization from the completed verifier.
+**Gate:** satisfied for final revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`; the reviewed dry-run and exact
+three-Secret stage completed before the receipt-bound reconciler was admitted.
+No Secret value, DSN or credential is part of the durable evidence. A repeat
+or later release must still pass the exact clean-checkout dry-run first, and
+dry-run success alone is not write authorization: the explicit three-resource
+declaration remains required before `--create`.
 
 ### 9. Create the receipt-bound reconciler Job
 

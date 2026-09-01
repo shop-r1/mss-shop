@@ -105,13 +105,15 @@ tenant/name/active `r1_mall_settings_system_configs` security-barrier view with
 runtime SELECT only. Cluster writes default closed and return a stable 503;
 the generic nested-secret redaction and metadata query prohibition are
 unchanged. A demo-SQLite development preview
-starts, but the workflow remains without formal tests, production build,
-isolated PostgreSQL/Kubernetes migration, deployment or acceptance. Source code
-contains forward-only route and permission migrations for this allocation, but
-they have not been applied or deployed to any environment. The prior published
-43 mall/eight tenant projection remains historical evidence, not an alternate
-ownership contract. The earlier four-plus-four writable classification is
-withdrawn.
+remains historical evidence only. Formal tests, production build, isolated
+PostgreSQL reconciliation, runtime deployment and disposable cluster checks
+now pass for source revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`; the forward-only route and
+permission migrations are applied only in `mss-shop-dev`. Confirmed-login
+browser review and every PostgreSQL mutation workflow remain open. The prior
+published 43 mall/eight tenant projection remains historical evidence, not an
+alternate ownership contract. The earlier four-plus-four writable
+classification is withdrawn.
 
 Before one resource and operation can become writable, its dedicated
 Feature/workflow must restore and prove the old validation, relationships and

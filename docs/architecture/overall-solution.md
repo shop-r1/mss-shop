@@ -211,10 +211,10 @@ reconciled copy in every tenant business schema; the platform does not retain
 their shared writer. The Admin allocation is 50 mall resources plus one tenant
 payment resource, and all 51 generic compatibility surfaces are read-only.
 Writes require separately qualified domain workflows; the first four-field
-Mall Settings workflow is source-implemented but still unverified and
-undeployed. A future writable view requires per-resource workflow qualification
-and `WITH CHECK OPTION` where PostgreSQL supports it; table shape alone is
-never sufficient. The mall role has no
+Mall Settings workflow is deployed read-only in isolated development but its
+PostgreSQL writer remains deliberately unavailable. A future writable view
+requires per-resource workflow qualification and `WITH CHECK OPTION` where
+PostgreSQL supports it; table shape alone is never sufficient. The mall role has no
 permission to select an arbitrary legacy schema or base table. Permanent dual
 write is forbidden. See DEC-0007, DEC-0009 and
 `docs/migration/legacy-tables.yaml`.
@@ -271,18 +271,17 @@ privileges before the eight Admin runtime objects. Production is outside this
 workflow. See
 [`remote-development-and-dev-acceptance.md`](../runbooks/remote-development-and-dev-acceptance.md).
 
-This remains the target delivery topology rather than completed runtime
-acceptance. Its exact 24-object infrastructure boundary, six immutable
-foundation Secrets and dedicated PostgreSQL/Redis datastores now exist only in
-`mss-shop-dev`, and three revision-bound readiness Jobs passed. Two importer
-attempts failed before opening the target transaction; the third completed one
-bounded snapshot import and persisted its canonical receipt. A subsequent
-revision-B disposable verifier independently proved the 51-table receipt and
-zero target rows in `orders` and `order_goods`. Reconciliation Secrets, the
-reconciler, Member Levels projection verification, Admin runtime deployment,
-complete Kubernetes system acceptance and isolated browser acceptance remain
-pending. The original `r1shop-dev` safe
-metadata fingerprint is unchanged, and the business matrix is still 0/31.
+The exact 24-object infrastructure boundary, six immutable foundation Secrets
+and dedicated PostgreSQL/Redis datastores exist only in `mss-shop-dev`. One
+bounded snapshot import persisted its canonical receipt after two failed-closed
+pre-transaction attempts; an independent verifier proved all 51 receipt tables
+and zero target rows in `orders` and `order_goods`. Source revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` then reconciled the fixed schemas,
+roles, views and snapshots, proved the four-row Member Levels projection,
+deployed both Admin runtimes and passed disposable cluster HTTP/data-system
+verification. Confirmed-login browser review remains pending. The original
+`r1shop-dev` safe metadata fingerprint is unchanged, production is untouched,
+and the business matrix is still 0/31.
 
 ## Mobile boundary
 

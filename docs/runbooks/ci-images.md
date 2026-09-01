@@ -157,6 +157,40 @@ memory. No image from the run was deployed. A later source change to the
 reconciliation-secret safety path requires a new successful four-image run;
 revision-C receipts cannot authorize that changed operator or reconciler.
 
+Run
+[`33532383550`](https://github.com/shop-r1/mss-shop/actions/runs/33532383550)
+successfully validated and published all four images for the isolated Admin
+release revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`. Its immutable manifest digests
+and receipt-file SHA-256 values were:
+
+| Image | Manifest digest | Receipt-file SHA-256 |
+| --- | --- | --- |
+| tenant-platform | `sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d` | `6b397aa60fe05c15a7fb5be18236c284ca99abdc728072a29197aac4207f2e18` |
+| mall-platform | `sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a` | `5e79dd78c44c63d9f693b02d00b0f54c871e3385bfb75588bfa93ea35fd17f41` |
+| reconciler | `sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd` | `ea341c408c045cf547722aff34b3e03e86398d0592162403f982be5dad0a1a6c` |
+| legacy-importer | `sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0` | `e865042489f1a858581e0aff1afce884e3a74ac27c66850d4dbad0d9f056e82f` |
+
+This CI run did not deploy anything. Manual staging used the exact reconciler,
+tenant and mall digests above. Two earlier same-day reconciler publications
+were exercised first: run
+[`33529160661`](https://github.com/shop-r1/mss-shop/actions/runs/33529160661)
+for `43e0fd5f18af903f076ec166efff68365dcb3a55` and run
+[`33530586653`](https://github.com/shop-r1/mss-shop/actions/runs/33530586653)
+for `ddb67bef4bf0b4eeae7408eb5706ad63e687dce6`. Their reconciler Jobs failed
+closed, their database transactions did not commit, and post-attempt checks
+found zero managed schemas, roles and relations. Those images are failed-run
+provenance only and must not be reused as release images.
+
+The final `3e64a57...` reconciler Job completed with the receipt-bound database
+plan, its same-SHA projection verifier emitted the sole successful JSON, and
+the tenant and mall digests above now back the isolated Admin Deployments.
+Detailed immutable workload evidence is in
+`docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml` and
+`docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml`.
+This technical release and its read-only checks close none of the 31 business
+acceptance scenarios.
+
 ## Permissions and package source
 
 Validation and build-only jobs have read-only repository permission. Only the
@@ -203,10 +237,14 @@ Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
 
 The importer Job renderer/create-only path, disposable verification runner and
 post-receipt application/bootstrap Secret operator are implemented and tested.
-The disposable verifier has passed once for the successful receipt-bound
-import; the application/bootstrap Secret operator and reconciler remain the
-next ordered gates, followed by the projection verifier and runtime stage. Do
-not replace them with ad-hoc template substitution or `kubectl apply`.
+For revision `3e64a57dae8bb3dd4d337a423015baae6c352b32`, the receipt-bound
+reconciler, Member Levels projection verifier, eight-object Admin runtime and
+authoritative v3 disposable system checks have completed. The v1 and v2
+disposable-verifier attempts were test-harness failures, not application or
+database failures; they are retained only as non-authoritative diagnostics.
+In-app-browser review and explicit business workflow acceptance remain
+separate gates. Do not replace any repeat or later release with ad-hoc template
+substitution or `kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

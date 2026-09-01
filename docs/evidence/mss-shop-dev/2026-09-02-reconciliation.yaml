@@ -1,0 +1,151 @@
+version: mss-shop-isolated-reconciliation-evidence/v1
+capturedAt: "2026-09-02T01:10:40+08:00"
+environment: mss-shop-dev
+targetDatabase:
+  host: mss-shop-postgres.mss-shop-dev.svc
+  name: mss_shop_dev
+legacyTenantID: "518729051064631297"
+importReceiptSHA256: fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76
+secretBoundary:
+  valuesRead: false
+  valuesRecorded: false
+  dsnRecorded: false
+  credentialsRecorded: false
+ciPublication:
+  runID: 33532383550
+  conclusion: success
+  revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+  images:
+    tenantPlatform:
+      digest: sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+      receiptFileSHA256: 6b397aa60fe05c15a7fb5be18236c284ca99abdc728072a29197aac4207f2e18
+    mallPlatform:
+      digest: sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+      receiptFileSHA256: 5e79dd78c44c63d9f693b02d00b0f54c871e3385bfb75588bfa93ea35fd17f41
+    reconciler:
+      digest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+      receiptFileSHA256: ea341c408c045cf547722aff34b3e03e86398d0592162403f982be5dad0a1a6c
+    legacyImporter:
+      digest: sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0
+      receiptFileSHA256: e865042489f1a858581e0aff1afce884e3a74ac27c66850d4dbad0d9f056e82f
+attempts:
+  - sequence: 1
+    outcome: failed-rolled-back
+    revision: 43e0fd5f18af903f076ec166efff68365dcb3a55
+    ciRunID: 33529160661
+    imageDigest: sha256:9bf340117ac8475cac36b9319a929353fb7c26a937ad29579daa0fc4c7623139
+    job:
+      name: mss-shop-reconciler-43e0fd5f18af903f076ec166efff68365dcb3a55
+      uid: 0925e66d-17ba-46f1-aafe-e500bf02c6f2
+      succeeded: 0
+      failed: 2
+      condition: Failed
+      reason: BackoffLimitExceeded
+      retainedAsEvidence: true
+    pods:
+      - uid: 310c76ee-eb0b-4c9c-b198-7b7243f0c22e
+        phase: Failed
+        exitCode: 1
+        restartCount: 0
+      - uid: 36ae5646-fe4b-46f8-a53d-c51a283f3cdb
+        phase: Failed
+        exitCode: 1
+        restartCount: 0
+    safeLogSHA256: 191cc4db92f4806bdc3e64c34c57271ebd0398cc40302b1ae73c73656185fe58
+    failure:
+      batch: complete-mss-shop-dev-reconciliation
+      statement: copy-and-audit-snapshot-brands
+      category: plpgsql-ambiguous-audit-column
+    databaseTransaction:
+      committed: false
+      rolledBack: true
+    postRollbackManagedObjects:
+      schemas: 0
+      roles: 0
+      relations: 0
+    acceptanceGateAdvanced: false
+  - sequence: 2
+    outcome: failed-rolled-back
+    revision: ddb67bef4bf0b4eeae7408eb5706ad63e687dce6
+    ciRunID: 33530586653
+    imageDigest: sha256:967b6ae8e8862f2f3abbaaee98501bb1a5cde69e2173db7ea505ff3e354ac23a
+    job:
+      name: mss-shop-reconciler-ddb67bef4bf0b4eeae7408eb5706ad63e687dce6
+      uid: 505758b4-dd8e-47b4-800b-9aa2baafa75f
+      succeeded: 0
+      failed: 2
+      condition: Failed
+      reason: BackoffLimitExceeded
+      retainedAsEvidence: true
+    pods:
+      - uid: 8a5544c2-516c-4189-ab75-0c7fa137ff17
+        phase: Failed
+        exitCode: 1
+        restartCount: 0
+      - uid: 043a0efe-6929-47ee-8880-110a2e337111
+        phase: Failed
+        exitCode: 1
+        restartCount: 0
+    safeLogSHA256: dc61734725bad9a3562436f67941f50179012b5dae9f54b3c674617a4db6fbd4
+    failure:
+      batch: complete-mss-shop-dev-reconciliation
+      statement: validate-application-role-realm-mss_t_dev_migrator
+      category: postgres-17-reserved-alias-collation
+    databaseTransaction:
+      committed: false
+      rolledBack: true
+    postRollbackManagedObjects:
+      schemas: 0
+      roles: 0
+      relations: 0
+    acceptanceGateAdvanced: false
+  - sequence: 3
+    outcome: succeeded
+    revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+    ciRunID: 33532383550
+    imageDigest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+    imageReference: ghcr.io/shop-r1/mss-shop-reconciler:3e64a57dae8bb3dd4d337a423015baae6c352b32@sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+    job:
+      name: mss-shop-reconciler-3e64a57dae8bb3dd4d337a423015baae6c352b32
+      uid: bc290833-126f-4e47-8771-207fa733d7df
+      startedAt: "2026-09-01T16:38:16Z"
+      completedAt: "2026-09-01T16:38:29Z"
+      succeeded: 1
+      failed: 0
+      condition: Complete
+      reason: CompletionsReached
+    pod:
+      name: mss-shop-reconciler-3e64a57dae8bb3dd4d337a423015baae6c352bdf26j
+      uid: a47bccc1-eb75-40b0-9537-8944820aa059
+      phase: Succeeded
+      imageID: ghcr.io/shop-r1/mss-shop-reconciler@sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+      exitCode: 0
+      restartCount: 0
+    safeLogSHA256: c3fbf359e366b7795369366915cc6fd0a0e175a19290151590aef145b51aeb9a
+    result:
+      sqlBatches: 1
+      sqlStatements: 252
+      views: 46
+      snapshots: 7
+      committed: true
+    acceptanceGateAdvanced: true
+postSuccessVerification:
+  projectionEvidence: docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json
+  publicMemberLevelsRows: 4
+  businessMemberLevelsRows: 4
+  differenceRows: 0
+  crossTenantRows: 0
+  publicOrdersRows: 0
+  businessOrdersRows: 0
+  publicOrderGoodsRows: 0
+  businessOrderGoodsRows: 0
+  runtimePublicPrivileges: false
+  failedAttemptsLeftPartialManagedObjects: false
+safety:
+  originalDevelopmentWritten: false
+  productionWritten: false
+  legacySourceWritten: false
+  secretsOrCredentialsRecorded: false
+  businessAcceptanceScenariosTotal: 31
+  businessAcceptanceScenariosClosed: 0
+  originalDevelopmentSelectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854

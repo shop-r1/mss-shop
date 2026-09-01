@@ -38,20 +38,26 @@ type legacyTableManifest struct {
 }
 
 const (
-	legacyReceiptSHA256          = "fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76"
-	legacyReceiptFileSHA256      = "145d4d34e73741d86161aed086dadc990c7f446777dc4a1c3b5152fab35553c4"
-	legacyManifestSHA256         = "c108b11543f41bbd8384540b7314909cd8056e3a141cc7447c443cb98c7e6e5b"
-	legacySchemaSHA256           = "afd144a9654602a2452dc20e758b4cc3947a3e0748941ea58da7a53d2874a93a"
-	legacyVerifierRevision       = "3eb4c72b485066e7b189446fab5b66a1047e66a2"
-	legacyVerifierDigest         = "sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799"
-	legacyVerifierJobName        = "mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2"
-	legacyVerifierJobUID         = "8721d08a-a4ab-4dfa-9ee2-b69841d1fe3e"
-	legacyVerifierPod            = "mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a10475779m"
-	legacyVerifierPodUID         = "5ddc28b0-76f3-4799-b1a6-763a549f8696"
-	legacyVerificationFileSHA256 = "47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c"
-	legacyVerifierEvidenceSHA256 = "b54d073017cae36f230e1541d2f48692e3744a34a9da252b9a41c6438edc3851"
-	annotationFixRevision        = "ebefd1c20bf51f3c43e4a2bb90085fb60ea21442"
-	originalDevSafeFieldsSHA256  = "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854"
+	legacyReceiptSHA256                = "fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76"
+	legacyReceiptFileSHA256            = "145d4d34e73741d86161aed086dadc990c7f446777dc4a1c3b5152fab35553c4"
+	legacyManifestSHA256               = "c108b11543f41bbd8384540b7314909cd8056e3a141cc7447c443cb98c7e6e5b"
+	legacySchemaSHA256                 = "afd144a9654602a2452dc20e758b4cc3947a3e0748941ea58da7a53d2874a93a"
+	legacyVerifierRevision             = "3eb4c72b485066e7b189446fab5b66a1047e66a2"
+	legacyVerifierDigest               = "sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799"
+	legacyVerifierJobName              = "mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2"
+	legacyVerifierJobUID               = "8721d08a-a4ab-4dfa-9ee2-b69841d1fe3e"
+	legacyVerifierPod                  = "mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a10475779m"
+	legacyVerifierPodUID               = "5ddc28b0-76f3-4799-b1a6-763a549f8696"
+	legacyVerificationFileSHA256       = "47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c"
+	legacyVerifierEvidenceSHA256       = "b54d073017cae36f230e1541d2f48692e3744a34a9da252b9a41c6438edc3851"
+	annotationFixRevision              = "ebefd1c20bf51f3c43e4a2bb90085fb60ea21442"
+	originalDevSafeFieldsSHA256        = "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854"
+	finalReleaseRevision               = "3e64a57dae8bb3dd4d337a423015baae6c352b32"
+	finalReleaseCIRun            int64 = 33532383550
+	finalReconcilerDigest              = "sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd"
+	finalTenantDigest                  = "sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d"
+	finalMallDigest                    = "sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a"
+	finalImporterDigest                = "sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0"
 )
 
 type legacyDeliveryRun struct {
@@ -65,7 +71,77 @@ type legacyDeliveryRun struct {
 	LegacyImporterDigest string `yaml:"legacyImporterDigest"`
 }
 
+type legacyReconciliationAttempt struct {
+	Revision                  string `yaml:"revision"`
+	Job                       string `yaml:"job"`
+	ImageDigest               string `yaml:"imageDigest"`
+	Result                    string `yaml:"result"`
+	FailedStatement           string `yaml:"failedStatement"`
+	TransactionOutcome        string `yaml:"transactionOutcome"`
+	PersistentDatabaseChanges int    `yaml:"persistentDatabaseChanges"`
+	SQLBatches                int    `yaml:"sqlBatches"`
+	SQLStatements             int    `yaml:"sqlStatements"`
+	Views                     int    `yaml:"views"`
+	Snapshots                 int    `yaml:"snapshots"`
+}
+
+type legacyReconciliationRelease struct {
+	Revision              string                        `yaml:"revision"`
+	CIRun                 int64                         `yaml:"ciRun"`
+	ReconcilerImageDigest string                        `yaml:"reconcilerImageDigest"`
+	Attempts              []legacyReconciliationAttempt `yaml:"attempts"`
+}
+
+type legacyProjectionVerification struct {
+	Revision                 string `yaml:"revision"`
+	Job                      string `yaml:"job"`
+	ImageDigest              string `yaml:"imageDigest"`
+	Result                   string `yaml:"result"`
+	Verified                 bool   `yaml:"verified"`
+	PublicMemberLevelsRows   int    `yaml:"publicMemberLevelsRows"`
+	BusinessMemberLevelsRows int    `yaml:"businessMemberLevelsRows"`
+	DifferenceRows           int    `yaml:"differenceRows"`
+	CrossTenantRows          int    `yaml:"crossTenantRows"`
+	FlaggedDefaultRows       int    `yaml:"flaggedDefaultRows"`
+	EnabledDefaultRows       int    `yaml:"enabledDefaultRows"`
+	InvalidDefaultRows       int    `yaml:"invalidDefaultRows"`
+	DuplicateNameGroups      int    `yaml:"duplicateNameGroups"`
+	PublicOrdersRows         int    `yaml:"publicOrdersRows"`
+	BusinessOrdersRows       int    `yaml:"businessOrdersRows"`
+	PublicOrderGoodsRows     int    `yaml:"publicOrderGoodsRows"`
+	BusinessOrderGoodsRows   int    `yaml:"businessOrderGoodsRows"`
+	RuntimePublicPrivileges  bool   `yaml:"runtimePublicPrivileges"`
+}
+
+type legacyRuntimeDeployment struct {
+	Revision            string `yaml:"revision"`
+	Namespace           string `yaml:"namespace"`
+	Result              string `yaml:"result"`
+	TenantDeployment    string `yaml:"tenantDeployment"`
+	TenantImageDigest   string `yaml:"tenantImageDigest"`
+	TenantReadyReplicas int    `yaml:"tenantReadyReplicas"`
+	MallDeployment      string `yaml:"mallDeployment"`
+	MallImageDigest     string `yaml:"mallImageDigest"`
+	MallReadyReplicas   int    `yaml:"mallReadyReplicas"`
+	MutationMode        string `yaml:"mutationMode"`
+}
+
+type legacyRuntimeClusterVerification struct {
+	Version          string `yaml:"version"`
+	Result           string `yaml:"result"`
+	HTTPJob          string `yaml:"httpJob"`
+	DataJob          string `yaml:"dataJob"`
+	TenantHTTP       string `yaml:"tenantHTTP"`
+	MallHTTP         string `yaml:"mallHTTP"`
+	TenantPostgreSQL string `yaml:"tenantPostgreSQL"`
+	MallPostgreSQL   string `yaml:"mallPostgreSQL"`
+	Redis            string `yaml:"redis"`
+}
+
 type legacyRebuildStatus struct {
+	Metadata struct {
+		LastVerified string `yaml:"lastVerified"`
+	} `yaml:"metadata"`
 	Spec struct {
 		DevelopmentIsolation struct {
 			OriginalEnvironment        string `yaml:"originalEnvironment"`
@@ -99,7 +175,8 @@ type legacyRebuildStatus struct {
 			RequiredAcceptanceScenarios  int `yaml:"requiredAcceptanceScenarios"`
 		} `yaml:"verifiedInventory"`
 		Acceptance struct {
-			ClosedScenarios int `yaml:"closedScenarios"`
+			ClosedScenarios   int `yaml:"closedScenarios"`
+			RequiredScenarios int `yaml:"requiredScenarios"`
 		} `yaml:"acceptance"`
 		EvidenceState struct {
 			IndexesConstraintsAndRowCounts     string `yaml:"indexesConstraintsAndRowCounts"`
@@ -112,10 +189,13 @@ type legacyRebuildStatus struct {
 			FoundationSecrets                  string `yaml:"foundationSecrets"`
 			DatastoreReadinessJob              string `yaml:"datastoreReadinessJob"`
 			OriginalDevelopmentFingerprint     struct {
-				State                    string `yaml:"state"`
-				EvidencePath             string `yaml:"evidencePath"`
-				EvidenceFileSHA256       string `yaml:"evidenceFileSHA256"`
-				SelectedSafeFieldsSHA256 string `yaml:"selectedSafeFieldsSHA256"`
+				State                                string `yaml:"state"`
+				EvidencePath                         string `yaml:"evidencePath"`
+				EvidenceFileSHA256                   string `yaml:"evidenceFileSHA256"`
+				SelectedSafeFieldsSHA256             string `yaml:"selectedSafeFieldsSHA256"`
+				FinalReleaseRevision                 string `yaml:"finalReleaseRevision"`
+				FinalReleaseSelectedSafeFieldsSHA256 string `yaml:"finalReleaseSelectedSafeFieldsSHA256"`
+				UnchangedThroughFinalRelease         bool   `yaml:"unchangedThroughFinalRelease"`
 			} `yaml:"originalDevelopmentFingerprint"`
 			LegacyImport struct {
 				CompiledTables                  int      `yaml:"compiledTables"`
@@ -165,9 +245,13 @@ type legacyRebuildStatus struct {
 				ReceiptConfigMapChangedByFix       bool   `yaml:"receiptConfigMapChangedByFix"`
 				KubernetesWritesFromFixValidation  bool   `yaml:"kubernetesWritesFromFixValidation"`
 			} `yaml:"postImportVerifier"`
-			ReconciliationSecretsOperator  string `yaml:"reconciliationSecretsOperator"`
-			ReconcilerJob                  string `yaml:"reconcilerJob"`
-			IsolatedInAppBrowserAcceptance string `yaml:"isolatedInAppBrowserAcceptance"`
+			ReconciliationSecretsOperator  string                           `yaml:"reconciliationSecretsOperator"`
+			ReconcilerJob                  string                           `yaml:"reconcilerJob"`
+			ReconciliationRelease          legacyReconciliationRelease      `yaml:"reconciliationRelease"`
+			ProjectionVerification         legacyProjectionVerification     `yaml:"projectionVerification"`
+			RuntimeDeployment              legacyRuntimeDeployment          `yaml:"runtimeDeployment"`
+			RuntimeClusterVerification     legacyRuntimeClusterVerification `yaml:"runtimeClusterVerification"`
+			IsolatedInAppBrowserAcceptance string                           `yaml:"isolatedInAppBrowserAcceptance"`
 		} `yaml:"evidenceState"`
 		LocalEvidence struct {
 			MallAdminWeb struct {
@@ -179,6 +263,15 @@ type legacyRebuildStatus struct {
 				TargetResource      string `yaml:"targetResource"`
 				OwnershipDeployment string `yaml:"ownershipDeployment"`
 			} `yaml:"tenantAdminWeb"`
+			MallCompatibilityBackend struct {
+				OwnershipDeployment string `yaml:"ownershipDeployment"`
+			} `yaml:"mallCompatibilityBackend"`
+			TenantSharedCatalogBackend struct {
+				OwnershipDeployment string `yaml:"ownershipDeployment"`
+			} `yaml:"tenantSharedCatalogBackend"`
+			MallSettingsWorkflow struct {
+				Deployment string `yaml:"deployment"`
+			} `yaml:"mallSettingsWorkflow"`
 			CurrentSourceValidation struct {
 				IsolatedCreateOnlyResources struct {
 					InfrastructureObjects     int `yaml:"infrastructureObjects"`
@@ -220,6 +313,8 @@ type legacyRebuildStatus struct {
 			LegacyImportSucceeded                   bool   `yaml:"legacyImportSucceeded"`
 			PostImportVerifierSucceeded             bool   `yaml:"postImportVerifierSucceeded"`
 			IsolatedBrowserAcceptanceExecuted       bool   `yaml:"isolatedBrowserAcceptanceExecuted"`
+			DeployedSourceRevision                  string `yaml:"deployedSourceRevision"`
+			DeployedSourceRevisionCommitted         bool   `yaml:"deployedSourceRevisionCommitted"`
 		} `yaml:"safety"`
 	} `yaml:"spec"`
 }
@@ -557,6 +652,9 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if err := yaml.Unmarshal(content, &status); err != nil {
 		t.Fatalf("parse legacy rebuild status: %v", err)
 	}
+	if status.Metadata.LastVerified != "2026-09-02" {
+		t.Fatalf("legacy rebuild verification date = %q", status.Metadata.LastVerified)
+	}
 
 	isolation := status.Spec.DevelopmentIsolation
 	if isolation.OriginalEnvironment != "r1shop-dev" || isolation.OriginalEnvironmentMutable ||
@@ -603,30 +701,87 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if inventory.CompatibilityResources != 51 || inventory.TenantCompatibilityResources != 1 || inventory.MallCompatibilityResources != 50 {
 		t.Fatalf("legacy compatibility allocation drifted: %#v", inventory)
 	}
-	if status.Spec.EvidenceState.CompatibilityOwnershipReassignment != "implemented-source-not-deployed" {
-		t.Fatalf("ownership reassignment state = %q, want source-only implementation", status.Spec.EvidenceState.CompatibilityOwnershipReassignment)
+	if status.Spec.EvidenceState.CompatibilityOwnershipReassignment != "deployed-isolated-mss-shop-dev-read-only" {
+		t.Fatalf("ownership reassignment state = %q, want isolated read-only deployment", status.Spec.EvidenceState.CompatibilityOwnershipReassignment)
 	}
 	evidence := status.Spec.EvidenceState
 	if evidence.IndexesConstraintsAndRowCounts != "import-and-independent-post-import-verifier-passed" ||
-		evidence.KubernetesSystemAcceptance != "partial-datastore-import-and-verifier-only" ||
+		evidence.KubernetesSystemAcceptance != "passed-final-release-v3-runtime-cluster-verification" ||
 		evidence.ProductionMigration != "forbidden-without-explicit-approval" ||
-		evidence.DeliveryCI != "four-image-publications-verified-through-revision-c-evidence" ||
-		evidence.RemoteDevelopmentPlan != "development-first-release-candidate-validation-authorized-revision-c-evidence-current" ||
+		evidence.DeliveryCI != "four-image-publication-verified-final-release-3e64a57-run-33532383550" ||
+		evidence.RemoteDevelopmentPlan != "final-release-deployed-isolated-browser-business-review-pending" ||
 		evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
 		evidence.DatastoreReadinessJob != "passed-revision-6fed45f" ||
 		evidence.PostImportVerifierJob != "passed-revision-b-3eb4c72" ||
-		evidence.ReconciliationSecretsOperator != "implemented-default-server-dry-run-explicit-create-not-executed" ||
-		evidence.ReconcilerJob != "source-implemented-not-executed" ||
-		evidence.IsolatedInAppBrowserAcceptance != "pending-not-deployed" {
+		evidence.ReconciliationSecretsOperator != "created-three-immutable-secrets-exact-retry-confirmed" ||
+		evidence.ReconcilerJob != "passed-final-release-3e64a57-after-two-transactional-rollbacks" ||
+		evidence.IsolatedInAppBrowserAcceptance != "pending-confirmed-login" {
 		t.Fatalf("isolated infrastructure evidence drifted: %#v", evidence)
 	}
 	fingerprint := evidence.OriginalDevelopmentFingerprint
-	if fingerprint.State != "selected-safe-fields-unchanged-through-post-verifier-revision-ebefd1c" ||
-		fingerprint.EvidencePath != "docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json" ||
-		fingerprint.EvidenceFileSHA256 != "07eafdd704a05b1768f026ee00a33f53134cd8eba3eadd2e3b6c8ba712448f75" ||
-		fingerprint.SelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 {
+	if fingerprint.State != "selected-safe-fields-unchanged-through-final-release-3e64a57" ||
+		fingerprint.EvidencePath != "docs/evidence/original-dev/2026-09-02-post-isolated-acceptance.json" ||
+		fingerprint.EvidenceFileSHA256 != "6ef0071c34aec7835877535f2d045860d3ee370e2b9fbf1b1862c214adc1c97e" ||
+		fingerprint.SelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 ||
+		fingerprint.FinalReleaseRevision != finalReleaseRevision ||
+		fingerprint.FinalReleaseSelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 ||
+		!fingerprint.UnchangedThroughFinalRelease {
 		t.Fatalf("original development fingerprint evidence drifted: %#v", fingerprint)
+	}
+	reconciliation := evidence.ReconciliationRelease
+	wantAttempts := []legacyReconciliationAttempt{
+		{
+			Revision: "43e0fd5f18af903f076ec166efff68365dcb3a55", Job: "mss-shop-reconciler-43e0fd5f18af903f076ec166efff68365dcb3a55",
+			ImageDigest: "sha256:9bf340117ac8475cac36b9319a929353fb7c26a937ad29579daa0fc4c7623139", Result: "failed",
+			FailedStatement: "copy-and-audit-snapshot-brands", TransactionOutcome: "rolled-back",
+		},
+		{
+			Revision: "ddb67bef4bf0b4eeae7408eb5706ad63e687dce6", Job: "mss-shop-reconciler-ddb67bef4bf0b4eeae7408eb5706ad63e687dce6",
+			ImageDigest: "sha256:967b6ae8e8862f2f3abbaaee98501bb1a5cde69e2173db7ea505ff3e354ac23a", Result: "failed",
+			FailedStatement: "validate-application-role-realm-mss_t_dev_migrator", TransactionOutcome: "rolled-back",
+		},
+		{
+			Revision: finalReleaseRevision, Job: "mss-shop-reconciler-" + finalReleaseRevision,
+			ImageDigest: finalReconcilerDigest, Result: "succeeded", TransactionOutcome: "committed",
+			SQLBatches: 1, SQLStatements: 252, Views: 46, Snapshots: 7,
+		},
+	}
+	if reconciliation.Revision != finalReleaseRevision || reconciliation.CIRun != finalReleaseCIRun ||
+		reconciliation.ReconcilerImageDigest != finalReconcilerDigest ||
+		!reflect.DeepEqual(reconciliation.Attempts, wantAttempts) {
+		t.Fatalf("final reconciliation evidence drifted: %#v", reconciliation)
+	}
+	projection := evidence.ProjectionVerification
+	if projection.Revision != finalReleaseRevision ||
+		projection.Job != "mss-shop-ml-projection-"+finalReleaseRevision ||
+		projection.ImageDigest != finalReconcilerDigest || projection.Result != "succeeded" || !projection.Verified ||
+		projection.PublicMemberLevelsRows != 4 || projection.BusinessMemberLevelsRows != 4 ||
+		projection.DifferenceRows != 0 || projection.CrossTenantRows != 0 ||
+		projection.FlaggedDefaultRows != 1 || projection.EnabledDefaultRows != 1 ||
+		projection.InvalidDefaultRows != 0 || projection.DuplicateNameGroups != 0 ||
+		projection.PublicOrdersRows != 0 || projection.BusinessOrdersRows != 0 ||
+		projection.PublicOrderGoodsRows != 0 || projection.BusinessOrderGoodsRows != 0 ||
+		projection.RuntimePublicPrivileges {
+		t.Fatalf("member-level projection evidence drifted: %#v", projection)
+	}
+	runtime := evidence.RuntimeDeployment
+	if runtime.Revision != finalReleaseRevision || runtime.Namespace != "mss-shop-dev" || runtime.Result != "deployed" ||
+		runtime.TenantDeployment != "mss-shop-tenant-admin" || runtime.TenantImageDigest != finalTenantDigest ||
+		runtime.TenantReadyReplicas != 1 || runtime.MallDeployment != "mss-shop-mall-admin-aussibuy" ||
+		runtime.MallImageDigest != finalMallDigest || runtime.MallReadyReplicas != 1 || runtime.MutationMode != "read-only" {
+		t.Fatalf("isolated Admin runtime evidence drifted: %#v", runtime)
+	}
+	cluster := evidence.RuntimeClusterVerification
+	if cluster.Version != "v3" || cluster.Result != "passed" ||
+		cluster.HTTPJob != "mss-shop-runtime-http-verify-3e64a57-v3" ||
+		cluster.DataJob != "mss-shop-runtime-data-verify-3e64a57-v3" ||
+		cluster.TenantHTTP != "health-200-ready-200-ui-200-unauthenticated-api-denied" ||
+		cluster.MallHTTP != "health-200-ready-200-ui-200-unauthenticated-api-denied" ||
+		cluster.TenantPostgreSQL != "role-bound-shared-read-public-denied-cross-mall-denied-ddl-denied-tls-required-ca-and-hostname-verified" ||
+		cluster.MallPostgreSQL != "role-bound-member-levels-4-orders-0-order-goods-0-public-denied-cross-tenant-denied-dml-denied-tls-verified" ||
+		cluster.Redis != "tenant-db1-and-mall-db2-pong-tls-auth-ca-verified" {
+		t.Fatalf("runtime cluster verification evidence drifted: %#v", cluster)
 	}
 	fingerprintContent, err := os.ReadFile("../" + fingerprint.EvidencePath)
 	if err != nil {
@@ -658,7 +813,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	}
 	if fingerprintEvidence.Version != "mss-shop-original-dev-read-only-kubernetes-fingerprint/v1" ||
 		len(fingerprintEvidence.SelectedSafeFields) == 0 ||
-		fingerprintEvidence.Revision != annotationFixRevision ||
+		fingerprintEvidence.Revision != finalReleaseRevision ||
 		fingerprintEvidence.Environment != "r1shop-dev-read-only" ||
 		fingerprintEvidence.AccessMode != "kubernetes-fixed-get-list-only" ||
 		fingerprintEvidence.SelectedSafeFieldsSHA256 != fingerprint.SelectedSafeFieldsSHA256 ||
@@ -1165,8 +1320,8 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	}
 	originalBoundary := verificationSpec.OriginalDevelopmentBoundary
 	if originalBoundary.Environment != "r1shop-dev-read-only" ||
-		originalBoundary.EvidencePath != fingerprint.EvidencePath ||
-		originalBoundary.EvidenceFileSHA256 != fingerprint.EvidenceFileSHA256 ||
+		originalBoundary.EvidencePath != "docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json" ||
+		originalBoundary.EvidenceFileSHA256 != "07eafdd704a05b1768f026ee00a33f53134cd8eba3eadd2e3b6c8ba712448f75" ||
 		originalBoundary.SelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 ||
 		!originalBoundary.UnchangedFromImportBoundary || originalBoundary.SecretsAccessed ||
 		originalBoundary.DatabaseConnectionsPerformed || originalBoundary.WritesPerformed {
@@ -1181,11 +1336,16 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		verifierCurrentState.ProductionResourcesAccessed {
 		t.Fatalf("post-import verifier current state overclaims acceptance: %#v", verifierCurrentState)
 	}
-	if status.Spec.LocalEvidence.MallAdminWeb.ResourceRoutes != 50 || status.Spec.LocalEvidence.MallAdminWeb.OwnershipDeployment != "pending-forward-migrations-not-applied" {
+	if status.Spec.LocalEvidence.MallAdminWeb.ResourceRoutes != 50 || status.Spec.LocalEvidence.MallAdminWeb.OwnershipDeployment != "applied-mss-shop-dev-final-release-3e64a57" {
 		t.Fatalf("mall source/deployment state drifted: %#v", status.Spec.LocalEvidence.MallAdminWeb)
 	}
-	if status.Spec.LocalEvidence.TenantAdminWeb.ResourceRoutes != 1 || status.Spec.LocalEvidence.TenantAdminWeb.TargetResource != "payments" || status.Spec.LocalEvidence.TenantAdminWeb.OwnershipDeployment != "pending-forward-migrations-not-applied" {
+	if status.Spec.LocalEvidence.TenantAdminWeb.ResourceRoutes != 1 || status.Spec.LocalEvidence.TenantAdminWeb.TargetResource != "payments" || status.Spec.LocalEvidence.TenantAdminWeb.OwnershipDeployment != "applied-mss-shop-dev-final-release-3e64a57" {
 		t.Fatalf("tenant source/deployment state drifted: %#v", status.Spec.LocalEvidence.TenantAdminWeb)
+	}
+	if status.Spec.LocalEvidence.MallCompatibilityBackend.OwnershipDeployment != "applied-mss-shop-dev-final-release-3e64a57-read-only" ||
+		status.Spec.LocalEvidence.TenantSharedCatalogBackend.OwnershipDeployment != "applied-mss-shop-dev-final-release-3e64a57-read-only" ||
+		status.Spec.LocalEvidence.MallSettingsWorkflow.Deployment != "mss-shop-dev-kubernetes-final-release-3e64a57-read-only" {
+		t.Fatalf("isolated read-only business deployment memory drifted: %#v", status.Spec.LocalEvidence)
 	}
 	if inventory.AdminBusinessViews != 54 || inventory.LegacyHTTPRequests != 185 || inventory.LegacyButtonPermissions != 171 {
 		t.Fatalf("legacy Admin inventory drifted: %#v", inventory)
@@ -1199,8 +1359,9 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if actual := len(scenarioPattern.FindAll(matrix, -1)); actual != inventory.RequiredAcceptanceScenarios {
 		t.Fatalf("acceptance scenarios = %d, status records %d", actual, inventory.RequiredAcceptanceScenarios)
 	}
-	if status.Spec.Acceptance.ClosedScenarios != 0 {
-		t.Fatalf("closed acceptance scenarios = %d without system evidence", status.Spec.Acceptance.ClosedScenarios)
+	if status.Spec.Acceptance.ClosedScenarios != 0 || status.Spec.Acceptance.RequiredScenarios != 31 ||
+		status.Spec.Acceptance.RequiredScenarios != inventory.RequiredAcceptanceScenarios {
+		t.Fatalf("business acceptance progress = %d/%d, want 0/31", status.Spec.Acceptance.ClosedScenarios, status.Spec.Acceptance.RequiredScenarios)
 	}
 	validation := status.Spec.LocalEvidence.CurrentSourceValidation
 	resources := validation.IsolatedCreateOnlyResources
@@ -1220,15 +1381,15 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	}
 	images := status.Spec.LocalEvidence.DeliveryImages
 	verifiedRun := images.VerifiedRun
-	if images.CurrentFourImagePublication != "verified-revision-c-fc6d1bf-not-deployed" ||
-		verifiedRun.ID != 33503127917 ||
-		verifiedRun.Revision != "fc6d1bf357ca7291a0fc2fe4391ca15628f8e9b9" ||
+	if images.CurrentFourImagePublication != "verified-final-release-3e64a57-deployed-isolated-dev" ||
+		verifiedRun.ID != finalReleaseCIRun ||
+		verifiedRun.Revision != finalReleaseRevision ||
 		verifiedRun.Conclusion != "success" ||
-		verifiedRun.Scope != "revision-c-verifier-evidence-publication-not-deployed" ||
-		verifiedRun.TenantDigest != "sha256:87a2ba402b9dc5f82769b4fbf4c1b1220368483dde6a4c6fc580507328f05750" ||
-		verifiedRun.MallDigest != "sha256:22a02242cc815ec7e2bf29fc5f9ec86789a245074754f49b59bc2b7def66c92e" ||
-		verifiedRun.ReconcilerDigest != "sha256:0beece2f39be8892649981db69bb20ebef6c6b27a6ab8741d4cf129b5d6a3af5" ||
-		verifiedRun.LegacyImporterDigest != "sha256:385e5161b5a2133a482cb34330092d4e94e9e3c48d7b1a7ca01dc5f4b7e3bb38" {
+		verifiedRun.Scope != "final-release-reconciled-projected-runtime-deployed-isolated-dev" ||
+		verifiedRun.TenantDigest != finalTenantDigest ||
+		verifiedRun.MallDigest != finalMallDigest ||
+		verifiedRun.ReconcilerDigest != finalReconcilerDigest ||
+		verifiedRun.LegacyImporterDigest != finalImporterDigest {
 		t.Fatalf("verified four-image evidence drifted: %#v", images)
 	}
 	verifierRun := images.VerifierRun
@@ -1268,6 +1429,8 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		"originalDevelopmentEvidence", "postVerifierOriginalDevelopmentEvidence",
 		"isolatedImportAttemptEvidence", "isolatedImportSuccessEvidence", "isolatedImportReceipt",
 		"isolatedVerifierEvidence", "isolatedVerification", "memberLevelsDevelopment",
+		"isolatedReconciliationEvidence", "isolatedMemberLevelsProjectionEvidence", "isolatedRuntimeSystemAcceptanceEvidence",
+		"isolatedBrowserAcceptanceReport",
 	}
 	for _, name := range requiredSources {
 		if _, exists := status.Spec.SourcesOfTruth[name]; !exists {
@@ -1292,7 +1455,11 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		status.Spec.SourcesOfTruth["postVerifierOriginalDevelopmentEvidence"] != fingerprint.EvidencePath ||
 		status.Spec.SourcesOfTruth["isolatedImportReceipt"] != legacyImport.Receipt ||
 		status.Spec.SourcesOfTruth["isolatedVerifierEvidence"] != verifierEvidenceRelative ||
-		status.Spec.SourcesOfTruth["isolatedVerification"] != verificationRelative {
+		status.Spec.SourcesOfTruth["isolatedVerification"] != verificationRelative ||
+		status.Spec.SourcesOfTruth["isolatedReconciliationEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml" ||
+		status.Spec.SourcesOfTruth["isolatedMemberLevelsProjectionEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json" ||
+		status.Spec.SourcesOfTruth["isolatedRuntimeSystemAcceptanceEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml" ||
+		status.Spec.SourcesOfTruth["isolatedBrowserAcceptanceReport"] != "docs/acceptance/mss-shop-dev-2026-09-02-browser-acceptance.md" {
 		t.Fatalf("legacy decisions drifted: %#v", status.Spec.SourcesOfTruth)
 	}
 	safety := status.Spec.Safety
@@ -1301,9 +1468,10 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		!safety.OldDevelopmentWritesForbidden || safety.ProductionOrderRowsToDevelopment ||
 		safety.TargetOrderRowsImported || safety.TargetOrderGoodsRowsImported ||
 		!safety.SystemTestsUseDisposableKubernetesPods || !safety.IsolatedInfrastructureStaged ||
-		safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 3 ||
+		!safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 3 ||
 		!safety.LegacyImportSucceeded || !safety.PostImportVerifierSucceeded ||
-		safety.IsolatedBrowserAcceptanceExecuted {
+		safety.IsolatedBrowserAcceptanceExecuted || safety.DeployedSourceRevision != finalReleaseRevision ||
+		!safety.DeployedSourceRevisionCommitted {
 		t.Fatalf("unsafe legacy verification memory: %#v", status.Spec.Safety)
 	}
 }

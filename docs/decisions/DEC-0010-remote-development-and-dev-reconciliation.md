@@ -152,17 +152,17 @@ a retry from silently taking ownership of a colliding resource. Receipt-bound
 import and reconciliation make data provenance part of the database state
 rather than an operator assumption.
 
-As of this decision update, the exact 24-object isolated boundary and six
-immutable foundation Secrets exist only in `mss-shop-dev`; PostgreSQL 17.6 and
-Redis 8.6.3 are ready, and three revision-bound readiness Jobs passed. Two
-create-only importer Jobs remain as failed pre-target diagnostics: the first
-exposed a PostgreSQL catalog-alias defect and the second exposed over-broad
-rejection of reviewed TimescaleDB extension routines. Neither opened the target
-transaction. A third revision completed the single bounded import, persisted
-the canonical receipt and kept `orders`/`order_goods` structure-only. A later
-disposable verifier independently matched all 51 receipt tables and both zero
-order counts. Reconciliation Secrets, reconciler, Member Levels projection
-verification, Admin runtime rollout, Kubernetes system acceptance and isolated
-in-app-browser acceptance remain pending. Accepted business scenarios remain
-0/31, and the original `r1shop-dev` environment and production remain
-unchanged.
+As of the 2026-09-02 decision update, the exact 24-object isolated boundary and
+six immutable foundation Secrets exist only in `mss-shop-dev`; PostgreSQL 17.6
+and Redis 8.6.3 are ready. The single bounded import and its independent
+verifier remain bound to canonical receipt
+`fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`,
+with `orders`/`order_goods` structure-only. Source revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` then completed receipt-bound
+reconciliation, four-row Member Levels projection verification, the exact
+eight-object Admin runtime rollout and disposable cluster HTTP/data-system
+acceptance. Two earlier reconciliation revisions failed closed and rolled back
+on PostgreSQL 17 query-qualification defects; their immutable Jobs remain as
+diagnostic evidence. Confirmed-login in-app-browser acceptance remains pending.
+Accepted business scenarios remain 0/31, and the original `r1shop-dev`
+environment and production remain unchanged.

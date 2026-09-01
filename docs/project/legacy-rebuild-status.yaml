@@ -2,7 +2,7 @@ apiVersion: r1shop.io/v1alpha1
 kind: LegacyRebuildStatus
 metadata:
   name: r1shop-admin-rebuild
-  lastVerified: "2026-09-01"
+  lastVerified: "2026-09-02"
 spec:
   foundation:
     distribution: mss-boot-admin
@@ -63,17 +63,17 @@ spec:
     developmentSnapshotCatalogInventory: verified-read-only-seven-tables-columns-primary-keys-indexes-and-counts
     indexesConstraintsAndRowCounts: import-and-independent-post-import-verifier-passed
     genericCompatibilityAPI: verified-local-read-only
-    mallCompatibilityBackend: pending-post-ownership-move-validation
-    tenantSharedCatalogBackend: pending-post-ownership-move-validation
-    mallAdminBusinessUI: pending-post-ownership-move-browser-review
-    tenantSharedCatalogUI: pending-post-ownership-move-browser-review
+    mallCompatibilityBackend: deployed-isolated-runtime-v3-smoke-passed-business-review-pending
+    tenantSharedCatalogBackend: deployed-isolated-runtime-v3-smoke-passed-business-review-pending
+    mallAdminBusinessUI: pending-confirmed-login
+    tenantSharedCatalogUI: pending-confirmed-login
     catalogAndLogisticsOwnershipContract: verified-target-mall-platform
-    compatibilityOwnershipReassignment: implemented-source-not-deployed
+    compatibilityOwnershipReassignment: deployed-isolated-mss-shop-dev-read-only
     catalogAndLogisticsDesignReview: awaiting-project-owner-review
     localMallBrowserFixture: pending-post-ownership-move-validation
-    domainWorkflows: mall-settings-and-member-levels-source-validated-release-candidate-all-other-workflows-pending
+    domainWorkflows: mall-settings-and-member-levels-deployed-isolated-read-only-browser-business-review-pending-all-other-workflows-pending
     mallSettingsWorkflow:
-      status: source-validated-release-candidate
+      status: deployed-isolated-read-only-browser-business-review-pending
       api: GET-PUT-/admin/api/mall-settings/general
       fields: [mallName, orderPrefix, defaultSenderName, defaultSenderPhone]
       responseOperations: {update: server-projected-false-for-postgres}
@@ -84,12 +84,12 @@ spec:
       genericSystemConfigsMutation: disabled
       authorizationMigration: "66966149766804"
       tests: passed-unified-remote-validation
-      migrationApplied: demo-sqlite-only
-      deployed: false
+      migrationApplied: mss-shop-dev-postgres
+      deployed: true
       remoteLocalPreview: healthy-backend-and-admin-web-demo-sqlite-not-acceptance
       acceptanceScenarioClosed: false
     memberLevelsWorkflow:
-      status: source-validated-release-candidate
+      status: deployed-isolated-read-only-projection-verified-browser-business-review-pending
       api: /admin/api/member-levels
       legacyRow: fixed-schema-fixed-legacy-tenant-member_levels
       postgresRelation: mss_m_aussibuy_biz.member_levels
@@ -97,24 +97,27 @@ spec:
       mutationGate: R1SHOP_MEMBER_LEVELS_MUTATION_MODE-default-closed
       deploymentMode: read-only
       authorizationMigration: "66966149766805"
-      projectionVerifier: source-implemented-not-executed
+      projectionVerifier: passed-final-release-3e64a57
       tests: passed-unified-remote-validation
-      deployed: false
+      deployed: true
       acceptanceScenarioClosed: false
     inAppBrowserAcceptance:
-      mallPlatform: historical-pre-dec-0009-compatibility-surface
-      tenantPlatform: pending
-    kubernetesSystemAcceptance: partial-datastore-import-and-verifier-only
+      mallPlatform: pending-confirmed-login
+      tenantPlatform: pending-confirmed-login
+    kubernetesSystemAcceptance: passed-final-release-v3-runtime-cluster-verification
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: four-image-publications-verified-through-revision-c-evidence
-    remoteDevelopmentPlan: development-first-release-candidate-validation-authorized-revision-c-evidence-current
+    deliveryCI: four-image-publication-verified-final-release-3e64a57-run-33532383550
+    remoteDevelopmentPlan: final-release-deployed-isolated-browser-business-review-pending
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
     originalDevelopmentFingerprint:
-      state: selected-safe-fields-unchanged-through-post-verifier-revision-ebefd1c
-      evidencePath: docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json
-      evidenceFileSHA256: 07eafdd704a05b1768f026ee00a33f53134cd8eba3eadd2e3b6c8ba712448f75
+      state: selected-safe-fields-unchanged-through-final-release-3e64a57
+      evidencePath: docs/evidence/original-dev/2026-09-02-post-isolated-acceptance.json
+      evidenceFileSHA256: 6ef0071c34aec7835877535f2d045860d3ee370e2b9fbf1b1862c214adc1c97e
       selectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
+      finalReleaseRevision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+      finalReleaseSelectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
+      unchangedThroughFinalRelease: true
     datastoreReadinessJob: passed-revision-6fed45f
     legacyImport:
       compiledTables: 51
@@ -177,29 +180,98 @@ spec:
       newRevisionVerifierPodCreated: false
       receiptConfigMapChangedByFix: false
       kubernetesWritesFromFixValidation: false
-    reconciliationSecretsOperator: implemented-default-server-dry-run-explicit-create-not-executed
-    reconcilerJob: source-implemented-not-executed
-    isolatedInAppBrowserAcceptance: pending-not-deployed
+    reconciliationSecretsOperator: created-three-immutable-secrets-exact-retry-confirmed
+    reconcilerJob: passed-final-release-3e64a57-after-two-transactional-rollbacks
+    reconciliationRelease:
+      revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+      ciRun: 33532383550
+      reconcilerImageDigest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+      attempts:
+        - revision: 43e0fd5f18af903f076ec166efff68365dcb3a55
+          job: mss-shop-reconciler-43e0fd5f18af903f076ec166efff68365dcb3a55
+          imageDigest: sha256:9bf340117ac8475cac36b9319a929353fb7c26a937ad29579daa0fc4c7623139
+          result: failed
+          failedStatement: copy-and-audit-snapshot-brands
+          transactionOutcome: rolled-back
+          persistentDatabaseChanges: 0
+        - revision: ddb67bef4bf0b4eeae7408eb5706ad63e687dce6
+          job: mss-shop-reconciler-ddb67bef4bf0b4eeae7408eb5706ad63e687dce6
+          imageDigest: sha256:967b6ae8e8862f2f3abbaaee98501bb1a5cde69e2173db7ea505ff3e354ac23a
+          result: failed
+          failedStatement: validate-application-role-realm-mss_t_dev_migrator
+          transactionOutcome: rolled-back
+          persistentDatabaseChanges: 0
+        - revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+          job: mss-shop-reconciler-3e64a57dae8bb3dd4d337a423015baae6c352b32
+          imageDigest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+          result: succeeded
+          transactionOutcome: committed
+          sqlBatches: 1
+          sqlStatements: 252
+          views: 46
+          snapshots: 7
+    projectionVerification:
+      revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+      job: mss-shop-ml-projection-3e64a57dae8bb3dd4d337a423015baae6c352b32
+      imageDigest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+      result: succeeded
+      verified: true
+      publicMemberLevelsRows: 4
+      businessMemberLevelsRows: 4
+      differenceRows: 0
+      crossTenantRows: 0
+      flaggedDefaultRows: 1
+      enabledDefaultRows: 1
+      invalidDefaultRows: 0
+      duplicateNameGroups: 0
+      publicOrdersRows: 0
+      businessOrdersRows: 0
+      publicOrderGoodsRows: 0
+      businessOrderGoodsRows: 0
+      runtimePublicPrivileges: false
+    runtimeDeployment:
+      revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+      namespace: mss-shop-dev
+      result: deployed
+      tenantDeployment: mss-shop-tenant-admin
+      tenantImageDigest: sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+      tenantReadyReplicas: 1
+      mallDeployment: mss-shop-mall-admin-aussibuy
+      mallImageDigest: sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+      mallReadyReplicas: 1
+      mutationMode: read-only
+    runtimeClusterVerification:
+      version: v3
+      result: passed
+      httpJob: mss-shop-runtime-http-verify-3e64a57-v3
+      dataJob: mss-shop-runtime-data-verify-3e64a57-v3
+      tenantHTTP: health-200-ready-200-ui-200-unauthenticated-api-denied
+      mallHTTP: health-200-ready-200-ui-200-unauthenticated-api-denied
+      tenantPostgreSQL: role-bound-shared-read-public-denied-cross-mall-denied-ddl-denied-tls-required-ca-and-hostname-verified
+      mallPostgreSQL: role-bound-member-levels-4-orders-0-order-goods-0-public-denied-cross-tenant-denied-dml-denied-tls-verified
+      redis: tenant-db1-and-mall-db2-pong-tls-auth-ca-verified
+    isolatedInAppBrowserAcceptance: pending-confirmed-login
   acceptance:
     closedScenarios: 0
-    rule: A local build or generic read-only record viewer cannot close a business scenario.
+    requiredScenarios: 31
+    rule: Cluster smoke verification does not close a business scenario without browser business-flow evidence.
   localEvidence:
     mallAdminWeb:
       resourceRoutes: 50
-      ownershipDeployment: pending-forward-migrations-not-applied
-      validation: pending-post-ownership-move
+      ownershipDeployment: applied-mss-shop-dev-final-release-3e64a57
+      validation: cluster-v3-smoke-passed-browser-business-review-pending
     tenantAdminWeb:
       resourceRoutes: 1
       targetResource: payments
-      ownershipDeployment: pending-forward-migrations-not-applied
-      validation: pending-post-ownership-move
+      ownershipDeployment: applied-mss-shop-dev-final-release-3e64a57
+      validation: cluster-v3-smoke-passed-browser-business-review-pending
     mallCompatibilityBackend:
       manifestResources: 50
       readOnlyResources: 50
       writableResources: 0
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
-      ownershipDeployment: pending-forward-migrations-not-applied
+      ownershipDeployment: applied-mss-shop-dev-final-release-3e64a57-read-only
       fullTests: passed-current-release-candidate-remote
       vet: passed-current-release-candidate-remote
       focusedRace: pending-post-ownership-move
@@ -209,7 +281,7 @@ spec:
       developmentRecord: docs/project/mall-settings-development.md
       backend: apps/mall-platform/internal/modules/mallsettings
       frontend: apps/mall-platform/web/src/business/mall-settings
-      permissions: [mall-settings:read, mall-settings:update]
+      permissions: ["mall-settings:read", "mall-settings:update"]
       legacyMetadataKeys: [mall_name, ewePrefix, default_sender_name, default_sender_phone]
       unknownMetadataPreserved: source-contract
       nestedSecretsReturned: false
@@ -220,7 +292,7 @@ spec:
       writeDisabledError: HTTP-503-MALL_SETTINGS_WRITE_DISABLED
       tests: passed-backend-frontend-contract-authorization-readiness-and-preservation
       build: passed-remote-production-build-total-js-913.92-of-930-kib
-      deployment: remote-local-process-preview-only-kubernetes-not-executed
+      deployment: mss-shop-dev-kubernetes-final-release-3e64a57-read-only
       acceptance: open
     memberLevelsWorkflow:
       implementation: source-complete-validated-remote
@@ -228,14 +300,14 @@ spec:
       developmentRecord: docs/project/member-levels-development.md
       backend: apps/mall-platform/internal/modules/memberlevels
       frontend: apps/mall-platform/web/src/business/member-levels
-      permissions: [member-levels:list, member-levels:read, member-levels:create, member-levels:update, member-levels:set-default, member-levels:delete]
+      permissions: ["member-levels:list", "member-levels:read", "member-levels:create", "member-levels:update", "member-levels:set-default", "member-levels:delete"]
       legacySourceOfTruth: member_levels
       genericCompatibilityWriteEnabled: false
       runtimeMutationMode: default-closed
       deploymentMutationCapability: read-only
-      projectionVerifier: source-implemented-not-executed
+      projectionVerifier: passed-final-release-3e64a57-exact-four-row-projection
       tests: passed-backend-frontend-contract-authorization-readiness-and-sqlite-preservation
-      deployment: kubernetes-not-executed
+      deployment: mss-shop-dev-kubernetes-final-release-3e64a57
       acceptance: open
     tenantSharedCatalogBackend:
       manifestResources: 1
@@ -244,7 +316,7 @@ spec:
       writableResources: 0
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
-      ownershipDeployment: pending-forward-migrations-not-applied
+      ownershipDeployment: applied-mss-shop-dev-final-release-3e64a57-read-only
       fullTests: passed-current-release-candidate-remote
       vet: passed-current-release-candidate-remote
       focusedRace: pending-post-ownership-move
@@ -289,7 +361,7 @@ spec:
       tenantCapabilityLockdownMigration: "20260901120002"
       mallOwnershipTransferMigration: "66966149766803"
       tenantOwnershipTransferMigration: "20260901120003"
-      ownershipTransferDeployment: pending-not-applied
+      ownershipTransferDeployment: applied-mss-shop-dev-final-release-3e64a57
       hostFacadeContractTests: passed
     memoryContracts:
       command: tools/check-project-memory.sh
@@ -336,16 +408,16 @@ spec:
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
-      currentFourImagePublication: verified-revision-c-fc6d1bf-not-deployed
+      currentFourImagePublication: verified-final-release-3e64a57-deployed-isolated-dev
       verifiedRun:
-        id: 33503127917
-        revision: fc6d1bf357ca7291a0fc2fe4391ca15628f8e9b9
+        id: 33532383550
+        revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
         conclusion: success
-        scope: revision-c-verifier-evidence-publication-not-deployed
-        tenantDigest: sha256:87a2ba402b9dc5f82769b4fbf4c1b1220368483dde6a4c6fc580507328f05750
-        mallDigest: sha256:22a02242cc815ec7e2bf29fc5f9ec86789a245074754f49b59bc2b7def66c92e
-        reconcilerDigest: sha256:0beece2f39be8892649981db69bb20ebef6c6b27a6ab8741d4cf129b5d6a3af5
-        legacyImporterDigest: sha256:385e5161b5a2133a482cb34330092d4e94e9e3c48d7b1a7ca01dc5f4b7e3bb38
+        scope: final-release-reconciled-projected-runtime-deployed-isolated-dev
+        tenantDigest: sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+        mallDigest: sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+        reconcilerDigest: sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd
+        legacyImporterDigest: sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0
       verifierRun:
         id: 33497583981
         revision: 3eb4c72b485066e7b189446fab5b66a1047e66a2
@@ -386,12 +458,16 @@ spec:
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
     originalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json
-    postVerifierOriginalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json
+    postVerifierOriginalDevelopmentEvidence: docs/evidence/original-dev/2026-09-02-post-isolated-acceptance.json
     isolatedImportAttemptEvidence: docs/evidence/mss-shop-dev/2026-09-01-import-attempts.yaml
     isolatedImportSuccessEvidence: docs/evidence/mss-shop-dev/2026-09-01-import-success.yaml
     isolatedImportReceipt: docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/receipt.json
     isolatedVerifierEvidence: docs/evidence/mss-shop-dev/2026-09-01-verifier-success.yaml
     isolatedVerification: docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/verification.json
+    isolatedReconciliationEvidence: docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml
+    isolatedMemberLevelsProjectionEvidence: docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json
+    isolatedRuntimeSystemAcceptanceEvidence: docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml
+    isolatedBrowserAcceptanceReport: docs/acceptance/mss-shop-dev-2026-09-02-browser-acceptance.md
   safety:
     productionReadOnly: true
     originalDevelopmentEnvironmentImmutable: true
@@ -404,7 +480,7 @@ spec:
     targetOrderGoodsRowsImported: false
     systemTestsUseDisposableKubernetesPods: true
     isolatedInfrastructureStaged: true
-    isolatedAdminRuntimeDeployed: false
+    isolatedAdminRuntimeDeployed: true
     legacyImportAttempts: 3
     legacyImportSucceeded: true
     postImportVerifierSucceeded: true
@@ -412,4 +488,5 @@ spec:
     currentWorkingTreeTested: true
     currentWorkingTreeRemoteLocalPreviewHealthy: true
     currentWorkingTreeProductionBuilt: true
-    currentWorkingTreeDeployed: false
+    deployedSourceRevision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+    deployedSourceRevisionCommitted: true

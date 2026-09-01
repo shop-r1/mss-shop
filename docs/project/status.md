@@ -1,14 +1,20 @@
 # Project status
 
-Last verified: 2026-09-01
+Last verified: 2026-09-02
 
-Current release-candidate note: development has continued after the latest
-verified Revision C evidence. The reconciliation-secret hardening, Mall
-Settings and Member Levels slices passed the complete remote Go suites, vet,
-frontend tests/lint/build, strict MSS checks and both final Hosts' MSS v1.3.7
-`verify --all` gates. Immutable-image CI, isolated reconciliation, deployment
-and browser acceptance have not yet executed for this candidate. All earlier
-environment claims in this document apply only to their named revision.
+Current release-candidate note: source revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` passed GitHub Actions run
+`33532383550`, published four digest-bound images, reconciled the already
+imported isolated database and deployed both Admin runtimes only in
+`mss-shop-dev`. Two disposable cluster verification Jobs then passed HTTP,
+database-role, schema-isolation, TLS and Redis checks. The canonical legacy
+import was not rerun: it remains the single 51-table snapshot bound to receipt
+`fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`.
+The fixed-tenant Member Levels projection contains four matching rows and both
+order tables remain empty. In-app-browser login and UI review are still
+pending the project owner's confirmation to transmit the two generated demo
+passwords into their respective login forms. All earlier environment claims
+in this document apply only to their named revision.
 
 ## Confirmed decisions
 
@@ -112,8 +118,8 @@ environment claims in this document apply only to their named revision.
   `payments`. The seven product/logistics resources have forward tenant policy
   revocations and mall grants. All 51 generic compatibility resources remain
   read-only; the separate Mall Settings source workflow does not alter that
-  generic capability. No environment application or deployment of those
-  migrations is claimed.
+  generic capability. The isolated runtime init containers completed the fixed
+  core migrations, but no generic business mutation is enabled or accepted.
 - A flat bilingual compatibility-error contract shared by both platforms. It
   includes stable code/key/fallback fields and reduces old or malformed nested
   responses to React-safe strings.
@@ -129,15 +135,17 @@ environment claims in this document apply only to their named revision.
   read/update permissions, an MSS-style focused page and complete Chinese and
   English messages. It deliberately excludes raw metadata, secrets, payment,
   logistics, storefront and native-App settings. Its source tests, production
-  build and MSS v1.3.7 verification pass remotely; isolated reconciliation,
-  deployment and acceptance remain open. The cluster manifest keeps writes
-  disabled; see
+  build, MSS v1.3.7 verification, isolated reconciliation and read-only runtime
+  deployment passed. Browser review and a qualified PostgreSQL write path
+  remain open. The cluster manifest keeps writes disabled; see
   `docs/project/mall-settings-development.md`.
 - A dedicated Member Levels source slice with fixed tenant/schema binding,
   strict DTOs, action-level permissions, optimistic revisions, default-level
   integrity reporting and preservation of unowned legacy policy columns. Its
-  source tests and production build pass remotely, while the cluster release
-  remains read-only and its four-row projection verifier has not yet run; see
+  source tests and production build pass remotely. The cluster release remains
+  read-only; its digest-bound projection verifier proved the fixed tenant's
+  four-row projection, one enabled default, no cross-tenant rows and zero rows
+  in both order tables; see
   `docs/project/member-levels-development.md`.
 - A repository Skill and contract tests that keep the target table ownership,
   50/one source catalogs, acceptance matrix, MCP registration and
@@ -160,10 +168,12 @@ environment claims in this document apply only to their named revision.
   legacy-importer—with digest-bound receipts; pull requests build without
   pushing and no workflow deploys them. Run `33494258866` supplied the
   successful import revision-A image; run `33497583981` supplied the revision-B
-  verifier image; and run `33500133380` validates the later stage-annotation
-  compatibility fix. Run `33503127917` validates revision-C evidence and memory.
-  None was deployed. The older 12c6 publication remains historical
-  pre-source-catalog-fix evidence. See `docs/runbooks/ci-images.md`.
+  verifier image; run `33500133380` validates the later stage-annotation
+  compatibility fix; and run `33503127917` validates revision-C evidence and
+  memory. Run `33532383550` published the four images used by the current
+  isolated deployment at source revision `3e64a57d...`. Older publications
+  remain historical evidence and were not substituted into this rollout. See
+  `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
   work and dependency order in
@@ -175,10 +185,10 @@ environment claims in this document apply only to their named revision.
   receipt-bound A-to-B-to-C import/verification/reconciliation evidence chain,
   disposable-Pod verification and in-app-browser acceptance requirements. The
   isolated infrastructure, foundation Secrets, revision-bound readiness, one
-  successful legacy import and its independent revision-B verifier have
-  executed. The receipt and verifier output are persisted under the canonical
-  receipt SHA; reconciliation, runtime rollout and cluster/browser acceptance
-  are still open.
+  successful legacy import, independent receipt verification, reconciliation,
+  fixed projection verification, runtime rollout and disposable cluster
+  acceptance have executed. Browser login/review remains open. The receipt and
+  verifier output are persisted under the canonical receipt SHA.
 - A catalog/logistics redesign review covering CL-01 through CL-12. Its
   recommendations for product/SKU identity, inventory, packing rules, courier
   adapters, credentials, outbox and replay remain **awaiting project-owner
@@ -194,28 +204,24 @@ environment claims in this document apply only to their named revision.
   already normalizes exact bindings and fails closed on duplicates.
 - A generalized or production PostgreSQL/Kubernetes reconciler, persistent
   worker queue/inbox, or persistent desired/observed control-plane integration.
-  The fixed first-tenant development driver and operator resources still need
-  their immutable-image cluster rehearsal and browser acceptance.
-- Executing the reconciliation-secret operator and reconciler Job against the
-  isolated cluster. The successful importer, immutable receipt and clean
-  revision-B verifier now form the A-to-B-to-C evidence chain, but no
-  reconciliation Secret or reconciler workload has been created yet. These
-  gates may not be replaced by ad-hoc deployment commands.
-- The reconciliation-secret operator now defaults to a non-persistent
-  API-server dry-run and requires explicit `--create`; this safety change is
-  not itself execution evidence. Its clean-revision dry-run and later exact
-  three-Secret write declaration remain pending.
+  The fixed first-tenant development driver has now passed its immutable-image
+  cluster rehearsal; browser acceptance remains open.
+- Generalizing the fixed isolated reconciliation operator into a persistent
+  control-plane lifecycle. The exact first-tenant Secrets and reconciler Job
+  have executed in `mss-shop-dev`; that bounded evidence does not authorize
+  another tenant, environment or production rollout.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
-- Isolated rollout and browser acceptance of the validated Mall Settings and
-  Member Levels source slices. PostgreSQL projection evidence, writable
-  cutover semantics, business switches and credential rotation remain open;
-  `CONFIG-001` and `MEMBER-001` are not closed.
-- Applying and verifying the product/logistics ownership migrations in an
-  isolated development environment, including per-tenant data conversion,
-  menu/policy results, row counts, hashes and relationship checks. The source
-  migrations exist but have not been executed or deployed.
+- Completing the confirmed-login browser review of the deployed Mall Settings
+  and Member Levels read-only slices. PostgreSQL projection evidence and
+  cluster system verification pass, while writable cutover semantics, business
+  switches and credential rotation remain open; `CONFIG-001` and `MEMBER-001`
+  are not closed.
+- Qualifying the reconciled product/logistics snapshots as writable tenant
+  workflows, including relationship checks, menu/policy behavior and mutation
+  lifecycle evidence. The current deployment proves only isolated read access
+  and least privilege.
 - Per-resource mutation qualification for the 50 mall and one tenant
   payment compatibility resources. Writes remain disabled until old
   validation, relationships, tenant scope, hooks, authorization and deletion
@@ -226,28 +232,76 @@ environment claims in this document apply only to their named revision.
   are not reproduced as generic CRUD.
 - Customer authentication, storefront catalog/cart/checkout and payment
   execution beyond the existing contract-first bootstrap slice.
-- Legacy identity conversion (`tenants`, `users`, `roles`), warehouse data
-  scopes, or reconciliation of the imported compatibility snapshot into the
-  final tenant core/business schemas.
-- A development-cluster Admin runtime rollout, isolated UI acceptance,
-  production migration or cutover. The successful bounded import into
-  `mss_shop_dev` must not be confused with a completed application deployment.
+- Legacy identity conversion (`tenants`, `users`, `roles`) and warehouse data
+  scopes. The current fixed-tenant reconciliation deliberately does not claim
+  generalized identity conversion.
+- Isolated UI acceptance, production migration or cutover. The two Admin
+  runtimes are deployed in `mss-shop-dev`, but the successful bounded import,
+  read-only system checks and eventual UI smoke review must not be confused
+  with complete business acceptance.
 - A storefront API image or production reconciler/worker image. Those
   components do not yet own complete production entrypoints and Dockerfiles.
 
 ## Current development sequence and later acceptance
 
-The current source gates are complete. Publish immutable images, execute the
-reconciliation-secret API-server dry-run and the subsequent exact isolated
-gates, then deploy only to `mss-shop-dev` for disposable-Pod system tests and
-in-app-browser acceptance. Continue later domain work without treating these
-two read-only slices as full business restoration. Payment writes wait for
+The current source, immutable-image, isolated reconciliation, runtime and
+disposable-Pod gates are complete for revision `3e64a57d...`. Finish the
+confirmed-login in-app-browser review and leave both isolated URLs available
+for owner inspection. Continue later domain work without treating these two
+read-only slices as full business restoration. Payment writes wait for
 DEC-0008 approval, and product/logistics writes wait for the open CL review
 items. The original development environment and production remain unchanged.
 
 ## Verification evidence
 
-Verification evidence recorded on 2026-09-01:
+Verification evidence recorded on 2026-09-02:
+
+- GitHub Actions run
+  [`33532383550`](https://github.com/shop-r1/mss-shop/actions/runs/33532383550)
+  passed for source revision
+  `3e64a57dae8bb3dd4d337a423015baae6c352b32`. The exact tenant, mall,
+  reconciler and legacy-importer image digests are respectively
+  `sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d`,
+  `sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a`,
+  `sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd`
+  and
+  `sha256:0d2d6077798328227e2b19a14d8075e25de0cdccdee5100a118ec3a888fa0bb0`.
+  The remote release checkout was full-history, clean and exactly bound to the
+  source revision. CI still had no deployment permission.
+- The legacy importer was **not** rerun. Reconciliation consumed the existing
+  canonical receipt and completed in one successful Pod with zero restarts.
+  It applied one locked transaction containing 252 reviewed SQL statements,
+  46 views and seven snapshots. The final safe Job log SHA-256 is
+  `c3fbf359e366b7795369366915cc6fd0a0e175a19290151590aef145b51aeb9a`.
+  Two earlier same-day reconciler revisions failed closed on PostgreSQL 17
+  query-qualification defects and rolled their transactions back; their Jobs
+  remain as immutable diagnostic evidence.
+- The digest-bound Member Levels projection Job succeeded once. It proved four
+  fixed-tenant source rows, four business rows, zero differences, no
+  cross-tenant rows, exactly one enabled default, no runtime privilege on the
+  imported public source and zero rows in both `orders` and `order_goods`.
+- The trusted runtime stage created exactly two ConfigMaps, two Deployments,
+  two Services and two Ingresses in `mss-shop-dev`. Both Deployments are 1/1
+  Ready and Available; their Pods have zero restarts and exact CI image IDs.
+  The isolated review URLs are
+  `http://tenant-admin.167.17.68.242.nip.io` and
+  `http://mall-admin.167.17.68.242.nip.io`.
+- Two v3 disposable verification Jobs completed successfully in the cluster.
+  They proved both health/readiness/UI endpoints return 200 while unauthenticated
+  APIs are denied; fixed PostgreSQL roles cannot cross schema boundaries or
+  perform forbidden DDL/DML; target TLS validates CA and hostname; and the two
+  authenticated Redis TLS connections are isolated to DB 1 and DB 2. No
+  temporary verification NetworkPolicy remained after collection.
+- The post-acceptance metadata-only fingerprint of the original development
+  environment is still
+  `7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`.
+  The helper again recorded no Secret access, database connection or write.
+  Production was neither read nor changed.
+- Confirmed-login browser acceptance remains pending. No administrator password
+  has been typed into a browser without the project owner's action-time
+  confirmation, and this pending UI step closes no business scenario.
+
+Historical verification evidence recorded on 2026-09-01:
 
 - The current release candidate passed `GOWORK=off GOMAXPROCS=2 go test -p=1
   ./...` and `go vet -p=1 ./...` independently at the root and both final
@@ -442,12 +496,11 @@ Verification evidence recorded on 2026-09-01:
   `docs/runbooks/local-development.md`; root strict doctor and explicit CI
   jobs are the project-level proof.
 
-A successful bounded legacy snapshot import and its independent disposable
-verifier have been performed only against the dedicated `mss-shop-dev`
-PostgreSQL database. No reconciliation, Admin runtime rollout, isolated browser
-acceptance, production migration or production write has been performed. The
-import/verifier evidence is not business or complete system acceptance. The
-original `r1shop-dev` environment remains ready with the same selected safe
-metadata fingerprint. The target is now gated on the ordered
-reconciliation/runtime/disposable-Pod controls above. Accepted business
-scenarios remain 0/31.
+A successful bounded legacy snapshot import, independent receipt verification,
+receipt-bound reconciliation, Member Levels projection check, Admin runtime
+rollout and disposable cluster system verification have been performed only
+against `mss-shop-dev`. Confirmed-login browser review, production migration
+and production write have not been performed. These read-only migration and
+runtime results are not complete business acceptance. The original
+`r1shop-dev` environment remains ready with the same selected safe metadata
+fingerprint. Accepted business scenarios remain 0/31.

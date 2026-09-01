@@ -1,0 +1,200 @@
+version: mss-shop-isolated-runtime-system-acceptance/v1
+capturedAt: "2026-09-02T01:10:40+08:00"
+environment: mss-shop-dev
+revision: 3e64a57dae8bb3dd4d337a423015baae6c352b32
+images:
+  tenantPlatform:
+    digest: sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+    reference: ghcr.io/shop-r1/mss-shop-tenant-platform:3e64a57dae8bb3dd4d337a423015baae6c352b32@sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+  mallPlatform:
+    digest: sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+    reference: ghcr.io/shop-r1/mss-shop-mall-platform:3e64a57dae8bb3dd4d337a423015baae6c352b32@sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+runtimeObjects:
+  - kind: ConfigMap
+    name: mss-shop-tenant-admin-config
+    uid: 39c35cdd-9940-4583-9d27-99b5c7ee0216
+    resourceVersion: "137573979"
+    generation: null
+    dataKeys: [migration.yml, runtime.yml]
+  - kind: Deployment
+    name: mss-shop-tenant-admin
+    uid: 2703f82b-0c7c-47f1-8721-d7d3f5d547e5
+    resourceVersion: "137574110"
+    generation: 1
+    observedGeneration: 1
+    desiredReplicas: 1
+    updatedReplicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    unavailableReplicas: 0
+  - kind: Service
+    name: mss-shop-tenant-admin
+    uid: 22b5484f-ce1f-4747-895b-df4f3c8665a5
+    resourceVersion: "137573997"
+    generation: null
+    clusterIP: 10.233.31.9
+    ports: ["api:8080", "ui:8001"]
+  - kind: Ingress
+    name: mss-shop-tenant-admin
+    uid: 992f7530-e047-4a49-bb9d-9db3cc5e05a5
+    resourceVersion: "137574356"
+    generation: 1
+    host: tenant-admin.167.17.68.242.nip.io
+    loadBalancerIP: 167.17.68.242
+  - kind: ConfigMap
+    name: mss-shop-mall-admin-aussibuy-config
+    uid: c3f7ea27-c278-4d55-93d4-e6b48758bfbe
+    resourceVersion: "137574011"
+    generation: null
+    dataKeys: [migration.yml, runtime.yml]
+  - kind: Deployment
+    name: mss-shop-mall-admin-aussibuy
+    uid: f8c5696e-d4c6-473d-9786-e1dd0f40fe3e
+    resourceVersion: "137574148"
+    generation: 1
+    observedGeneration: 1
+    desiredReplicas: 1
+    updatedReplicas: 1
+    readyReplicas: 1
+    availableReplicas: 1
+    unavailableReplicas: 0
+  - kind: Service
+    name: mss-shop-mall-admin-aussibuy
+    uid: 9eba52bf-eba3-43a3-a853-3c08af8e73d9
+    resourceVersion: "137574029"
+    generation: null
+    clusterIP: 10.233.36.137
+    ports: ["api:8080", "ui:8001"]
+  - kind: Ingress
+    name: mss-shop-mall-admin-aussibuy
+    uid: 36e42526-cf90-475a-816c-a70e12b16f4a
+    resourceVersion: "137574358"
+    generation: 1
+    host: mall-admin.167.17.68.242.nip.io
+    loadBalancerIP: 167.17.68.242
+runtimePods:
+  tenant:
+    name: mss-shop-tenant-admin-7c86fcb5ff-7jzqb
+    uid: b3d35e55-cc80-46f7-975a-6005442ec6f4
+    resourceVersion: "137574105"
+    phase: Running
+    ready: true
+    podIP: 10.233.70.5
+    imageID: ghcr.io/shop-r1/mss-shop-tenant-platform@sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+    migrateExitCode: 0
+    migrateRestarts: 0
+    adminRestarts: 0
+  mall:
+    name: mss-shop-mall-admin-aussibuy-656b446d7c-pnkrm
+    uid: e3975870-02c3-47bb-b5c0-0618099df9d5
+    resourceVersion: "137574144"
+    phase: Running
+    ready: true
+    podIP: 10.233.70.129
+    imageID: ghcr.io/shop-r1/mss-shop-mall-platform@sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a
+    migrateExitCode: 0
+    migrateRestarts: 0
+    adminRestarts: 0
+endpointSlices:
+  tenant:
+    name: mss-shop-tenant-admin-qwm6v
+    uid: 3b3a5095-7ff0-437f-97d5-5a703de5596a
+    resourceVersion: "137574108"
+    address: 10.233.70.5
+    ports: ["api:8080", "ui:8001"]
+    ready: true
+    serving: true
+    terminating: false
+  mall:
+    name: mss-shop-mall-admin-aussibuy-4926k
+    uid: fa1e44ab-a32d-41ee-a46d-fc832377f37b
+    resourceVersion: "137574147"
+    address: 10.233.70.129
+    ports: ["api:8080", "ui:8001"]
+    ready: true
+    serving: true
+    terminating: false
+nonAuthoritativeHarnessAttempts:
+  classification: test-harness-failure
+  systemFailure: false
+  acceptanceEvidence: false
+  attempts:
+    - version: v1
+      httpJob: mss-shop-runtime-http-verify-3e64a57
+      httpJobUID: 11470e53-d54e-48a2-b4ee-a77a406fc789
+      dataJob: mss-shop-runtime-data-verify-3e64a57
+      dataJobUID: 933e2b38-f88f-402c-8252-548645dda67d
+      result: DeadlineExceeded
+      cause: verifier-containers-never-started-because-runAsNonRoot-could-not-validate-the-images-static-user
+    - version: v2
+      httpJob: mss-shop-runtime-http-verify-3e64a57-v2
+      httpJobUID: eae13d90-e8bf-4592-90a4-7bdfe404e170
+      dataJob: mss-shop-runtime-data-verify-3e64a57-v2
+      dataJobUID: 04ee148f-1546-48ef-a71b-18ea912eb106
+      result: BackoffLimitExceeded
+      cause: http-script-rejected-valid-empty-health-bodies-and-postgres-script-used-an-unsupported-libpq-search_path-uri-parameter-redis-check-passed
+  note: v1 and v2 tested disposable harness revisions, did not mutate the runtime or database, and are not evidence of a system failure. Only v3 is authoritative.
+authoritativeVerification:
+  version: v3
+  http:
+    job:
+      name: mss-shop-runtime-http-verify-3e64a57-v3
+      uid: aed3bf3f-d488-4b7d-8616-ce5f0712f7cc
+      resourceVersion: "137578777"
+      condition: Complete
+      succeeded: 1
+      failed: 0
+    pod:
+      name: mss-shop-runtime-http-verify-3e64a57-v3-9gwxj
+      uid: f61a2f0c-f48f-49ea-89d7-9f3b44ed7b2d
+      resourceVersion: "137578774"
+      phase: Succeeded
+      exitCode: 0
+      restartCount: 0
+      imageID: ghcr.io/shop-r1/mss-shop-tenant-platform@sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d
+    stdoutSHA256: f7d817a7fa8a5ffcd71a927886221a3a21554b24f9107ba31d551a9de63ad8a5
+    assertions:
+      tenant: "health:200,ready:200,ui:200,unauthenticated-api:denied"
+      mall: "health:200,ready:200,ui:200,unauthenticated-api:denied"
+      overall: passed
+  data:
+    job:
+      name: mss-shop-runtime-data-verify-3e64a57-v3
+      uid: bc6191ef-f348-435e-9066-d28f793b6181
+      resourceVersion: "137578794"
+      condition: Complete
+      succeeded: 1
+      failed: 0
+    pod:
+      name: mss-shop-runtime-data-verify-3e64a57-v3-ndlvb
+      uid: b222696f-9b82-43e7-93af-8fc586df4f40
+      resourceVersion: "137578791"
+      phase: Succeeded
+    containers:
+      tenantPostgres:
+        exitCode: 0
+        restartCount: 0
+        imageID: docker.io/library/postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        stdoutSHA256: d21bc20c6ea39ee37b53082c10ff893d4b86719bd29cc6c991c4d81067a5de5a
+        assertions: role-bound,shared-read,public-denied,cross-mall-denied,ddl-denied,tls-required,ca-verified,hostname-verified
+      mallPostgres:
+        exitCode: 0
+        restartCount: 0
+        imageID: docker.io/library/postgres@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        stdoutSHA256: bcd7c1af0709cd60d58caee8008d130de4deeb2839dc13b11099ba4a6adecad7
+        assertions: "role-bound,member-levels:4,orders:0,order-goods:0,public-denied,cross-tenant-denied,dml-denied,tls-verified"
+      redis:
+        exitCode: 0
+        restartCount: 0
+        imageID: docker.io/library/redis@sha256:d146f83b1e0f02fc27c26a50cee39338c736674c5959db84363e6ae3cd9e02d2
+        stdoutSHA256: 325a6d742ab834b6ef2ecf4b9e250b869fcf66e0293f9faf3956c0c7bde4c4a
+        assertions: "tenant-db1:PONG,mall-db2:PONG,tls-required,auth-required,ca-verified"
+safety:
+  secretValuesReadForEvidence: false
+  secretValuesRecorded: false
+  dsnRecorded: false
+  originalDevelopmentWritten: false
+  productionWritten: false
+  businessAcceptanceScenariosTotal: 31
+  businessAcceptanceScenariosClosed: 0
+  originalDevelopmentSelectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
