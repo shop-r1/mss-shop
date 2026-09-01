@@ -329,6 +329,33 @@ func TestEquivalentJobRequiresExactKubernetesServerDefaults(t *testing.T) {
 	}
 }
 
+func TestReconcilerRequiresExplicitTerminationMessageDefaults(t *testing.T) {
+	desired := renderTestJob(t, modeReconciler, testReceipt)
+	container := &desired.Spec.Template.Spec.Containers[0]
+	if container.TerminationMessagePath != "/dev/termination-log" ||
+		container.TerminationMessagePolicy != corev1.TerminationMessageReadFile {
+		t.Fatal("reconciler manifest does not pin the reviewed termination message defaults")
+	}
+	for name, mutate := range map[string]func(*corev1.Container){
+		"missing-path": func(value *corev1.Container) { value.TerminationMessagePath = "" },
+		"foreign-path": func(value *corev1.Container) { value.TerminationMessagePath = "/tmp/foreign" },
+		"missing-policy": func(value *corev1.Container) {
+			value.TerminationMessagePolicy = ""
+		},
+		"fallback-to-logs": func(value *corev1.Container) {
+			value.TerminationMessagePolicy = corev1.TerminationMessageFallbackToLogsOnError
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := desired.DeepCopy()
+			mutate(&candidate.Spec.Template.Spec.Containers[0])
+			if err := validateDesiredJob(candidate, modeReconciler, testRevision, testDigest, testReceipt); err == nil {
+				t.Fatal("reconciler accepted an unreviewed termination message setting")
+			}
+		})
+	}
+}
+
 func TestEquivalentJobAllowsOnlyBoundReviewedRevisionHistory(t *testing.T) {
 	desired := renderTestJob(t, modeVerifier, testReceipt)
 	start := time.Date(2026, time.September, 1, 10, 32, 49, 0, time.UTC)
@@ -1191,6 +1218,15 @@ func testPersistedJob(desired *batchv1.Job) *batchv1.Job {
 func testServerJob(desired *batchv1.Job, persisted bool) *batchv1.Job {
 	job := desired.DeepCopy()
 	applyReviewedJobServerDefaults(job)
+	for index := range job.Spec.Template.Spec.Containers {
+		container := &job.Spec.Template.Spec.Containers[index]
+		if container.TerminationMessagePath == "" {
+			container.TerminationMessagePath = "/dev/termination-log"
+		}
+		if container.TerminationMessagePolicy == "" {
+			container.TerminationMessagePolicy = corev1.TerminationMessageReadFile
+		}
+	}
 	job.UID = types.UID("job-uid-" + desired.Name)
 	if persisted {
 		job.ResourceVersion = "100"

@@ -325,8 +325,10 @@ func validateDesiredPodTemplate(
 			return errors.New("fixed importer Job does not preserve the reviewed stdout receipt wrapper")
 		}
 	case modeReconciler:
-		if len(container.Command) != 0 || len(container.Args) != 0 {
-			return errors.New("fixed reconciler Job contains an unapproved command override")
+		if len(container.Command) != 0 || len(container.Args) != 0 ||
+			container.TerminationMessagePath != "/dev/termination-log" ||
+			container.TerminationMessagePolicy != corev1.TerminationMessageReadFile {
+			return errors.New("fixed reconciler Job contains an unapproved command or termination-message setting")
 		}
 	case modeReadiness:
 		if !reflect.DeepEqual(container.Command, []string{"/usr/local/bin/mss-shop-legacy-readiness"}) ||
