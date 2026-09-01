@@ -1,0 +1,140 @@
+# DNS-only public TLS for the two isolated mss-shop-dev Admin hosts.
+#
+# Do not apply this file directly. The trusted create-only stage-admin-tls
+# command replaces every 40-zero revision with one complete lowercase Git SHA,
+# performs server-side dry-run admission for the exact four-object inventory,
+# and creates only objects that are still absent. Certificate Secrets are
+# generated and owned by cert-manager; the stage command never reads them.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mss-shop-allow-ingress-nginx-to-acme-http01
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-allow-ingress-nginx-to-acme-http01
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: tls
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:mss-shop-allow-ingress-nginx-to-acme-http01
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-tls-contract: dns-only-v1
+spec:
+  podSelector:
+    matchLabels:
+      acme.cert-manager.io/http01-solver: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+              app.kubernetes.io/component: controller
+      ports:
+        - protocol: TCP
+          port: 8089
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: mss-shop-dev-letsencrypt-production
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-dev-letsencrypt-production
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: tls
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Issuer:mss-shop-dev-letsencrypt-production
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-tls-contract: dns-only-v1
+spec:
+  acme:
+    email: lwnmengjing@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: mss-shop-dev-letsencrypt-production-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mss-shop-tenant-admin-tls
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-tenant-admin
+    app.kubernetes.io/instance: tenant-admin-mss-shop-dev
+    app.kubernetes.io/component: tls
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Certificate:mss-shop-tenant-admin-tls
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-tls-contract: dns-only-v1
+spec:
+  secretName: mss-shop-tenant-admin-tls
+  duration: 2160h
+  renewBefore: 720h
+  issuerRef:
+    name: mss-shop-dev-letsencrypt-production
+    kind: Issuer
+    group: cert-manager.io
+  dnsNames:
+    - tenant-admin.mss.r1shop.net
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mss-shop-mall-admin-aussibuy-tls
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-mall-admin-aussibuy
+    app.kubernetes.io/instance: mall-admin-aussibuy-mss-shop-dev
+    app.kubernetes.io/component: tls
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Certificate:mss-shop-mall-admin-aussibuy-tls
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-tls-contract: dns-only-v1
+spec:
+  secretName: mss-shop-mall-admin-aussibuy-tls
+  duration: 2160h
+  renewBefore: 720h
+  issuerRef:
+    name: mss-shop-dev-letsencrypt-production
+    kind: Issuer
+    group: cert-manager.io
+  dnsNames:
+    - mall-admin.mss.r1shop.net
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth

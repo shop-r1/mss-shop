@@ -60,3 +60,9 @@ decisions:
     date: 2026-09-01
     path: DEC-0010-remote-development-and-dev-reconciliation.md
     applies_to: [mss-shop]
+  - id: DEC-0011
+    title: Use DNS-only ingress TLS for isolated Admin host cutover
+    status: accepted
+    date: 2026-09-02
+    path: DEC-0011-dns-only-admin-tls-and-host-cutover.md
+    applies_to: [mss-shop]

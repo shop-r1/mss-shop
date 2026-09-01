@@ -30,7 +30,8 @@ tool connection, run `tools/check-project-memory.sh` before committing.
 
 The original `r1shop-dev` environment is immutable. Remote development writes
 only to the isolated `mss-shop-dev` namespace with dedicated datastores,
-storage, TLS and credentials; see DEC-0010 before any cluster operation.
+storage, TLS and credentials; see DEC-0010 before any cluster operation and
+DEC-0011 for the DNS-only Admin TLS/host-cutover gate.
 
 The root application remains an MSS 1.3.7 Thin Host proof of concept. The two
 delivery Hosts live under `apps/tenant-platform` and `apps/mall-platform`, with

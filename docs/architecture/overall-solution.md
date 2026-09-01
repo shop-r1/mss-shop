@@ -107,8 +107,9 @@ manifest and generated paths must stay coherent.
   preflight before reconciliation. The in-cluster Job repeats the fixed target
   and catalog boundary.
 - Applies only the two ConfigMaps, Deployments, Services and Ingresses recorded
-  by DEC-0010 in `mss-shop-dev`, after exact object-binding and cluster-wide
-  host collision checks. It does not force field conflicts or adopt any
+  by DEC-0010 in `mss-shop-dev`, with the DNS-only TLS and host transition
+  defined by DEC-0011, after exact object-binding and cluster-wide host
+  collision checks. It does not force field conflicts or adopt any
   original-development resource.
 
 ### Mall platform
@@ -248,6 +249,34 @@ worker are not delivery images. Development rollout remains a deliberate
 manual action, and every production write needs explicit approval. The exact
 package, permission and rollback policy is in
 [`ci-images.md`](../runbooks/ci-images.md).
+
+The isolated Admin review endpoints use DNS Only records for
+`tenant-admin.mss.r1shop.net` and `mall-admin.mss.r1shop.net`, resolving
+directly to the development ingress. Their rollout has two explicit stages.
+First, the full-SHA-bound, create-only `stage-admin-tls` operator dry-runs and,
+only with `--apply`, creates an ingress-nginx-to-ACME-solver TCP 8089
+NetworkPolicy, one namespaced ACME Issuer and two explicit-host Certificates
+in `mss-shop-dev`. cert-manager owns the generated ACME account-key Secret,
+the resulting TLS Secrets and temporary HTTP-01 solver resources; their Secret
+content is never read and no TLS-stage write crosses the namespace boundary.
+Second, `stage-runtime` read-only verifies all four prerequisite specs and the
+three Ready states before it may
+switch the core eight Admin objects to new-host Ingress TLS, HTTPS origins,
+secure cookies and matching migration domains.
+
+The runtime apply gate checks direct DNS, port 80 reachability and exact/Ready
+TLS prerequisites, but cannot require the future main Ingress HTTPS route
+before that Ingress owns the new hostname. Immediately after apply, trusted
+HTTPS, exact-host SANs, intended-Admin routing and HTTP-to-HTTPS redirect are
+mandatory. Administrator credentials are not retrieved or entered before
+those post-apply checks pass. The earlier revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` HTTP results remain historical
+evidence bound only to the two `nip.io` hosts; they are not evidence for the
+new domain or TLS contract.
+
+This DNS-only TLS and host-cutover contract is recorded by DEC-0011; DEC-0010
+continues to own the immutable isolated-development boundary and historical
+runtime decision.
 
 Development work may use the versioned checkout on `167.17.68.242` because the
 workstation is resource-constrained. The only write target is the isolated

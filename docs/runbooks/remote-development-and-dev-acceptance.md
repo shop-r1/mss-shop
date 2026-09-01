@@ -125,8 +125,10 @@ separately and business acceptance remains 0/31.
 | Target Redis | Redis 8.6.3, `mss-shop-redis.mss-shop-dev.svc:6379` |
 | Legacy read-only source | `timescaledb-r1shop-dev.database.svc:5432/r1shop_dev` only |
 | Permitted old Secret reads | exact database credential Secret and `r1shop-dev/ghcr-r1shop-token`, GET only |
-| Provisional tenant Admin | `http://tenant-admin.167.17.68.242.nip.io` |
-| Provisional mall Admin | `http://mall-admin.167.17.68.242.nip.io` |
+| Planned tenant Admin entry | `https://tenant-admin.mss.r1shop.net` |
+| Planned mall Admin entry | `https://mall-admin.mss.r1shop.net` |
+| Historical Revision `3e64a57` tenant evidence host | `http://tenant-admin.167.17.68.242.nip.io` |
+| Historical Revision `3e64a57` mall evidence host | `http://mall-admin.167.17.68.242.nip.io` |
 
 The legacy source has SSL disabled. Only the compiled legacy importer may use
 the reviewed `sslmode=disable` exception, without fallback endpoints, from a
@@ -134,6 +136,70 @@ Pod selected by the exact source-egress NetworkPolicy. Its startup packet
 disables event triggers and all source work is repeatable-read and read-only.
 The isolated PostgreSQL and Redis require their generated TLS identities. The
 old Redis is not read or shared.
+
+### Planned Admin host and HTTPS gate
+
+This gate implements DEC-0011 without rewriting the DEC-0010 isolated-stage
+history.
+
+The fixed browser-review targets are now
+`https://tenant-admin.mss.r1shop.net` and
+`https://mall-admin.mss.r1shop.net`. This is a planned host cutover, not a
+claim that either new host has been deployed, routed or accepted. The
+Revision `3e64a57dae8bb3dd4d337a423015baae6c352b32` runtime and disposable HTTP
+evidence above remain historical evidence for the two `nip.io` hosts recorded
+in the table; do not reinterpret or mechanically rewrite that evidence as a
+new-domain result.
+
+A 2026-09-02 read-only check first found the new names behind the Cloudflare
+proxy without edge-certificate coverage for these multi-level subdomains. The
+project owner has since changed both records to **DNS Only**. They now resolve
+directly to `167.17.68.242`; this selects ingress-terminated, publicly trusted
+TLS and removes Cloudflare edge TLS from this development path. DNS-only
+selection is not evidence that an Issuer, Certificate, generated TLS Secret,
+new-host Ingress or trusted HTTPS route has been created. At this point those
+resources and the new-host rollout remain unrecorded.
+
+Provisioning and cutover are deliberately split into two stages so the old
+Ingress does not have to serve a certificate for a host it does not yet own:
+
+1. `stage-admin-tls` defaults to dry-run and owns four create-only bootstrap
+   objects in `mss-shop-dev`:
+   `NetworkPolicy/mss-shop-allow-ingress-nginx-to-acme-http01`,
+   `Issuer/mss-shop-dev-letsencrypt-production`,
+   `Certificate/mss-shop-tenant-admin-tls` and
+   `Certificate/mss-shop-mall-admin-aussibuy-tls`. The NetworkPolicy
+   permits only the ingress-nginx controller to reach cert-manager solver Pods
+   on TCP 8089 inside the namespace's default-deny-ingress boundary. After the
+   server-side dry-run is reviewed, repeat it with `--apply`, then wait until
+   all four objects match the compiled spec and the Issuer plus both
+   Certificates report Ready. cert-manager automatically creates the Issuer's
+   ACME account-key Secret and the two Certificates' referenced TLS Secrets,
+   and may create and remove temporary HTTP-01 solver Pods, Services and
+   Ingresses. Those are expected controller side effects, not additional
+   operator-owned resources; never read or print any generated Secret content.
+2. `stage-runtime` first performs a read-only check of all four TLS bootstrap
+   prerequisites, including the three Ready conditions. Only then
+   may it switch the eight existing Admin runtime objects to the new host
+   contract: both Ingress hosts and `spec.tls`, both HTTPS application/CORS
+   origins, secure browser-session cookies, and the matching migration-domain
+   arguments. Its pre-apply network gate requires DNS Only to resolve directly
+   to the ingress address, TCP/HTTP port 80 to be reachable for ACME operation,
+   and the Issuer plus both Certificates to be Ready. It intentionally does
+   **not** require a successful HTTPS handshake through either main Admin
+   Ingress before apply, because those Ingresses still serve the historical
+   hosts until this stage commits.
+
+After runtime apply, require a trusted HTTPS handshake for each exact host,
+the expected hostname in the certificate SANs, routing to the intended
+isolated Admin, and an HTTP-to-HTTPS redirect. Only after all four checks pass
+may either generated administrator password be retrieved and entered.
+
+Plain HTTP is not an acceptance option. Even though the project owner has
+authorized use of the two generated administrator passwords, do not retrieve,
+transmit or type either password until the selected HTTPS path presents a
+trusted certificate for the exact hostname, routes to the intended isolated
+Admin, and has passed a fresh read-only pre-login check.
 
 Use Go 1.26.6, Node 24.19.0, pnpm 10.34.5 and the official MSS 1.3.7 tools
 recorded by the repository. Keep resource-heavy builds in GitHub Actions; the
@@ -646,11 +712,51 @@ revision and digest permits the Admin runtime stage. A host-side query, a query
 run as bootstrap/compatibility owner, or a partial log excerpt is not
 equivalent evidence.
 
-### 11. Stage the Admin runtime in mss-shop-dev only
+### 11. Create the Admin TLS boundary in mss-shop-dev only
 
-Once every previous gate passes, run the trusted operator without `--apply`
-for collision and server-side dry-run checks. Supply the two Admin digests from
-the same four-image CI run:
+After both Admin records are confirmed DNS Only and resolve directly to the
+ingress address, run the trusted TLS operator without `--apply`. Its default
+mode performs read-only collision checks and server-side dry-runs for the
+compiled four-object bootstrap inventory: one exact ACME solver NetworkPolicy,
+one namespaced ACME Issuer and two explicit-host Certificates. The policy
+allows only ingress-nginx controller traffic to cert-manager solver Pods on
+TCP 8089; it does not create a general ingress exception.
+
+The exact inventory is:
+
+- `NetworkPolicy/mss-shop-allow-ingress-nginx-to-acme-http01`;
+- `Issuer/mss-shop-dev-letsencrypt-production`;
+- `Certificate/mss-shop-tenant-admin-tls`; and
+- `Certificate/mss-shop-mall-admin-aussibuy-tls`.
+
+```shell
+go run ./services/reconciler/cmd/stage-admin-tls \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567
+```
+
+Record the complete dry-run result and declare the exact four
+`mss-shop-dev` resources before repeating the same command with `--apply`.
+This operator is create-only: it may create the NetworkPolicy, Issuer and
+Certificates but may not update, adopt, replace or delete a colliding object.
+Wait for all four objects to retain the compiled spec and for the Issuer and
+both Certificates to have a Ready condition before continuing.
+
+cert-manager automatically creates the Issuer's ACME account-key Secret and
+each Certificate's referenced TLS Secret, and may create and remove temporary
+ACME HTTP-01 solver Pods, Services and Ingresses. These generated Secrets and
+solver resources are expected
+cert-manager side effects of the four declared objects. They remain confined
+to `mss-shop-dev`; do not read, decode, log or otherwise inspect TLS Secret
+contents. This workflow grants no write in `r1shop-dev`, `r1shop-prod`, the
+`database` namespace or any other namespace.
+
+### 12. Stage the Admin runtime in mss-shop-dev only
+
+Once every previous gate passes, run the trusted runtime operator without
+`--apply` for collision and server-side dry-run checks. Supply the two Admin
+digests from the same four-image CI run:
 
 ```shell
 go run ./services/reconciler/cmd/stage-runtime \
@@ -661,13 +767,34 @@ go run ./services/reconciler/cmd/stage-runtime \
   --mall-image-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ```
 
-After recording the dry-run result, declare the exact eight runtime objects
-and expected one-replica impact, then repeat the same command with `--apply`.
-Replace the revision and example digests with the verified receipt values.
-The operator is compiled for `mss-shop-dev`, rejects tag-only images, checks
-Ingress collisions cluster-wide and never forces a field conflict.
+The runtime dry-run performs a read-only check of all four TLS bootstrap
+prerequisites and must reject a missing or drifted NetworkPolicy, Issuer or
+Certificate, or a non-Ready Issuer/Certificate. Before `--apply`, both records
+must resolve DNS Only directly to the ingress address, port 80 must be
+reachable, all four prerequisite specs must remain exact, and the Issuer plus
+both Certificates must remain Ready. A successful HTTPS handshake through
+either main Admin Ingress is deliberately **not** a precondition: until apply,
+those two existing Ingresses
+still own the historical `nip.io` hosts. Requiring the future HTTPS route here
+would make a safe atomic host cutover impossible.
 
-### 12. Cluster system verification
+After recording the dry-run and passing that pre-apply gate, capture the exact
+eight current runtime objects for a resourceVersion-bound recovery review,
+declare those eight objects and the expected two one-replica rolling restarts,
+then repeat the same command with `--apply`. Replace the revision and example
+digests with the verified receipt values. The operator is compiled for
+`mss-shop-dev`, rejects tag-only images, checks Ingress collisions cluster-wide
+and never forces a field conflict. Its desired runtime contract adds the two
+new Ingress hosts and `spec.tls` Secret references, HTTPS origins and CORS
+origins, secure browser-session cookies, and the matching migration-domain
+arguments across the same core eight objects.
+
+Immediately after apply, verify that each exact hostname presents trusted
+HTTPS, appears in the certificate SANs, routes to the intended isolated Admin,
+and redirects plain HTTP to HTTPS. Do not read or enter either administrator
+password before all of these post-apply checks pass.
+
+### 13. Cluster system verification
 
 Run every system-verification case in disposable, one-time Pods in
 `mss-shop-dev`. At minimum record:
@@ -682,13 +809,16 @@ Run every system-verification case in disposable, one-time Pods in
 Capture Pod logs before removing only the named test Pods. A health check or a
 generic compatibility list does not close any of the 31 business scenarios.
 
-### 13. In-app-browser acceptance and owner handoff
+### 14. In-app-browser acceptance and owner handoff
 
-Use the in-app browser against the two isolated provisional URLs. Verify login,
+Use the in-app browser against the two planned HTTPS Admin entries only after
+the host-routing and trusted-certificate gate above passes. Verify login,
 authorized navigation, `zh-CN` and `en-US`, list/detail, empty/error states,
 read-only mutation absence and the MSS Admin visual language. Save screenshots
 and console/network findings under `docs/acceptance/`, state the exact image
 digests and untested scope, and leave both URLs running for manual owner review.
+An HTTP response, a certificate warning or a bypassed TLS warning must not be
+used to transmit either administrator password or satisfy this gate.
 
 Finally repeat the original-environment read-only fingerprint from step 2. Its
 UIDs, generations, images, readiness, restarts and named object fingerprints
@@ -699,11 +829,20 @@ without changing the old environment.
 
 - Stop at the first failed gate and preserve safe evidence. Do not continue
   because the old application is still available.
+- The eight-object Admin update is ordered but not transactional. If an apply
+  stops after only some objects changed, do not retry: the mixed host-contract
+  inventory intentionally fails closed. Preserve the error and live object
+  snapshots, then prepare a separately reviewed resourceVersion-bound restore
+  of only those named `mss-shop-dev` objects before another stage attempt.
 - Never repair a failed isolated stage by changing the old development or
   production environment.
 - Infrastructure and foundation credentials are create-only. Their deletion,
   replacement or rotation requires a separate reviewed lifecycle decision;
   this runbook grants none.
+- The four Admin TLS bootstrap objects are also create-only. Certificate
+  renewal and cert-manager solver reconciliation are controller-owned, but
+  replacing or deleting the NetworkPolicy, Issuer or either Certificate needs
+  a separate reviewed lifecycle decision.
 - Runtime rollback may select a previously verified digest through the same
   `stage-runtime` preflight/apply path and changes only the two new Admin
   Deployments. Never roll back database/import migrations destructively.

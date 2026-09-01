@@ -47,10 +47,11 @@ redacted by construction, and is reviewed before commit.
 
 - A service-boundary or invariant change adds/supersedes an ADR and updates the
   registry, architecture, invariants and status together.
-- A development-topology change updates DEC-0010, the remote runbook,
-  architecture invariants and both status documents together. The original
-  `r1shop-dev` environment remains immutable; only `mss-shop-dev` may be a
-  development write target.
+- A development-topology change adds or supersedes an immutable decision,
+  updates the remote runbook, architecture invariants and both status
+  documents together, and never rewrites an accepted decision to describe the
+  new state. The original `r1shop-dev` environment remains immutable; only
+  `mss-shop-dev` may be a development write target.
 - An API change starts in the authoritative contract, then updates downstream
   snapshots and generated clients with compatibility evidence.
 - A new locale updates catalogs, negotiation, formatting tests and capability

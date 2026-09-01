@@ -18,6 +18,7 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:ConfigMap:mss-shop-tenant-admin-config
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
 data:
   runtime.yml: |
     server:
@@ -37,7 +38,7 @@ data:
     application:
       name: mss-shop-tenant-admin
       mode: dev
-      origin: http://tenant-admin.167.17.68.242.nip.io
+      origin: https://tenant-admin.mss.r1shop.net
       trustedProxies: []
       ui:
         enabled: true
@@ -49,7 +50,7 @@ data:
         cluster: mss-shop-dev
     cors:
       allowOrigins:
-        - http://tenant-admin.167.17.68.242.nip.io
+        - https://tenant-admin.mss.r1shop.net
       allowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
       allowHeaders: [Authorization, Content-Type, If-Match, Idempotency-Key, X-CSRF-Token]
       exposeHeaders: [ETag]
@@ -87,7 +88,7 @@ data:
       maxRefresh: 2160h
       identityKey: '{{.Env.MSS_ADMIN_IDENTITY_KEY}}'
       browserSession:
-        secure: false
+        secure: true
         sameSite: lax
         webSocketTicketTTL: 30s
     challenge:
@@ -111,11 +112,11 @@ data:
     application:
       name: mss-shop-tenant-admin-migration
       mode: dev
-      origin: http://tenant-admin.167.17.68.242.nip.io
+      origin: https://tenant-admin.mss.r1shop.net
       trustedProxies: []
     cors:
       allowOrigins:
-        - http://tenant-admin.167.17.68.242.nip.io
+        - https://tenant-admin.mss.r1shop.net
       allowHeaders: [Content-Type, Idempotency-Key, X-CSRF-Token]
     logger:
       stdout: default
@@ -148,7 +149,7 @@ data:
       maxRefresh: 1h
       identityKey: tenant-migration-only-identity-not-used-by-a-server
       browserSession:
-        secure: false
+        secure: true
         sameSite: strict
         webSocketTicketTTL: 30s
     challenge:
@@ -177,6 +178,7 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:Deployment:mss-shop-tenant-admin
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
 spec:
   replicas: 1
   revisionHistoryLimit: 2
@@ -199,6 +201,7 @@ spec:
         r1shop.io/network-role: admin
       annotations:
         r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+        r1shop.io/admin-host-contract: mss-r1shop-net-v1
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
@@ -221,7 +224,7 @@ spec:
             - --username
             - admin
             - --domain
-            - tenant-admin.167.17.68.242.nip.io
+            - tenant-admin.mss.r1shop.net
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -396,6 +399,7 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:Service:mss-shop-tenant-admin
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
 spec:
   type: ClusterIP
   selector:
@@ -424,11 +428,17 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:Ingress:mss-shop-tenant-admin
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
     nginx.ingress.kubernetes.io/proxy-body-size: 2m
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - tenant-admin.mss.r1shop.net
+      secretName: mss-shop-tenant-admin-tls
   rules:
-    - host: tenant-admin.167.17.68.242.nip.io
+    - host: tenant-admin.mss.r1shop.net
       http:
         paths:
           - path: /admin
@@ -474,6 +484,7 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:ConfigMap:mss-shop-mall-admin-aussibuy-config
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
 data:
   runtime.yml: |
     server:
@@ -493,7 +504,7 @@ data:
     application:
       name: mss-shop-mall-admin-aussibuy
       mode: dev
-      origin: http://mall-admin.167.17.68.242.nip.io
+      origin: https://mall-admin.mss.r1shop.net
       trustedProxies: []
       ui:
         enabled: true
@@ -506,7 +517,7 @@ data:
         cluster: mss-shop-dev
     cors:
       allowOrigins:
-        - http://mall-admin.167.17.68.242.nip.io
+        - https://mall-admin.mss.r1shop.net
       allowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
       allowHeaders: [Authorization, Content-Type, If-Match, Idempotency-Key, X-CSRF-Token]
       exposeHeaders: [ETag]
@@ -544,7 +555,7 @@ data:
       maxRefresh: 2160h
       identityKey: '{{.Env.MSS_ADMIN_IDENTITY_KEY}}'
       browserSession:
-        secure: false
+        secure: true
         sameSite: lax
         webSocketTicketTTL: 30s
     challenge:
@@ -568,11 +579,11 @@ data:
     application:
       name: mss-shop-mall-admin-aussibuy-migration
       mode: dev
-      origin: http://mall-admin.167.17.68.242.nip.io
+      origin: https://mall-admin.mss.r1shop.net
       trustedProxies: []
     cors:
       allowOrigins:
-        - http://mall-admin.167.17.68.242.nip.io
+        - https://mall-admin.mss.r1shop.net
       allowHeaders: [Content-Type, Idempotency-Key, X-CSRF-Token]
     logger:
       stdout: default
@@ -605,7 +616,7 @@ data:
       maxRefresh: 1h
       identityKey: mall-migration-only-identity-not-used-by-a-server
       browserSession:
-        secure: false
+        secure: true
         sameSite: strict
         webSocketTicketTTL: 30s
     challenge:
@@ -635,6 +646,7 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:Deployment:mss-shop-mall-admin-aussibuy
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
 spec:
   replicas: 1
   revisionHistoryLimit: 2
@@ -657,6 +669,7 @@ spec:
         r1shop.io/network-role: admin
       annotations:
         r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+        r1shop.io/admin-host-contract: mss-r1shop-net-v1
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
@@ -679,7 +692,7 @@ spec:
             - --username
             - admin
             - --domain
-            - mall-admin.167.17.68.242.nip.io
+            - mall-admin.mss.r1shop.net
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -865,6 +878,7 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:Service:mss-shop-mall-admin-aussibuy
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
 spec:
   type: ClusterIP
   selector:
@@ -894,11 +908,17 @@ metadata:
   annotations:
     r1shop.io/operator-binding: mss-shop-dev:Ingress:mss-shop-mall-admin-aussibuy
     r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/admin-host-contract: mss-r1shop-net-v1
     nginx.ingress.kubernetes.io/proxy-body-size: 2m
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - mall-admin.mss.r1shop.net
+      secretName: mss-shop-mall-admin-aussibuy-tls
   rules:
-    - host: mall-admin.167.17.68.242.nip.io
+    - host: mall-admin.mss.r1shop.net
       http:
         paths:
           - path: /admin

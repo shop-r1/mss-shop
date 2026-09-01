@@ -43,7 +43,8 @@
   PostgreSQL objects or ACLs, Redis data/configuration, Secrets, Services,
   Ingresses, roles or storage. The MSS stage uses the separate
   `mss-shop-dev` namespace with its own PostgreSQL instance/PVC, Redis
-  instance/PVC, credentials, workloads and hosts as recorded by DEC-0010.
+  instance/PVC, credentials and workloads as recorded by DEC-0010, with Admin
+  TLS and host cutover recorded separately by DEC-0011.
   Legacy development data may enter that environment only through a bounded
   read-only snapshot operation that makes no source-side change and copies no
   `orders` or `order_goods` rows. The importer is the only one-time exception

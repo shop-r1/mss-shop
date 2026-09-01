@@ -25,8 +25,8 @@ const (
 	RedisAddress           = "mss-shop-redis.mss-shop-dev.svc:6379"
 	TenantRedisDB          = 1
 	MallRedisDB            = 2
-	TenantAdminHost        = "tenant-admin.167.17.68.242.nip.io"
-	MallAdminHost          = "mall-admin.167.17.68.242.nip.io"
+	TenantAdminHost        = "tenant-admin.mss.r1shop.net"
+	MallAdminHost          = "mall-admin.mss.r1shop.net"
 	AdminTenantID          = "default"
 	TenantID               = "tenant-aussibuy-dev"
 	TenantKey              = "aussibuy"

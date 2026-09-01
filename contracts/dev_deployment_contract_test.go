@@ -47,6 +47,7 @@ func TestAdminRuntimeManifestIsAdditiveAndCredentialScoped(t *testing.T) {
 		}
 		seen[key] = struct{}{}
 		assertOperatorMetadata(t, kind, name, metadata)
+		assertAdminHostContractMetadata(t, kind, name, metadata)
 
 		switch kind {
 		case "ConfigMap":
@@ -131,6 +132,14 @@ func assertOperatorMetadata(t *testing.T, kind, name string, metadata map[string
 	}
 }
 
+func assertAdminHostContractMetadata(t *testing.T, kind, name string, metadata map[string]any) {
+	t.Helper()
+	annotations := mapValue(t, metadata, "annotations")
+	if got := stringValue(t, annotations, "r1shop.io/admin-host-contract"); got != "mss-r1shop-net-v1" {
+		t.Fatalf("%s/%s Admin host contract = %q", kind, name, got)
+	}
+}
+
 func assertAdminConfigMap(t *testing.T, name string, doc map[string]any) {
 	t.Helper()
 	data := mapValue(t, doc, "data")
@@ -162,6 +171,14 @@ func assertAdminConfigMap(t *testing.T, name string, doc map[string]any) {
 	if runtimeConfig.Database.Driver != "postgres" || runtimeConfig.Database.Source != "{{.Env.DB_DSN}}" {
 		t.Fatalf("%s runtime database did not decode through the MSS 1.3.7 Config type", name)
 	}
+	wantOrigin := "https://" + expectedAdminHost(name)
+	if runtimeConfig.Application.Origin != wantOrigin ||
+		!reflect.DeepEqual(runtimeConfig.CORS.AllowOrigins, []string{wantOrigin}) {
+		t.Fatalf("%s runtime browser origin is not exactly %q", name, wantOrigin)
+	}
+	if strings.Count(runtime, "secure: true") != 1 || strings.Contains(runtime, "secure: false") {
+		t.Fatalf("%s runtime browser session is not HTTPS-only", name)
+	}
 	wantRedisDB := 1
 	if strings.Contains(name, "mall") {
 		wantRedisDB = 2
@@ -176,6 +193,13 @@ func assertAdminConfigMap(t *testing.T, name string, doc map[string]any) {
 	migrationConfig := decodeStrictAdminConfig(t, name+" migration", migration)
 	if migrationConfig.Database.Driver != "postgres" || migrationConfig.Cache != nil {
 		t.Fatalf("%s migration config did not preserve the database-only boundary", name)
+	}
+	if migrationConfig.Application.Origin != wantOrigin ||
+		!reflect.DeepEqual(migrationConfig.CORS.AllowOrigins, []string{wantOrigin}) {
+		t.Fatalf("%s migration browser origin is not exactly %q", name, wantOrigin)
+	}
+	if strings.Count(migration, "secure: true") != 1 || strings.Contains(migration, "secure: false") {
+		t.Fatalf("%s migration browser session is not HTTPS-only", name)
 	}
 }
 
@@ -192,7 +216,12 @@ func decodeStrictAdminConfig(t *testing.T, label, content string) *adminconfig.C
 
 func assertAdminDeployment(t *testing.T, name string, doc map[string]any) {
 	t.Helper()
-	podSpec := mapValue(t, mapValue(t, mapValue(t, doc, "spec"), "template"), "spec")
+	template := mapValue(t, mapValue(t, doc, "spec"), "template")
+	templateAnnotations := mapValue(t, mapValue(t, template, "metadata"), "annotations")
+	if got := stringValue(t, templateAnnotations, "r1shop.io/admin-host-contract"); got != "mss-r1shop-net-v1" {
+		t.Fatalf("%s Pod Admin host contract = %q", name, got)
+	}
+	podSpec := mapValue(t, template, "spec")
 	assertNoPodWriterIdentity(t, podSpec)
 	assertExactSecretVolumes(t, podSpec, []string{"mss-shop-postgres-tls/ca.crt", "mss-shop-redis-tls/ca.crt"})
 	assertExactImagePullSecrets(t, podSpec)
@@ -219,6 +248,10 @@ func assertAdminDeployment(t *testing.T, name string, doc map[string]any) {
 	}
 	if got := stringValue(t, serverContainer, "image"); got != image {
 		t.Fatalf("%s server image = %q, want %q", name, got, image)
+	}
+	wantArgs := []any{"migrate", "--username", "admin", "--domain", expectedAdminHost(name)}
+	if got := sliceValue(t, initContainer, "args"); !reflect.DeepEqual(got, wantArgs) {
+		t.Fatalf("%s migration args = %v, want %v", name, got, wantArgs)
 	}
 	wantInit := []string{
 		secretName + "/database-migrator-dsn",
@@ -321,11 +354,30 @@ func assertAdminService(t *testing.T, name string, doc map[string]any) {
 
 func assertAdminIngress(t *testing.T, name string, doc map[string]any) {
 	t.Helper()
-	wantHost := "tenant-admin.167.17.68.242.nip.io"
+	wantHost := expectedAdminHost(name)
+	wantTLSSecret := "mss-shop-tenant-admin-tls"
 	if strings.Contains(name, "mall") {
-		wantHost = "mall-admin.167.17.68.242.nip.io"
+		wantTLSSecret = "mss-shop-mall-admin-aussibuy-tls"
 	}
-	rules := sliceValue(t, mapValue(t, doc, "spec"), "rules")
+	metadata := mapValue(t, doc, "metadata")
+	annotations := mapValue(t, metadata, "annotations")
+	if got := stringValue(t, annotations, "nginx.ingress.kubernetes.io/ssl-redirect"); got != "true" {
+		t.Fatalf("%s HTTPS redirect = %q, want true", name, got)
+	}
+	spec := mapValue(t, doc, "spec")
+	if got := stringValue(t, spec, "ingressClassName"); got != "nginx" {
+		t.Fatalf("%s ingress class = %q, want nginx", name, got)
+	}
+	tlsEntries := sliceValue(t, spec, "tls")
+	if len(tlsEntries) != 1 {
+		t.Fatalf("%s ingress TLS entries = %d, want 1", name, len(tlsEntries))
+	}
+	tlsEntry := anyMap(t, tlsEntries[0], name+" ingress TLS")
+	if len(tlsEntry) != 2 || stringValue(t, tlsEntry, "secretName") != wantTLSSecret ||
+		!reflect.DeepEqual(sliceValue(t, tlsEntry, "hosts"), []any{wantHost}) {
+		t.Fatalf("%s ingress TLS contract = %v", name, tlsEntry)
+	}
+	rules := sliceValue(t, spec, "rules")
 	if len(rules) != 1 {
 		t.Fatalf("%s ingress rules = %d, want 1", name, len(rules))
 	}
@@ -341,6 +393,13 @@ func assertAdminIngress(t *testing.T, name string, doc map[string]any) {
 			t.Fatalf("%s ingress routes to %q", name, got)
 		}
 	}
+}
+
+func expectedAdminHost(name string) string {
+	if strings.Contains(name, "mall") {
+		return "mall-admin.mss.r1shop.net"
+	}
+	return "tenant-admin.mss.r1shop.net"
 }
 
 func assertNoPodWriterIdentity(t *testing.T, podSpec map[string]any) {

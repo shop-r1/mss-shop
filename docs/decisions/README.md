@@ -21,3 +21,5 @@ in the same change.
   product catalogs and logistics rules
 - [DEC-0010](DEC-0010-remote-development-and-dev-reconciliation.md): remote
   development and isolated `mss-shop-dev` stage resources
+- [DEC-0011](DEC-0011-dns-only-admin-tls-and-host-cutover.md): DNS-only
+  ingress TLS bootstrap and isolated Admin host cutover

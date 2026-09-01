@@ -208,7 +208,8 @@ Publishing an image is not deployment approval. The workflow contains no
 Kubernetes client invocation, environment credential and rollout step.
 Production and the original `r1shop-dev` environment are not CI targets.
 
-Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
+Manual isolated rollout follows DEC-0010, the DEC-0011 DNS-only Admin TLS
+extension and the remote acceptance runbook:
 
 1. verify a clean full SHA and all four CI receipts;
 2. fingerprint the old environment through the bounded read-only path;
@@ -230,10 +231,14 @@ Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
    verifier Job from
    `deploy/mss-shop-dev/member-levels-projection-verifier-job.yaml`, and require
    its complete success JSON before any runtime stage;
-9. stage only the eight Admin runtime objects from
+9. dry-run and explicitly create the four DEC-0011 Admin TLS bootstrap objects
+   with `stage-admin-tls`, then wait for the exact Issuer and two Certificates
+   to report Ready without reading generated Secret contents;
+10. stage only the eight Admin runtime objects from
    `deploy/mss-shop-dev/admin-runtime.yaml` using the tenant and mall image
-   digests;
-10. run disposable-Pod system verification and in-app-browser acceptance.
+   digests after read-only TLS prerequisite verification;
+11. run disposable-Pod system verification and, only after trusted HTTPS
+   post-cutover checks, in-app-browser acceptance.
 
 The importer Job renderer/create-only path, disposable verification runner and
 post-receipt application/bootstrap Secret operator are implemented and tested.

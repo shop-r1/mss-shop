@@ -35,6 +35,11 @@ invariants:
     owner: platform-operations
     decision: DEC-0010
     enforced_by: [fixed-source-endpoint, source-read-only-transaction, source-plaintext-exception, exact-source-egress-policy, exact-secret-get-allowlist, exact-extension-inventory, instance-bound-routine-catalog-fingerprint, zero-unreviewed-executable-objects-and-types]
+  - id: ENV-003
+    statement: Isolated Admin credentials are entered only after the DNS-only hosts complete the create-only TLS bootstrap, resourceVersion-bound runtime cutover, trusted exact-host HTTPS and HTTP-to-HTTPS redirect checks.
+    owner: platform-operations
+    decision: DEC-0011
+    enforced_by: [stage-admin-tls-create-only, exact-acme-solver-network-policy, stage-runtime-tls-prerequisite-gate, certificate-san-check, http-to-https-redirect-check, in-app-browser-password-gate]
   - id: API-001
     statement: Storefront clients use /app/v1 and never use the MSS Admin API.
     owner: storefront-api
