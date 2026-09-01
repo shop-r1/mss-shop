@@ -1270,14 +1270,15 @@ DECLARE
   source_row_hash text;
   target_row_hash text;
 BEGIN
-  SELECT source_schema, source_relation, plan_version,
-         source_row_count, target_row_count, source_key_hash, target_key_hash,
-         source_row_hash, target_row_hash
+  SELECT checkpoint.source_schema, checkpoint.source_relation, checkpoint.plan_version,
+         checkpoint.source_row_count, checkpoint.target_row_count,
+         checkpoint.source_key_hash, checkpoint.target_key_hash,
+         checkpoint.source_row_hash, checkpoint.target_row_hash
     INTO recorded_source_schema, recorded_source_relation, recorded_plan_version,
          recorded_source_rows, recorded_target_rows, recorded_source_hash, recorded_target_hash,
          recorded_source_row_hash, recorded_target_row_hash
-    FROM %[2]s
-    WHERE resource_name = %[3]s;
+    FROM %[2]s AS checkpoint
+    WHERE checkpoint.resource_name = %[3]s;
 
   IF FOUND THEN
     SELECT count(*), %[4]s, %[10]s INTO source_rows, source_hash, source_row_hash FROM %[5]s AS source;

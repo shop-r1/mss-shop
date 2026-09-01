@@ -443,6 +443,9 @@ func TestSnapshotsShareRepeatableReadAndVerifyRetryAudit(t *testing.T) {
 		"recorded_target_rows",
 		"recorded_source_row_hash",
 		"recorded_target_row_hash",
+		"checkpoint.source_row_hash",
+		"checkpoint.target_row_hash",
+		"WHERE checkpoint.resource_name =",
 		"source_row_hash <> recorded_source_row_hash",
 		"target_row_hash <> recorded_target_row_hash",
 		"\"source\"::text",
@@ -458,6 +461,15 @@ func TestSnapshotsShareRepeatableReadAndVerifyRetryAudit(t *testing.T) {
 	} {
 		if !strings.Contains(allSQL, expected) {
 			t.Fatalf("snapshot audit/profile is missing %q", expected)
+		}
+	}
+	for _, forbidden := range []string{
+		"SELECT source_schema, source_relation, plan_version,",
+		"         source_row_hash, target_row_hash",
+		"WHERE resource_name =",
+	} {
+		if strings.Contains(allSQL, forbidden) {
+			t.Fatalf("snapshot audit retains an ambiguous unqualified column reference %q", forbidden)
 		}
 	}
 }
