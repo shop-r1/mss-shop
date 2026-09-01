@@ -113,11 +113,11 @@ jobs:
         include:
           - name: tenant-platform
             context: apps/tenant-platform
-            dockerfile: Dockerfile
+            dockerfile: apps/tenant-platform/Dockerfile
             image: mss-shop-tenant-platform
           - name: mall-platform
             context: apps/mall-platform
-            dockerfile: Dockerfile
+            dockerfile: apps/mall-platform/Dockerfile
             image: mss-shop-mall-platform
           - name: reconciler
             context: .
@@ -161,11 +161,11 @@ jobs:
         include:
           - name: tenant-platform
             context: apps/tenant-platform
-            dockerfile: Dockerfile
+            dockerfile: apps/tenant-platform/Dockerfile
             image: mss-shop-tenant-platform
           - name: mall-platform
             context: apps/mall-platform
-            dockerfile: Dockerfile
+            dockerfile: apps/mall-platform/Dockerfile
             image: mss-shop-mall-platform
           - name: reconciler
             context: .

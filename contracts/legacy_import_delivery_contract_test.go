@@ -254,8 +254,8 @@ func TestCIPreservesFourReceiptBoundDeliveryImagesWithoutDeployment(t *testing.T
 	images := []struct {
 		name, context, dockerfile, image string
 	}{
-		{"tenant-platform", "apps/tenant-platform", "Dockerfile", "mss-shop-tenant-platform"},
-		{"mall-platform", "apps/mall-platform", "Dockerfile", "mss-shop-mall-platform"},
+		{"tenant-platform", "apps/tenant-platform", "apps/tenant-platform/Dockerfile", "mss-shop-tenant-platform"},
+		{"mall-platform", "apps/mall-platform", "apps/mall-platform/Dockerfile", "mss-shop-mall-platform"},
 		{"reconciler", ".", "services/reconciler/Dockerfile", "mss-shop-reconciler"},
 		{"legacy-importer", ".", "services/legacy-importer/Dockerfile", "mss-shop-legacy-importer"},
 	}
@@ -276,6 +276,10 @@ func TestCIPreservesFourReceiptBoundDeliveryImagesWithoutDeployment(t *testing.T
 				t.Fatalf("%s image job must retain exactly one %s matrix entry", job.name, image.name)
 			}
 		}
+	}
+	mallDockerfile := readContractFile(t, "../apps/mall-platform/Dockerfile")
+	if !strings.Contains(mallDockerfile, "RUN MSS_V6_TOTAL_JS_GZIP_BUDGET_KB=930 corepack pnpm@10.34.5 build") {
+		t.Fatal("mall delivery image must apply the reviewed 930 KiB bundle budget")
 	}
 	if !strings.Contains(verify, "push: false") || !strings.Contains(publish, "push: true") {
 		t.Fatal("CI must verify pull requests without publishing and publish only the push matrix")
