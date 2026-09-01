@@ -78,6 +78,24 @@ transaction on an over-broad source-routine policy. It is historical
 publication/readiness evidence only; a source change requires a new four-image
 run and its receipts can never be reused for another revision.
 
+Run
+[`33494258866`](https://github.com/shop-r1/mss-shop/actions/runs/33494258866)
+verified the complete four-image receipt contract for successful import
+revision A `6fed45f354e93efe104045c6dde86ac33c368d6d`. Its immutable digests were:
+
+- tenant-platform:
+  `sha256:fe8db92bce70c12be7d0f6ad8de60e05d65322c2b3aecf384d212deb35abe3fd`;
+- mall-platform:
+  `sha256:4db62ab4c264714fd0c23a1033935d569edfd9f54c1c37d4f58f6299df50d925`;
+- reconciler:
+  `sha256:8cb1e54946b442efd5f33fc433b06bd9e663ec85c81091b8518861855b92e781`;
+- legacy-importer:
+  `sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3`.
+
+The exact importer digest passed the revision-bound readiness Job and produced
+the committed canonical import receipt. It is revision-A provenance only; the
+independent verifier must use a new clean revision-B importer digest.
+
 ## Permissions and package source
 
 Validation and build-only jobs have read-only repository permission. Only the
@@ -120,9 +138,10 @@ Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
 
 The importer Job renderer/create-only path, disposable verification runner and
 post-receipt application/bootstrap Secret operator are implemented and tested,
-but remain ordered deployment gates until a successful receipt-bound import is
-available. Do not replace them with ad-hoc template substitution or
-`kubectl apply`.
+and remain ordered gates after the successful receipt-bound import. The
+disposable verifier must pass before the application/bootstrap Secret operator
+or reconciler may run. Do not replace them with ad-hoc template substitution
+or `kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

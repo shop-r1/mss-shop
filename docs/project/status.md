@@ -132,10 +132,10 @@ Last verified: 2026-09-01
   contracts, followed by Buildx verification. Push builds publish four
   full-SHA images—tenant-platform, mall-platform, reconciler and
   legacy-importer—with digest-bound receipts; pull requests build without
-  pushing and no workflow deploys them. One complete four-image publication is
-  recorded as verified; the pre-fix checkpoint is run
-  `33487529898` for revision
-  `12c6a682e38bfef165e09d108e0bd77c53ee73ca`. See
+  pushing and no workflow deploys them. The current complete publication is run
+  `33494258866` for successful import revision A
+  `6fed45f354e93efe104045c6dde86ac33c368d6d`; the older 12c6 publication is
+  retained as historical pre-source-catalog-fix evidence. See
   `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
@@ -147,9 +147,10 @@ Last verified: 2026-09-01
   isolated `mss-shop-dev` write target, four-image flow, create-only operators,
   receipt-bound A-to-B-to-C import/verification/reconciliation evidence chain,
   disposable-Pod verification and in-app-browser acceptance requirements. The
-  isolated infrastructure, foundation Secrets and datastore-readiness gate
-  have executed; successful import, runtime rollout and cluster acceptance are
-  still open.
+  isolated infrastructure, foundation Secrets, revision-bound readiness and
+  one successful legacy import has executed. The receipt is persisted under
+  its canonical SHA; independent post-import verification, reconciliation,
+  runtime rollout and cluster/browser acceptance are still open.
 - A catalog/logistics redesign review covering CL-01 through CL-12. Its
   recommendations for product/SKU identity, inventory, packing rules, courier
   adapters, credentials, outbox and replay remain **awaiting project-owner
@@ -167,11 +168,11 @@ Last verified: 2026-09-01
   worker queue/inbox, or persistent desired/observed control-plane integration.
   The fixed first-tenant development driver and operator resources still need
   their immutable-image cluster rehearsal and browser acceptance.
-- Completing one successful create-only importer Job, immutable receipt
-  evidence, post-import verifier, reconciliation-secret operator and
-  reconciler Job against the isolated cluster. Readiness has passed for an
-  earlier revision, but every new importer revision must pass it again. These
-  are mandatory gates and may not be replaced by ad-hoc deployment commands.
+- Completing the independent post-import verifier, reconciliation-secret
+  operator and reconciler Job against the isolated cluster. The successful
+  importer and immutable receipt now form revision A-to-B evidence, but they do
+  not authorize reconciliation until a clean revision-B verifier image passes.
+  These gates may not be replaced by ad-hoc deployment commands.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
@@ -190,26 +191,25 @@ Last verified: 2026-09-01
 - Customer authentication, storefront catalog/cart/checkout and payment
   execution beyond the existing contract-first bootstrap slice.
 - Legacy identity conversion (`tenants`, `users`, `roles`), warehouse data
-  scopes, or any legacy business data migration.
-- A successful legacy import, development-cluster Admin runtime rollout,
-  isolated UI acceptance, production migration or cutover. The dedicated
-  `mss-shop-dev` namespace and datastores already exist and must not be confused
-  with a completed application deployment.
+  scopes, or reconciliation of the imported compatibility snapshot into the
+  final tenant core/business schemas.
+- A development-cluster Admin runtime rollout, isolated UI acceptance,
+  production migration or cutover. The successful bounded import into
+  `mss_shop_dev` must not be confused with a completed application deployment.
 - A storefront API image or production reconciler/worker image. Those
   components do not yet own complete production entrypoints and Dockerfiles.
 
 ## Next milestone and acceptance criteria
 
-Use the DEC-0010 remote checkout to publish the next clean revision and all
-four image receipts, re-fingerprint the immutable old environment and rerun
-the revision-bound disposable readiness gate against the already isolated,
-ready datastores. Then import the 51-table snapshot with persisted receipt
-evidence. Independent
-disposable-Pod checks must prove the receipt marker and zero rows in both
-`orders` and `order_goods` before application/bootstrap Secrets,
-reconciliation or Admin runtime staging. Acceptance then needs isolated
-system tests and in-app-browser review with URLs left for owner verification.
-The original development environment and production remain unchanged.
+Commit the byte-exact import receipt and synchronized evidence as clean
+revision B, publish and verify all four revision-B image receipts, then run the
+independent receipt verifier using the revision-B legacy-importer digest. Its
+disposable Pod must prove the persisted marker, the 51-table inventory and
+zero rows in both `orders` and `order_goods` before application/bootstrap
+Secrets, reconciliation or Admin runtime staging. Acceptance then needs
+isolated system tests and in-app-browser review with URLs left for owner
+verification. The original development environment and production remain
+unchanged.
 
 ## Verification evidence
 
@@ -277,6 +277,13 @@ Verification evidence recorded on 2026-09-01:
   `sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05`;
   this is historical pre-source-catalog-fix evidence and is not reusable by a
   later revision.
+- GitHub Actions run
+  [`33494258866`](https://github.com/shop-r1/mss-shop/actions/runs/33494258866)
+  passed the current contract/unit gates and published all four immutable
+  image receipts for revision
+  `6fed45f354e93efe104045c6dde86ac33c368d6d`. Its legacy-importer digest is
+  `sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3`;
+  this is the exact image used by the successful readiness and import Jobs.
 - The exact 24 infrastructure objects and six immutable foundation Secrets
   were created only in `mss-shop-dev`. Its PostgreSQL 17.6 and Redis 8.6.3 are
   ready. The original-development metadata fingerprint was captured from the
@@ -302,6 +309,22 @@ Verification evidence recorded on 2026-09-01:
   `32c0b88f3178e4a15647eef85da4a718b4e490070bd7fa2c77876101f386d81e`.
   The importer now enforces that instance-bound fingerprint in the same source
   snapshot used by COPY.
+- Revision `6fed45f...` passed a new isolated readiness Job and a single-attempt
+  importer Job only in `mss-shop-dev`. The importer copied 49 eligible tables,
+  created the two order tables as structure-only, and emitted a deterministic
+  51-table receipt. `orders` retained source count 14 with target count 0;
+  `order_goods` retained source count 1170 with target count 0. The canonical
+  receipt SHA is
+  `fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`;
+  the byte-exact receipt and safe workload provenance are versioned under
+  `docs/evidence/legacy-import/` and
+  `docs/evidence/mss-shop-dev/2026-09-01-import-success.yaml`.
+- The fixed metadata-only original-development fingerprint was captured both
+  before and after this import. The complete documents were byte-identical
+  (`70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d`),
+  the selected safe-fields digest remained
+  `7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`,
+  and the helper recorded no Secret access, database connection or write.
 - Before DEC-0009, the local mall UI fixture passed full Host backend tests/vet
   and focused race checks; its tests proved 43-table completeness, ten-row
   idempotent seeding, readiness and rejection of DSNs, escaped paths, symlinks,
@@ -328,12 +351,11 @@ Verification evidence recorded on 2026-09-01:
   `docs/runbooks/local-development.md`; root strict doctor and explicit CI
   jobs are the project-level proof.
 
-No successful isolated PostgreSQL legacy-data import, Admin runtime rollout,
-isolated browser acceptance, production migration or production write has
-been performed. The dedicated `mss-shop-dev` Namespace and datastores are
-present, but infrastructure/readiness evidence is not business or system
-acceptance. The original `r1shop-dev/shop` Deployment remains ready and its
-safe metadata fingerprint is unchanged. The target remains gated on a new
-revision-bound readiness result, one successful import receipt and the ordered
-verifier/reconciliation/disposable-Pod controls above. Accepted business
-scenarios remain 0/31.
+A successful bounded legacy snapshot import has been performed only in the
+dedicated `mss-shop-dev` PostgreSQL database. No post-import verifier,
+reconciliation, Admin runtime rollout, isolated browser acceptance, production
+migration or production write has been performed. Import evidence alone is not
+business or system acceptance. The original `r1shop-dev` environment remains
+ready with a byte-identical safe metadata fingerprint. The target is now gated
+on revision-B verifier evidence and the ordered reconciliation/runtime/
+disposable-Pod controls above. Accepted business scenarios remain 0/31.

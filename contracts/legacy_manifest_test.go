@@ -1,9 +1,12 @@
 package contracts_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -89,10 +92,14 @@ type legacyRebuildStatus struct {
 				AttemptCount                    int      `yaml:"attemptCount"`
 				FailedBeforeTargetTransaction   int      `yaml:"failedBeforeTargetTransaction"`
 				Receipt                         string   `yaml:"receipt"`
+				ReceiptSHA256                   string   `yaml:"receiptSHA256"`
+				ReceiptFileSHA256               string   `yaml:"receiptFileSHA256"`
 				CurrentMarker                   string   `yaml:"currentMarker"`
 				ExpectedSuccessMarkerFormat     string   `yaml:"expectedSuccessMarkerFormat"`
-				RepositoryEvidence              string   `yaml:"repositoryEvidence"`
-				RepositoryEvidenceFileSHA256    string   `yaml:"repositoryEvidenceFileSHA256"`
+				FailedAttemptEvidence           string   `yaml:"failedAttemptEvidence"`
+				FailedAttemptEvidenceFileSHA256 string   `yaml:"failedAttemptEvidenceFileSHA256"`
+				SuccessEvidence                 string   `yaml:"successEvidence"`
+				SuccessEvidenceFileSHA256       string   `yaml:"successEvidenceFileSHA256"`
 				CompleteFailureOutputsCaptured  bool     `yaml:"completeFailureOutputsCaptured"`
 				CompleteSuccessReceiptPersisted bool     `yaml:"completeSuccessReceiptPersisted"`
 				Attempts                        []struct {
@@ -100,10 +107,12 @@ type legacyRebuildStatus struct {
 					ReadinessResult string `yaml:"readinessResult"`
 					ImporterJob     string `yaml:"importerJob"`
 					ImageDigest     string `yaml:"imageDigest"`
+					Result          string `yaml:"result"`
 					FailureStage    string `yaml:"failureStage"`
 					ReceiptEmitted  bool   `yaml:"receiptEmitted"`
 				} `yaml:"attempts"`
 			} `yaml:"legacyImport"`
+			PostImportVerifierJob string `yaml:"postImportVerifierJob"`
 		} `yaml:"evidenceState"`
 		LocalEvidence struct {
 			MallAdminWeb struct {
@@ -121,6 +130,7 @@ type legacyRebuildStatus struct {
 					FoundationSecrets       int `yaml:"foundationSecrets"`
 					SuccessfulReadinessJobs int `yaml:"successfulReadinessJobs"`
 					FailedImporterJobs      int `yaml:"failedImporterJobs"`
+					SuccessfulImporterJobs  int `yaml:"successfulImporterJobs"`
 					Total                   int `yaml:"total"`
 				} `yaml:"isolatedCreateOnlyResources"`
 				OriginalDevelopmentReady                    bool   `yaml:"originalDevelopmentReady"`
@@ -322,13 +332,14 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	evidence := status.Spec.EvidenceState
 	if evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
-		evidence.DatastoreReadinessJob != "passed-revision-12c6a682" {
+		evidence.DatastoreReadinessJob != "passed-revision-6fed45f" ||
+		evidence.PostImportVerifierJob != "implemented-pending-revision-b-image" {
 		t.Fatalf("isolated infrastructure evidence drifted: %#v", evidence)
 	}
 	fingerprint := evidence.OriginalDevelopmentFingerprint
-	if fingerprint.State != "executed-revision-12c6a682-stable-safe-fields" ||
-		fingerprint.EvidencePath != "docs/evidence/original-dev/2026-09-01-before-12c6a682.json" ||
-		fingerprint.EvidenceFileSHA256 != "e8be0f7661dba62b056b89bd4afefc0f4d1409128f7dc9c130b015def584fd3f" ||
+	if fingerprint.State != "byte-identical-before-and-after-import-revision-6fed45f" ||
+		fingerprint.EvidencePath != "docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json" ||
+		fingerprint.EvidenceFileSHA256 != "70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d" ||
 		fingerprint.SelectedSafeFieldsSHA256 != "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854" {
 		t.Fatalf("original development fingerprint evidence drifted: %#v", fingerprint)
 	}
@@ -352,7 +363,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if err := json.Unmarshal(fingerprintContent, &fingerprintEvidence); err != nil {
 		t.Fatalf("parse original development fingerprint evidence: %v", err)
 	}
-	if fingerprintEvidence.Revision != "12c6a682e38bfef165e09d108e0bd77c53ee73ca" ||
+	if fingerprintEvidence.Revision != "6fed45f354e93efe104045c6dde86ac33c368d6d" ||
 		fingerprintEvidence.Environment != "r1shop-dev-read-only" ||
 		fingerprintEvidence.AccessMode != "kubernetes-fixed-get-list-only" ||
 		fingerprintEvidence.SelectedSafeFieldsSHA256 != fingerprint.SelectedSafeFieldsSHA256 ||
@@ -364,14 +375,18 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if legacyImport.CompiledTables != 51 || legacyImport.DataCopyEligibleTables != 49 ||
 		!reflect.DeepEqual(legacyImport.StructureOnlyTables, []string{"orders", "order_goods"}) ||
 		!reflect.DeepEqual(legacyImport.IdentityTablesNotCopied, []string{"roles", "tenants", "users"}) ||
-		legacyImport.AttemptCount != 2 || legacyImport.FailedBeforeTargetTransaction != 2 ||
-		legacyImport.Receipt != "pending-no-successful-import" ||
-		legacyImport.CurrentMarker != "r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty" ||
+		legacyImport.AttemptCount != 3 || legacyImport.FailedBeforeTargetTransaction != 2 ||
+		legacyImport.Receipt != "docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/receipt.json" ||
+		legacyImport.ReceiptSHA256 != "fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76" ||
+		legacyImport.ReceiptFileSHA256 != "145d4d34e73741d86161aed086dadc990c7f446777dc4a1c3b5152fab35553c4" ||
+		legacyImport.CurrentMarker != "mss-shop-isolated-dev:legacy-import:v1:fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76" ||
 		legacyImport.ExpectedSuccessMarkerFormat != "mss-shop-isolated-dev:legacy-import:v1:<receipt-sha256>" ||
-		legacyImport.RepositoryEvidence != "docs/evidence/mss-shop-dev/2026-09-01-import-attempts.yaml" ||
-		legacyImport.RepositoryEvidenceFileSHA256 != "25918a8463d68385f14d211f38f5dfc746e6949a2b439ee1e2da5c10745ef634" ||
-		!legacyImport.CompleteFailureOutputsCaptured || legacyImport.CompleteSuccessReceiptPersisted ||
-		len(legacyImport.Attempts) != 2 {
+		legacyImport.FailedAttemptEvidence != "docs/evidence/mss-shop-dev/2026-09-01-import-attempts.yaml" ||
+		legacyImport.FailedAttemptEvidenceFileSHA256 != "25918a8463d68385f14d211f38f5dfc746e6949a2b439ee1e2da5c10745ef634" ||
+		legacyImport.SuccessEvidence != "docs/evidence/mss-shop-dev/2026-09-01-import-success.yaml" ||
+		legacyImport.SuccessEvidenceFileSHA256 != "25099872e65d4701ef08bc33b7c65b2471325c71ff6499ecd242bba3d585e48e" ||
+		!legacyImport.CompleteFailureOutputsCaptured || !legacyImport.CompleteSuccessReceiptPersisted ||
+		len(legacyImport.Attempts) != 3 {
 		t.Fatalf("legacy import evidence drifted: %#v", legacyImport)
 	}
 	wantAttemptRevisions := []string{
@@ -382,19 +397,28 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		"sha256:532335acc7f8804be27d1fcd069704bb8a626523f93511d0c4bfd1bdf469dd01",
 		"sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05",
 	}
-	for index, attempt := range legacyImport.Attempts {
+	for index, attempt := range legacyImport.Attempts[:2] {
 		if attempt.Revision != wantAttemptRevisions[index] || attempt.ImageDigest != wantAttemptDigests[index] ||
 			attempt.ReadinessResult != "passed" || attempt.ImporterJob == "" ||
-			attempt.FailureStage == "" || attempt.ReceiptEmitted {
+			attempt.Result != "failed" || attempt.FailureStage == "" || attempt.ReceiptEmitted {
 			t.Fatalf("legacy import attempt %d drifted: %#v", index+1, attempt)
 		}
 	}
-	importEvidenceContent, err := os.ReadFile("../" + legacyImport.RepositoryEvidence)
+	successfulAttempt := legacyImport.Attempts[2]
+	if successfulAttempt.Revision != "6fed45f354e93efe104045c6dde86ac33c368d6d" ||
+		successfulAttempt.ReadinessResult != "passed" ||
+		successfulAttempt.ImporterJob != "mss-shop-legacy-import-6fed45f354e93efe104045c6dde86ac33c368d6d" ||
+		successfulAttempt.ImageDigest != "sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3" ||
+		successfulAttempt.Result != "succeeded" || successfulAttempt.FailureStage != "" ||
+		!successfulAttempt.ReceiptEmitted {
+		t.Fatalf("successful legacy import attempt drifted: %#v", successfulAttempt)
+	}
+	importEvidenceContent, err := os.ReadFile("../" + legacyImport.FailedAttemptEvidence)
 	if err != nil {
 		t.Fatalf("read isolated import attempt evidence: %v", err)
 	}
 	importEvidenceFileDigest := sha256.Sum256(importEvidenceContent)
-	if hex.EncodeToString(importEvidenceFileDigest[:]) != legacyImport.RepositoryEvidenceFileSHA256 {
+	if hex.EncodeToString(importEvidenceFileDigest[:]) != legacyImport.FailedAttemptEvidenceFileSHA256 {
 		t.Fatal("isolated import attempt evidence file digest drifted")
 	}
 	var importEvidence struct {
@@ -430,8 +454,8 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	}
 	if importEvidence.Metadata.Namespace != "mss-shop-dev" ||
 		importEvidence.Spec.TargetDatabase != "mss_shop_dev" ||
-		importEvidence.Spec.InitialMarker != legacyImport.CurrentMarker ||
-		len(importEvidence.Spec.Attempts) != len(legacyImport.Attempts) ||
+		importEvidence.Spec.InitialMarker != "r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty" ||
+		len(importEvidence.Spec.Attempts) != len(legacyImport.Attempts[:2]) ||
 		importEvidence.Spec.CurrentState.SuccessfulImport ||
 		importEvidence.Spec.CurrentState.TargetWritesFromAttempts ||
 		importEvidence.Spec.CurrentState.ReceiptEmitted {
@@ -449,6 +473,259 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		if hex.EncodeToString(outputDigest[:]) != attempt.Importer.CompleteOutputSHA256 {
 			t.Fatalf("isolated import evidence attempt %d output digest drifted", index+1)
 		}
+	}
+
+	successEvidenceContent, err := os.ReadFile("../" + legacyImport.SuccessEvidence)
+	if err != nil {
+		t.Fatalf("read isolated import success evidence: %v", err)
+	}
+	successEvidenceFileDigest := sha256.Sum256(successEvidenceContent)
+	if hex.EncodeToString(successEvidenceFileDigest[:]) != legacyImport.SuccessEvidenceFileSHA256 {
+		t.Fatal("isolated import success evidence file digest drifted")
+	}
+	var successEvidence struct {
+		Metadata struct {
+			Namespace string `yaml:"namespace"`
+		} `yaml:"metadata"`
+		Spec struct {
+			SourceRevision string `yaml:"sourceRevision"`
+			TargetDatabase string `yaml:"targetDatabase"`
+			Image          struct {
+				Repository string `yaml:"repository"`
+				Digest     string `yaml:"digest"`
+			} `yaml:"image"`
+			OriginalDevelopmentBoundary struct {
+				Environment                  string `yaml:"environment"`
+				EvidencePath                 string `yaml:"evidencePath"`
+				BeforeFileSHA256             string `yaml:"beforeFileSHA256"`
+				AfterFileSHA256              string `yaml:"afterFileSHA256"`
+				ByteIdenticalBeforeAndAfter  bool   `yaml:"byteIdenticalBeforeAndAfter"`
+				SelectedSafeFieldsSHA256     string `yaml:"selectedSafeFieldsSHA256"`
+				SecretsAccessed              bool   `yaml:"secretsAccessed"`
+				DatabaseConnectionsPerformed bool   `yaml:"databaseConnectionsPerformed"`
+				WritesPerformed              bool   `yaml:"writesPerformed"`
+			} `yaml:"originalDevelopmentBoundary"`
+			Readiness struct {
+				Job              string `yaml:"job"`
+				JobUID           string `yaml:"jobUID"`
+				Pod              string `yaml:"pod"`
+				PodUID           string `yaml:"podUID"`
+				Result           string `yaml:"result"`
+				RestartCount     int    `yaml:"restartCount"`
+				StdoutSHA256     string `yaml:"stdoutSHA256"`
+				PodBindingSHA256 string `yaml:"podBindingSHA256"`
+				JobBindingSHA256 string `yaml:"jobBindingSHA256"`
+			} `yaml:"readiness"`
+			Importer struct {
+				Job                     string `yaml:"job"`
+				JobUID                  string `yaml:"jobUID"`
+				Pod                     string `yaml:"pod"`
+				PodUID                  string `yaml:"podUID"`
+				Result                  string `yaml:"result"`
+				RestartCount            int    `yaml:"restartCount"`
+				Retries                 int    `yaml:"retries"`
+				StdoutReceiptFileSHA256 string `yaml:"stdoutReceiptFileSHA256"`
+				PodBindingSHA256        string `yaml:"podBindingSHA256"`
+				JobBindingSHA256        string `yaml:"jobBindingSHA256"`
+			} `yaml:"importer"`
+			Receipt struct {
+				EvidencePath           string `yaml:"evidencePath"`
+				FileSHA256             string `yaml:"fileSHA256"`
+				CanonicalPayloadSHA256 string `yaml:"canonicalPayloadSHA256"`
+				ManifestSHA256         string `yaml:"manifestSHA256"`
+				SchemaSHA256           string `yaml:"schemaSHA256"`
+				TableCount             int    `yaml:"tableCount"`
+				CopiedTableCount       int    `yaml:"copiedTableCount"`
+				StructureOnly          map[string]struct {
+					SourceRows int64 `yaml:"sourceRows"`
+					TargetRows int64 `yaml:"targetRows"`
+				} `yaml:"structureOnly"`
+				DatabaseMarker string `yaml:"databaseMarker"`
+			} `yaml:"receipt"`
+			DeliveryCI struct {
+				RunID                int64  `yaml:"runID"`
+				Conclusion           string `yaml:"conclusion"`
+				TenantDigest         string `yaml:"tenantDigest"`
+				MallDigest           string `yaml:"mallDigest"`
+				ReconcilerDigest     string `yaml:"reconcilerDigest"`
+				LegacyImporterDigest string `yaml:"legacyImporterDigest"`
+			} `yaml:"deliveryCI"`
+			CurrentState struct {
+				SuccessfulImport                        bool  `yaml:"successfulImport"`
+				ReceiptPersisted                        bool  `yaml:"receiptPersisted"`
+				TargetOrderRows                         int64 `yaml:"targetOrderRows"`
+				TargetOrderGoodsRows                    int64 `yaml:"targetOrderGoodsRows"`
+				PostImportVerifierExecuted              bool  `yaml:"postImportVerifierExecuted"`
+				ReconciliationExecuted                  bool  `yaml:"reconciliationExecuted"`
+				AdminRuntimeDeployed                    bool  `yaml:"adminRuntimeDeployed"`
+				OriginalDevelopmentEnvironmentUnchanged bool  `yaml:"originalDevelopmentEnvironmentUnchanged"`
+				ProductionResourcesAccessed             bool  `yaml:"productionResourcesAccessed"`
+			} `yaml:"currentState"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(successEvidenceContent, &successEvidence); err != nil {
+		t.Fatalf("parse isolated import success evidence: %v", err)
+	}
+	successSpec := successEvidence.Spec
+	boundary := successSpec.OriginalDevelopmentBoundary
+	if successEvidence.Metadata.Namespace != "mss-shop-dev" ||
+		successSpec.SourceRevision != successfulAttempt.Revision || successSpec.TargetDatabase != "mss_shop_dev" ||
+		successSpec.Image.Repository != "ghcr.io/shop-r1/mss-shop-legacy-importer" ||
+		successSpec.Image.Digest != successfulAttempt.ImageDigest ||
+		boundary.Environment != "r1shop-dev-read-only" || boundary.EvidencePath != fingerprint.EvidencePath ||
+		boundary.BeforeFileSHA256 != fingerprint.EvidenceFileSHA256 ||
+		boundary.AfterFileSHA256 != fingerprint.EvidenceFileSHA256 || !boundary.ByteIdenticalBeforeAndAfter ||
+		boundary.SelectedSafeFieldsSHA256 != fingerprint.SelectedSafeFieldsSHA256 || boundary.SecretsAccessed ||
+		boundary.DatabaseConnectionsPerformed || boundary.WritesPerformed {
+		t.Fatalf("isolated import source or original-development boundary drifted: %#v", successSpec)
+	}
+	if successSpec.Readiness.Job != "mss-shop-readiness-6fed45f354e93efe104045c6dde86ac33c368d6d" ||
+		successSpec.Readiness.JobUID != "a806992f-5152-40fb-b566-859b6388b737" ||
+		successSpec.Readiness.Pod != "mss-shop-readiness-6fed45f354e93efe104045c6dde86ac33c368d6ws2rz" ||
+		successSpec.Readiness.PodUID != "85310922-3b41-45d0-8e83-bbbe4efc7f52" ||
+		successSpec.Readiness.Result != "passed" || successSpec.Readiness.RestartCount != 0 ||
+		successSpec.Readiness.StdoutSHA256 != "f57f3568a566a9f38c70936c8da6fa15a1ec2b043b6e8d7ea410cf6d9a91f91e" ||
+		successSpec.Readiness.PodBindingSHA256 != "ca08a0ec3c66025d1db4aeb78b71667af02373f489af5bb781657190e7a2595b" ||
+		successSpec.Readiness.JobBindingSHA256 != "79773cc1b2f0a70155da14604d5748d4273865ed5ec69ae46930979bfb122b4b" {
+		t.Fatalf("successful readiness provenance drifted: %#v", successSpec.Readiness)
+	}
+	if successSpec.Importer.Job != successfulAttempt.ImporterJob || successSpec.Importer.Result != "succeeded" ||
+		successSpec.Importer.JobUID != "40f0e23d-659f-4bba-a8c9-21d530fbab95" ||
+		successSpec.Importer.Pod != "mss-shop-legacy-import-6fed45f354e93efe104045c6dde86ac33c3cm9ml" ||
+		successSpec.Importer.PodUID != "efa711bb-d31c-4762-ad6a-478ea190dd3e" ||
+		successSpec.Importer.RestartCount != 0 || successSpec.Importer.Retries != 0 ||
+		successSpec.Importer.StdoutReceiptFileSHA256 != legacyImport.ReceiptFileSHA256 ||
+		successSpec.Importer.PodBindingSHA256 != "67737edb16fc83878aa422c82abe5547463a1506aac8ef584260b5f77253446b" ||
+		successSpec.Importer.JobBindingSHA256 != "d7eb67c182ba82df4fa4e6161c8acd219ad06b2806e3e09749f49b87f274ba99" {
+		t.Fatalf("successful importer provenance drifted: %#v", successSpec.Importer)
+	}
+	receiptEvidence := successSpec.Receipt
+	if receiptEvidence.EvidencePath != legacyImport.Receipt || receiptEvidence.FileSHA256 != legacyImport.ReceiptFileSHA256 ||
+		receiptEvidence.CanonicalPayloadSHA256 != legacyImport.ReceiptSHA256 ||
+		receiptEvidence.ManifestSHA256 != "c108b11543f41bbd8384540b7314909cd8056e3a141cc7447c443cb98c7e6e5b" ||
+		receiptEvidence.SchemaSHA256 != "afd144a9654602a2452dc20e758b4cc3947a3e0748941ea58da7a53d2874a93a" ||
+		receiptEvidence.TableCount != 51 || receiptEvidence.CopiedTableCount != 49 ||
+		receiptEvidence.DatabaseMarker != legacyImport.CurrentMarker || len(receiptEvidence.StructureOnly) != 2 ||
+		receiptEvidence.StructureOnly["orders"].SourceRows != 14 || receiptEvidence.StructureOnly["orders"].TargetRows != 0 ||
+		receiptEvidence.StructureOnly["order_goods"].SourceRows != 1170 || receiptEvidence.StructureOnly["order_goods"].TargetRows != 0 {
+		t.Fatalf("successful import receipt summary drifted: %#v", receiptEvidence)
+	}
+	if successSpec.DeliveryCI.RunID != 33494258866 || successSpec.DeliveryCI.Conclusion != "success" ||
+		successSpec.DeliveryCI.TenantDigest != "sha256:fe8db92bce70c12be7d0f6ad8de60e05d65322c2b3aecf384d212deb35abe3fd" ||
+		successSpec.DeliveryCI.MallDigest != "sha256:4db62ab4c264714fd0c23a1033935d569edfd9f54c1c37d4f58f6299df50d925" ||
+		successSpec.DeliveryCI.ReconcilerDigest != "sha256:8cb1e54946b442efd5f33fc433b06bd9e663ec85c81091b8518861855b92e781" ||
+		successSpec.DeliveryCI.LegacyImporterDigest != successfulAttempt.ImageDigest {
+		t.Fatalf("successful import CI provenance drifted: %#v", successSpec.DeliveryCI)
+	}
+	currentState := successSpec.CurrentState
+	if !currentState.SuccessfulImport || !currentState.ReceiptPersisted || currentState.TargetOrderRows != 0 ||
+		currentState.TargetOrderGoodsRows != 0 || currentState.PostImportVerifierExecuted ||
+		currentState.ReconciliationExecuted || currentState.AdminRuntimeDeployed ||
+		!currentState.OriginalDevelopmentEnvironmentUnchanged || currentState.ProductionResourcesAccessed {
+		t.Fatalf("successful import current state drifted: %#v", currentState)
+	}
+
+	type receiptTable struct {
+		Name         string `json:"name"`
+		Mode         string `json:"mode"`
+		SourceRows   int64  `json:"sourceRows"`
+		TargetRows   int64  `json:"targetRows"`
+		SourceSHA256 string `json:"sourceSHA256"`
+		TargetSHA256 string `json:"targetSHA256"`
+	}
+	type receiptDocument struct {
+		Version        string         `json:"version"`
+		TargetDatabase string         `json:"targetDatabase"`
+		ManifestSHA256 string         `json:"manifestSHA256"`
+		SchemaSHA256   string         `json:"schemaSHA256"`
+		Tables         []receiptTable `json:"tables"`
+		SHA256         string         `json:"sha256"`
+	}
+	receiptContent, err := os.ReadFile("../" + legacyImport.Receipt)
+	if err != nil {
+		t.Fatalf("read committed legacy import receipt: %v", err)
+	}
+	receiptFileDigest := sha256.Sum256(receiptContent)
+	if hex.EncodeToString(receiptFileDigest[:]) != legacyImport.ReceiptFileSHA256 {
+		t.Fatal("committed legacy import receipt file digest drifted")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(receiptContent))
+	decoder.DisallowUnknownFields()
+	var receipt receiptDocument
+	if err := decoder.Decode(&receipt); err != nil {
+		t.Fatalf("parse committed legacy import receipt: %v", err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		t.Fatal("committed legacy import receipt has trailing JSON")
+	}
+	if receipt.Version != "mss-shop-legacy-import/v1" || receipt.TargetDatabase != "mss_shop_dev" ||
+		receipt.ManifestSHA256 != receiptEvidence.ManifestSHA256 || receipt.SchemaSHA256 != receiptEvidence.SchemaSHA256 ||
+		receipt.SHA256 != legacyImport.ReceiptSHA256 || len(receipt.Tables) != 51 {
+		t.Fatalf("committed legacy import receipt header drifted: %#v", receipt)
+	}
+	manifestContent, err := os.ReadFile("../docs/migration/legacy-tables.yaml")
+	if err != nil {
+		t.Fatalf("read legacy table manifest for receipt order: %v", err)
+	}
+	var tableManifest legacyTableManifest
+	if err := yaml.Unmarshal(manifestContent, &tableManifest); err != nil {
+		t.Fatalf("parse legacy table manifest for receipt order: %v", err)
+	}
+	wantReceiptNames := make([]string, 0, 51)
+	for _, table := range tableManifest.Spec.Tables {
+		if table.Name != "roles" && table.Name != "tenants" && table.Name != "users" {
+			wantReceiptNames = append(wantReceiptNames, table.Name)
+		}
+	}
+	copiedTables := 0
+	structureOnlyTables := make(map[string]receiptTable, 2)
+	seenReceiptTables := make(map[string]struct{}, len(receipt.Tables))
+	for index, table := range receipt.Tables {
+		if table.Name != wantReceiptNames[index] {
+			t.Fatalf("receipt table order %d = %q, want %q", index, table.Name, wantReceiptNames[index])
+		}
+		if _, duplicate := seenReceiptTables[table.Name]; duplicate {
+			t.Fatalf("duplicate receipt table %q", table.Name)
+		}
+		seenReceiptTables[table.Name] = struct{}{}
+		switch table.Mode {
+		case "copied":
+			copiedTables++
+			if table.SourceRows != table.TargetRows || table.SourceSHA256 != table.TargetSHA256 {
+				t.Fatalf("copied receipt table differs: %#v", table)
+			}
+		case "structure-only":
+			if table.TargetRows != 0 {
+				t.Fatalf("structure-only receipt table is nonempty: %#v", table)
+			}
+			structureOnlyTables[table.Name] = table
+		default:
+			t.Fatalf("unknown receipt table mode: %#v", table)
+		}
+	}
+	if copiedTables != 49 || len(structureOnlyTables) != 2 ||
+		structureOnlyTables["orders"].SourceRows != 14 ||
+		structureOnlyTables["order_goods"].SourceRows != 1170 {
+		t.Fatalf("receipt table modes drifted: copied=%d structureOnly=%#v", copiedTables, structureOnlyTables)
+	}
+	canonicalPayload, err := json.Marshal(struct {
+		Version        string         `json:"version"`
+		TargetDatabase string         `json:"targetDatabase"`
+		ManifestSHA256 string         `json:"manifestSHA256"`
+		SchemaSHA256   string         `json:"schemaSHA256"`
+		Tables         []receiptTable `json:"tables"`
+	}{receipt.Version, receipt.TargetDatabase, receipt.ManifestSHA256, receipt.SchemaSHA256, receipt.Tables})
+	if err != nil {
+		t.Fatalf("canonicalize committed legacy import receipt: %v", err)
+	}
+	canonicalDigest := sha256.Sum256(canonicalPayload)
+	if hex.EncodeToString(canonicalDigest[:]) != legacyImport.ReceiptSHA256 {
+		t.Fatal("committed legacy import receipt canonical payload digest drifted")
+	}
+	verificationPath := "../docs/evidence/legacy-import/" + legacyImport.ReceiptSHA256 + "/verification.json"
+	if _, err := os.Stat(verificationPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("revision B must not claim unexecuted verifier evidence: %v", err)
 	}
 	if status.Spec.LocalEvidence.MallAdminWeb.ResourceRoutes != 50 || status.Spec.LocalEvidence.MallAdminWeb.OwnershipDeployment != "pending-forward-migrations-not-applied" {
 		t.Fatalf("mall source/deployment state drifted: %#v", status.Spec.LocalEvidence.MallAdminWeb)
@@ -474,25 +751,26 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	validation := status.Spec.LocalEvidence.CurrentSourceValidation
 	resources := validation.IsolatedCreateOnlyResources
 	if resources.InfrastructureObjects != 24 || resources.FoundationSecrets != 6 ||
-		resources.SuccessfulReadinessJobs != 2 || resources.FailedImporterJobs != 2 ||
+		resources.SuccessfulReadinessJobs != 3 || resources.FailedImporterJobs != 2 ||
+		resources.SuccessfulImporterJobs != 1 ||
 		resources.Total != resources.InfrastructureObjects+resources.FoundationSecrets+
-			resources.SuccessfulReadinessJobs+resources.FailedImporterJobs ||
+			resources.SuccessfulReadinessJobs+resources.FailedImporterJobs+resources.SuccessfulImporterJobs ||
 		!validation.OriginalDevelopmentReady ||
 		validation.OriginalDevelopmentSelectedSafeFieldsSHA256 != "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854" ||
 		!validation.IsolatedNamespaceExists || !validation.IsolatedPostgreSQLReady ||
-		!validation.IsolatedRedisReady || validation.SuccessfulLegacyImport {
+		!validation.IsolatedRedisReady || !validation.SuccessfulLegacyImport {
 		t.Fatalf("current isolated validation evidence drifted: %#v", validation)
 	}
 	images := status.Spec.LocalEvidence.DeliveryImages
 	verifiedRun := images.VerifiedRun
-	if images.CurrentFourImagePublication != "verified-historical-revision-12c6a682" ||
-		verifiedRun.ID != 33487529898 ||
-		verifiedRun.Revision != "12c6a682e38bfef165e09d108e0bd77c53ee73ca" ||
+	if images.CurrentFourImagePublication != "verified-successful-import-revision-6fed45f" ||
+		verifiedRun.ID != 33494258866 ||
+		verifiedRun.Revision != "6fed45f354e93efe104045c6dde86ac33c368d6d" ||
 		verifiedRun.Conclusion != "success" ||
-		verifiedRun.TenantDigest != "sha256:8f6348da987fe8fcd30553583c19319feac862d69d33f5ed43651a70eeb02d35" ||
-		verifiedRun.MallDigest != "sha256:5880261198942ad53507e3aa087bbb949e96a42f0472d0d110ea13e1e8ebdd15" ||
-		verifiedRun.ReconcilerDigest != "sha256:f53404fee6fed5b77c758358c14a28d7b4197a8172393f8003857e7fac56ac71" ||
-		verifiedRun.LegacyImporterDigest != "sha256:9eb9efcb01ff5ac115b6df772f68139cba9ce53f691a310756f81cceb161fb05" {
+		verifiedRun.TenantDigest != "sha256:fe8db92bce70c12be7d0f6ad8de60e05d65322c2b3aecf384d212deb35abe3fd" ||
+		verifiedRun.MallDigest != "sha256:4db62ab4c264714fd0c23a1033935d569edfd9f54c1c37d4f58f6299df50d925" ||
+		verifiedRun.ReconcilerDigest != "sha256:8cb1e54946b442efd5f33fc433b06bd9e663ec85c81091b8518861855b92e781" ||
+		verifiedRun.LegacyImporterDigest != "sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3" {
 		t.Fatalf("verified four-image evidence drifted: %#v", images)
 	}
 
@@ -503,6 +781,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		"mss137GenerationNotes", "localBrowserAcceptance",
 		"remoteDevelopmentDecision", "remoteDevelopmentRunbook", "catalogLogisticsDesignReview",
 		"originalDevelopmentEvidence", "isolatedImportAttemptEvidence",
+		"isolatedImportSuccessEvidence", "isolatedImportReceipt",
 	}
 	for _, name := range requiredSources {
 		if _, exists := status.Spec.SourcesOfTruth[name]; !exists {
@@ -531,8 +810,8 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		!safety.OldDevelopmentWritesForbidden || safety.ProductionOrderRowsToDevelopment ||
 		safety.TargetOrderRowsImported || safety.TargetOrderGoodsRowsImported ||
 		!safety.SystemTestsUseDisposableKubernetesPods || !safety.IsolatedInfrastructureStaged ||
-		safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 2 ||
-		safety.LegacyImportSucceeded {
+		safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 3 ||
+		!safety.LegacyImportSucceeded {
 		t.Fatalf("unsafe legacy verification memory: %#v", status.Spec.Safety)
 	}
 }

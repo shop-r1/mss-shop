@@ -6,17 +6,17 @@ immutable read-only sources/reference state. Nothing in this runbook
 authorizes a write to them. It never authorizes a write to `r1shop-prod`, the
 production database or production Redis.
 
-The end-to-end run is currently **open at the successful-import gate**. Do not
+The end-to-end run is currently **open at the post-import verifier gate**. Do not
 skip a gate or replace it with an ad-hoc command. The exact 24-object isolated
 boundary, six immutable foundation Secrets, PostgreSQL 17.6 and Redis 8.6.3
-are present in `mss-shop-dev`. Revision `12c6a682e38bfef165e09d108e0bd77c53ee73ca`
-passed the disposable readiness gate. Its importer and an earlier importer
-revision both failed before the target transaction and are preserved; no
-receipt or imported marker exists. A new clean revision must repeat the
-original-environment fingerprint and readiness gates before creating a new
-one-time importer Job. No Admin runtime, successful import, Kubernetes system
-acceptance or isolated browser acceptance has executed; business acceptance
-remains 0/31.
+are present in `mss-shop-dev`. Revision
+`6fed45f354e93efe104045c6dde86ac33c368d6d` passed readiness and completed the
+bounded one-time import; its canonical receipt is committed under
+`docs/evidence/legacy-import/`. Two earlier pre-transaction failures remain
+preserved as historical evidence. Revision B must now publish the verifier
+image before the immutable receipt ConfigMap and disposable verifier Job are
+created. No reconciliation, Admin runtime, Kubernetes system acceptance or
+isolated browser acceptance has executed; business acceptance remains 0/31.
 
 ## Fixed boundaries
 
@@ -414,10 +414,10 @@ in-cluster reconciler independently queries the exact database marker and
 requires `public.orders` and `public.order_goods` to remain empty before any
 DDL.
 
-**Gate:** real importer and disposable-verifier evidence has not yet been
-produced and committed. Until both exact files exist and pass this command,
-reconciler and Admin runtime deployment remain forbidden. Do not fabricate
-placeholder evidence.
+**Gate:** the real importer receipt is committed, but disposable-verifier
+evidence has not yet been produced or committed. Until both exact files exist
+and pass this command, reconciler and Admin runtime deployment remain
+forbidden. Do not fabricate placeholder evidence.
 
 ### 9. Create the receipt-bound reconciler Job
 
