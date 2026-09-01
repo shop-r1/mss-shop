@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -731,7 +732,7 @@ func infrastructureLabels(name, component string) map[string]string {
 func validateEquivalentJob(observed, desired *batchv1.Job, persisted bool) error {
 	if observed == nil || desired == nil || observed.Namespace != stage.Namespace || observed.Name != desired.Name ||
 		observed.DeletionTimestamp != nil || len(observed.OwnerReferences) != 0 || len(observed.Finalizers) != 0 ||
-		!reflect.DeepEqual(observed.Labels, desired.Labels) || !safeJobAnnotations(observed.Annotations, desired.Annotations) {
+		!reflect.DeepEqual(observed.Labels, desired.Labels) || !safeJobAnnotations(observed, desired.Annotations) {
 		return errors.New("observed isolated Job has an incompatible identity, lifecycle, labels, or annotations")
 	}
 	if observed.APIVersion != "" && observed.APIVersion != "batch/v1" || observed.Kind != "" && observed.Kind != "Job" {
@@ -754,15 +755,95 @@ func validateEquivalentJob(observed, desired *batchv1.Job, persisted bool) error
 	return nil
 }
 
-func safeJobAnnotations(observed, desired map[string]string) bool {
-	copy := cloneStrings(observed)
+func safeJobAnnotations(observed *batchv1.Job, desired map[string]string) bool {
+	if observed == nil {
+		return false
+	}
+	copy := cloneStrings(observed.Annotations)
 	if tracking, found := copy["batch.kubernetes.io/job-tracking"]; found {
 		if tracking != "" {
 			return false
 		}
 		delete(copy, "batch.kubernetes.io/job-tracking")
 	}
+	if revisions, found := copy["revisions"]; found {
+		expected, err := expectedJobRevisionHistory(observed)
+		if err != nil || revisions != expected {
+			return false
+		}
+		delete(copy, "revisions")
+	}
 	return reflect.DeepEqual(copy, desired)
+}
+
+type reviewedJobRevision struct {
+	Status         string    `json:"status"`
+	Reasons        []string  `json:"reasons,omitempty"`
+	Messages       []string  `json:"messages,omitempty"`
+	Succeed        int32     `json:"succeed,omitempty"`
+	DesirePodNum   int32     `json:"desire,omitempty"`
+	Failed         int32     `json:"failed,omitempty"`
+	UID            string    `json:"uid"`
+	StartTime      time.Time `json:"start-time,omitempty"`
+	CompletionTime time.Time `json:"completion-time,omitempty"`
+}
+
+// expectedJobRevisionHistory reproduces only the exact KubeSphere v3.1.1
+// JobRevision snapshot generated for a new immutable Job. Comparing its
+// canonical bytes admits controller-owned status metadata without permitting
+// arbitrary annotations, extra revisions, duplicate fields, or stale/foreign
+// identities to disappear during normalization.
+func expectedJobRevisionHistory(job *batchv1.Job) (string, error) {
+	if job == nil || job.UID == "" || job.CreationTimestamp.IsZero() ||
+		job.Spec.Completions == nil || *job.Spec.Completions != 1 {
+		return "", errors.New("observed isolated Job cannot bind reviewed revision history")
+	}
+	revision := reviewedJobRevision{
+		Status:       "running",
+		DesirePodNum: *job.Spec.Completions,
+		Succeed:      job.Status.Succeeded,
+		Failed:       job.Status.Failed,
+		UID:          string(job.UID),
+		StartTime:    job.CreationTimestamp.Time,
+	}
+	terminal := ""
+	for _, condition := range job.Status.Conditions {
+		if condition.Status != corev1.ConditionTrue {
+			continue
+		}
+		switch condition.Type {
+		case batchv1.JobFailed:
+			if terminal != "" {
+				return "", errors.New("observed isolated Job has contradictory terminal conditions")
+			}
+			terminal = "failed"
+			revision.Status = terminal
+			revision.Reasons = append(revision.Reasons, condition.Reason)
+			revision.Messages = append(revision.Messages, condition.Message)
+		case batchv1.JobComplete:
+			if terminal != "" {
+				return "", errors.New("observed isolated Job has contradictory terminal conditions")
+			}
+			terminal = "completed"
+			revision.Status = terminal
+		}
+	}
+	if job.Status.CompletionTime != nil {
+		revision.CompletionTime = job.Status.CompletionTime.Time
+	}
+	// KubeSphere copies both counters without interpreting them. In particular,
+	// a retryable Job can be running or completed with Failed > 0, and a
+	// deadline failure can have Failed == 0. Keep those legitimate snapshots
+	// byte-bound to the server-owned Job status while rejecting impossible
+	// negative counters.
+	if revision.Succeed < 0 || revision.Failed < 0 {
+		return "", errors.New("observed Job revision has negative counters")
+	}
+	encoded, err := json.Marshal(map[int]reviewedJobRevision{1: revision})
+	if err != nil || len(encoded) == 0 || len(encoded) > 4096 {
+		return "", errors.New("encode reviewed Job revision history")
+	}
+	return string(encoded), nil
 }
 
 func normalizedJob(input, desired *batchv1.Job, observed bool) (*batchv1.Job, error) {
@@ -773,6 +854,7 @@ func normalizedJob(input, desired *batchv1.Job, observed bool) (*batchv1.Job, er
 	result.Labels = cloneStrings(result.Labels)
 	result.Annotations = cloneStrings(result.Annotations)
 	delete(result.Annotations, "batch.kubernetes.io/job-tracking")
+	delete(result.Annotations, "revisions")
 	cleanObjectMeta(&result.Spec.Template.ObjectMeta)
 	if observed {
 		if err := stripGeneratedJobSelector(result, input.UID); err != nil {

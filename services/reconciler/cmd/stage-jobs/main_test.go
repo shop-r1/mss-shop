@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -328,6 +329,218 @@ func TestEquivalentJobRequiresExactKubernetesServerDefaults(t *testing.T) {
 	}
 }
 
+func TestEquivalentJobAllowsOnlyBoundReviewedRevisionHistory(t *testing.T) {
+	desired := renderTestJob(t, modeVerifier, testReceipt)
+	start := time.Date(2026, time.September, 1, 10, 32, 49, 0, time.UTC)
+	newObserved := func() *batchv1.Job {
+		job := testPersistedJob(desired)
+		job.CreationTimestamp = metav1.NewTime(start)
+		return job
+	}
+	completed := func(job *batchv1.Job) {
+		completion := metav1.NewTime(start.Add(15 * time.Second))
+		job.Status.Succeeded = 1
+		job.Status.CompletionTime = &completion
+		job.Status.Conditions = []batchv1.JobCondition{
+			{Type: batchv1.JobConditionType("SuccessCriteriaMet"), Status: corev1.ConditionTrue},
+			{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+		}
+	}
+	failed := func(job *batchv1.Job) {
+		job.Status.Failed = 1
+		job.Status.Conditions = []batchv1.JobCondition{{
+			Type:    batchv1.JobFailed,
+			Status:  corev1.ConditionTrue,
+			Reason:  "BackoffLimitExceeded",
+			Message: "Job has reached the specified backoff limit",
+		}}
+	}
+	bound := func(job *batchv1.Job, value string) string {
+		return strings.ReplaceAll(value, "JOB_UID", string(job.UID))
+	}
+	runningRevision := func(job *batchv1.Job) string {
+		return bound(job, `{"1":{"status":"running","desire":1,"uid":"JOB_UID","start-time":"2026-09-01T10:32:49Z","completion-time":"0001-01-01T00:00:00Z"}}`)
+	}
+	completedRevision := func(job *batchv1.Job) string {
+		return bound(job, `{"1":{"status":"completed","succeed":1,"desire":1,"uid":"JOB_UID","start-time":"2026-09-01T10:32:49Z","completion-time":"2026-09-01T10:33:04Z"}}`)
+	}
+	failedRevision := func(job *batchv1.Job) string {
+		return bound(job, `{"1":{"status":"failed","reasons":["BackoffLimitExceeded"],"messages":["Job has reached the specified backoff limit"],"desire":1,"failed":1,"uid":"JOB_UID","start-time":"2026-09-01T10:32:49Z","completion-time":"0001-01-01T00:00:00Z"}}`)
+	}
+	runningAfterFailure := func(job *batchv1.Job) {
+		job.Status.Failed = 1
+	}
+	completedAfterFailure := func(job *batchv1.Job) {
+		completed(job)
+		job.Status.Failed = 1
+	}
+	failedAfterRetry := func(job *batchv1.Job) {
+		failed(job)
+		job.Status.Failed = 2
+	}
+	failedAtDeadline := func(job *batchv1.Job) {
+		failed(job)
+		job.Status.Failed = 0
+		job.Status.Conditions[0].Reason = "DeadlineExceeded"
+		job.Status.Conditions[0].Message = "Job was active longer than specified deadline"
+	}
+
+	valid := map[string]struct {
+		mutate   func(*batchv1.Job)
+		revision func(*batchv1.Job) string
+		tracking bool
+	}{
+		"running":                     {revision: runningRevision},
+		"completed":                   {mutate: completed, revision: completedRevision},
+		"failed":                      {mutate: failed, revision: failedRevision},
+		"running-with-empty-tracking": {revision: runningRevision, tracking: true},
+		"running-after-failed-attempt": {
+			mutate: runningAfterFailure,
+			revision: func(job *batchv1.Job) string {
+				return strings.Replace(runningRevision(job), `"desire":1`, `"desire":1,"failed":1`, 1)
+			},
+		},
+		"completed-after-failed-attempt": {
+			mutate: completedAfterFailure,
+			revision: func(job *batchv1.Job) string {
+				return strings.Replace(completedRevision(job), `"desire":1`, `"desire":1,"failed":1`, 1)
+			},
+		},
+		"failed-after-retry": {
+			mutate: failedAfterRetry,
+			revision: func(job *batchv1.Job) string {
+				return strings.Replace(failedRevision(job), `"failed":1`, `"failed":2`, 1)
+			},
+		},
+		"failed-at-deadline-without-pod-failure": {
+			mutate: failedAtDeadline,
+			revision: func(job *batchv1.Job) string {
+				value := strings.Replace(failedRevision(job), "BackoffLimitExceeded", "DeadlineExceeded", 1)
+				value = strings.Replace(value, "Job has reached the specified backoff limit", "Job was active longer than specified deadline", 1)
+				return strings.Replace(value, `,"failed":1`, "", 1)
+			},
+		},
+	}
+	for name, test := range valid {
+		t.Run(name, func(t *testing.T) {
+			observed := newObserved()
+			if test.mutate != nil {
+				test.mutate(observed)
+			}
+			revisions := test.revision(observed)
+			generated, err := expectedJobRevisionHistory(observed)
+			if err != nil {
+				t.Fatalf("build reviewed controller revision history: %v", err)
+			}
+			if generated != revisions {
+				t.Fatalf("controller revision history = %q, want %q", generated, revisions)
+			}
+			observed.Annotations["revisions"] = revisions
+			if test.tracking {
+				observed.Annotations["batch.kubernetes.io/job-tracking"] = ""
+			}
+			if err := validateEquivalentJob(observed, desired, true); err != nil {
+				t.Fatalf("reviewed controller revision history rejected: %v", err)
+			}
+		})
+	}
+
+	invalid := map[string]func(*batchv1.Job){
+		"malformed": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = `{`
+		},
+		"active-field": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = bound(job, `{"1":{"status":"running","active":1,"desire":1,"uid":"JOB_UID","start-time":"2026-09-01T10:32:49Z","completion-time":"0001-01-01T00:00:00Z"}}`)
+		},
+		"foreign-uid": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = `{"1":{"status":"running","desire":1,"uid":"foreign","start-time":"2026-09-01T10:32:49Z","completion-time":"0001-01-01T00:00:00Z"}}`
+		},
+		"unknown-field": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = strings.TrimSuffix(runningRevision(job), `}}`) + `,"foreign":true}}`
+		},
+		"unknown-status": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = bound(job, `{"1":{"status":"paused","desire":1,"uid":"JOB_UID","start-time":"2026-09-01T10:32:49Z","completion-time":"0001-01-01T00:00:00Z"}}`)
+		},
+		"wrong-success-count": func(job *batchv1.Job) {
+			completed(job)
+			job.Annotations["revisions"] = strings.Replace(completedRevision(job), `"succeed":1`, `"succeed":2`, 1)
+		},
+		"foreign-revision": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = strings.Replace(runningRevision(job), `"1"`, `"2"`, 1)
+		},
+		"extra-revision": func(job *batchv1.Job) {
+			revision := strings.TrimSuffix(runningRevision(job), `}`)
+			job.Annotations["revisions"] = revision + `,"2":` + strings.TrimPrefix(revision, `{"1":`) + `}`
+		},
+		"duplicate-revision-key": func(job *batchv1.Job) {
+			entry := strings.TrimPrefix(strings.TrimSuffix(runningRevision(job), `}`), `{"1":`)
+			job.Annotations["revisions"] = `{"1":` + entry + `,"1":` + entry + `}`
+		},
+		"duplicate-status-field": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = strings.Replace(runningRevision(job), `"status":"running"`, `"status":"running","status":"running"`, 1)
+		},
+		"noncanonical-whitespace": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = " " + runningRevision(job)
+		},
+		"missing-zero-completion": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = strings.Replace(runningRevision(job), `,"completion-time":"0001-01-01T00:00:00Z"`, "", 1)
+		},
+		"wrong-start-time": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = strings.Replace(runningRevision(job), "10:32:49Z", "10:32:50Z", 1)
+		},
+		"wrong-completion-time": func(job *batchv1.Job) {
+			completed(job)
+			job.Annotations["revisions"] = strings.Replace(completedRevision(job), "10:33:04Z", "10:33:05Z", 1)
+		},
+		"stale-running-status": func(job *batchv1.Job) {
+			job.Annotations["revisions"] = runningRevision(job)
+			completed(job)
+		},
+		"failed-reason-mismatch": func(job *batchv1.Job) {
+			failed(job)
+			job.Annotations["revisions"] = strings.Replace(failedRevision(job), "BackoffLimitExceeded", "ForeignReason", 1)
+		},
+		"failed-message-mismatch": func(job *batchv1.Job) {
+			failed(job)
+			job.Annotations["revisions"] = strings.Replace(failedRevision(job), "Job has reached the specified backoff limit", "foreign message", 1)
+		},
+		"contradictory-terminal-conditions": func(job *batchv1.Job) {
+			completed(job)
+			job.Status.Failed = 1
+			job.Status.Conditions = append(job.Status.Conditions, batchv1.JobCondition{
+				Type:    batchv1.JobFailed,
+				Status:  corev1.ConditionTrue,
+				Reason:  "BackoffLimitExceeded",
+				Message: "Job has reached the specified backoff limit",
+			})
+			job.Annotations["revisions"] = completedRevision(job)
+		},
+		"nonempty-tracking": func(job *batchv1.Job) {
+			job.Annotations["batch.kubernetes.io/job-tracking"] = "foreign"
+		},
+		"unknown-annotation": func(job *batchv1.Job) {
+			job.Annotations["foreign.example/annotation"] = "value"
+		},
+		"negative-succeeded-count": func(job *batchv1.Job) {
+			job.Status.Succeeded = -1
+			job.Annotations["revisions"] = runningRevision(job)
+		},
+		"negative-failed-count": func(job *batchv1.Job) {
+			job.Status.Failed = -1
+			job.Annotations["revisions"] = runningRevision(job)
+		},
+	}
+	for name, mutate := range invalid {
+		t.Run(name, func(t *testing.T) {
+			observed := newObserved()
+			mutate(observed)
+			if err := validateEquivalentJob(observed, desired, true); err == nil {
+				t.Fatal("unreviewed controller revision history was accepted")
+			}
+		})
+	}
+}
+
 func TestConvergeNamespaceGateIsTheFirstAndOnlyActionOnOwnershipOrLifecycleFailure(t *testing.T) {
 	desired := renderTestJob(t, modeImporter, "")
 	for _, test := range []struct {
@@ -430,6 +643,47 @@ func TestConvergeCreatesOnlyTheReviewedJob(t *testing.T) {
 			assertJobMutationBoundary(t, harness.client.Actions())
 		})
 	}
+}
+
+func TestConvergeAcceptsExactControllerRevisionOnPostCreateGet(t *testing.T) {
+	receiptBytes, receiptSHA := validStageReceipt(t)
+	desired := renderTestJob(t, modeVerifier, receiptSHA)
+	harness := newVerificationHarness(t, verificationPrerequisites(t, modeVerifier))
+	injected := false
+	harness.client.PrependReactor("get", "jobs", func(action ktesting.Action) (bool, runtime.Object, error) {
+		get, ok := action.(ktesting.GetAction)
+		if !ok || get.GetName() != desired.Name || harness.jobCreates == 0 {
+			return false, nil, nil
+		}
+		object, err := harness.client.Tracker().Get(
+			batchv1.SchemeGroupVersion.WithResource("jobs"), testNamespace, desired.Name,
+		)
+		if err != nil {
+			return true, nil, err
+		}
+		observed := object.(*batchv1.Job).DeepCopy()
+		revisions, err := expectedJobRevisionHistory(observed)
+		if err != nil {
+			t.Fatalf("build post-create controller revision: %v", err)
+		}
+		observed.Annotations["revisions"] = revisions
+		injected = true
+		return true, observed, nil
+	})
+
+	result, err := converge(
+		context.Background(), harness.client, desired, modeVerifier, receiptSHA, true, receiptBytes,
+	)
+	if err != nil {
+		t.Fatalf("post-create controller revision rejected: %v", err)
+	}
+	if !injected || !result.created || result.exactRetry || !result.dryRun ||
+		harness.configMapDryRuns != 1 || harness.configMapCreates != 1 ||
+		harness.jobDryRuns != 1 || harness.jobCreates != 1 {
+		t.Fatalf("unexpected post-create result: injected=%v result=%+v harness=%+v",
+			injected, result, harness)
+	}
+	assertVerificationMutationBoundary(t, harness.client.Actions())
 }
 
 func TestConvergeExactExistingJobIsAReadOnlyRetry(t *testing.T) {
