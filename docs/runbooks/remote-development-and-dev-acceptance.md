@@ -6,17 +6,19 @@ immutable read-only sources/reference state. Nothing in this runbook
 authorizes a write to them. It never authorizes a write to `r1shop-prod`, the
 production database or production Redis.
 
-The end-to-end run is currently **open at the post-import verifier gate**. Do not
+The end-to-end run is currently **open at the reconciliation-evidence gate**. Do not
 skip a gate or replace it with an ad-hoc command. The exact 24-object isolated
 boundary, six immutable foundation Secrets, PostgreSQL 17.6 and Redis 8.6.3
 are present in `mss-shop-dev`. Revision
 `6fed45f354e93efe104045c6dde86ac33c368d6d` passed readiness and completed the
 bounded one-time import; its canonical receipt is committed under
 `docs/evidence/legacy-import/`. Two earlier pre-transaction failures remain
-preserved as historical evidence. Revision B must now publish the verifier
-image before the immutable receipt ConfigMap and disposable verifier Job are
-created. No reconciliation, Admin runtime, Kubernetes system acceptance or
-isolated browser acceptance has executed; business acceptance remains 0/31.
+preserved as historical evidence. Revision B
+`3eb4c72b485066e7b189446fab5b66a1047e66a2` supplied the immutable receipt
+ConfigMap and one successful disposable verifier Job; its exact output is now
+persisted beside the receipt. No reconciliation, Admin runtime, complete
+Kubernetes system acceptance or isolated browser acceptance has executed;
+business acceptance remains 0/31.
 
 ## Fixed boundaries
 
@@ -376,9 +378,22 @@ Keep B reachable as an ancestor of C: the operator proves that B contains the
 unchanged receipt blob and does not yet contain `verification.json`, so a
 depth-one or rewritten checkout is insufficient evidence.
 
-**Gate:** the exact disposable verifier must be repository-owned and tested.
-If it or either committed evidence file is absent, stop. A manual host-side
-query is not equivalent evidence, and neither evidence file may contain a DSN,
+Executed checkpoint on 2026-09-01: revision-B Job
+`mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2`
+completed once with one succeeded Pod and zero restarts. Its stdout file SHA is
+`47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c`.
+The initial stage process reported failure only after Create because KubeSphere
+v3.1.1 injected its controller-owned `revisions` annotation before the final
+GET. Fix revision `ebefd1c20bf51f3c43e4a2bb90085fb60ea21442` later
+validated the existing B ConfigMap and Job as an exact read-only retry with
+`created=false`; it did not rerun the Pod. A separate B2-targeted preflight
+failed closed because the fixed immutable ConfigMap remains bound to B, and it
+created no second Job or Pod. Do not delete, replace or relabel that ConfigMap
+to manufacture another verifier run.
+
+**Gate:** satisfied by the byte-exact `receipt.json`, `verification.json` and
+safe workload provenance committed in revision C. A manual host-side query is
+not equivalent evidence, and neither evidence file may contain a DSN,
 credential, certificate, token or row value.
 
 ### 8. Stage receipt-bound application/bootstrap Secrets
@@ -414,10 +429,11 @@ in-cluster reconciler independently queries the exact database marker and
 requires `public.orders` and `public.order_goods` to remain empty before any
 DDL.
 
-**Gate:** the real importer receipt is committed, but disposable-verifier
-evidence has not yet been produced or committed. Until both exact files exist
-and pass this command, reconciler and Admin runtime deployment remain
-forbidden. Do not fabricate placeholder evidence.
+**Gate:** the importer receipt and disposable-verifier evidence are committed;
+the reconciliation-secret operator has not yet been executed. Until its exact
+clean-checkout dry-run passes, no application/bootstrap Secret, reconciler or
+Admin runtime may be created. Do not fabricate placeholder evidence or infer a
+write authorization from the completed verifier.
 
 ### 9. Create the receipt-bound reconciler Job
 

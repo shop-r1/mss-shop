@@ -37,6 +37,34 @@ type legacyTableManifest struct {
 	} `yaml:"spec"`
 }
 
+const (
+	legacyReceiptSHA256          = "fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76"
+	legacyReceiptFileSHA256      = "145d4d34e73741d86161aed086dadc990c7f446777dc4a1c3b5152fab35553c4"
+	legacyManifestSHA256         = "c108b11543f41bbd8384540b7314909cd8056e3a141cc7447c443cb98c7e6e5b"
+	legacySchemaSHA256           = "afd144a9654602a2452dc20e758b4cc3947a3e0748941ea58da7a53d2874a93a"
+	legacyVerifierRevision       = "3eb4c72b485066e7b189446fab5b66a1047e66a2"
+	legacyVerifierDigest         = "sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799"
+	legacyVerifierJobName        = "mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2"
+	legacyVerifierJobUID         = "8721d08a-a4ab-4dfa-9ee2-b69841d1fe3e"
+	legacyVerifierPod            = "mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a10475779m"
+	legacyVerifierPodUID         = "5ddc28b0-76f3-4799-b1a6-763a549f8696"
+	legacyVerificationFileSHA256 = "47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c"
+	legacyVerifierEvidenceSHA256 = "b54d073017cae36f230e1541d2f48692e3744a34a9da252b9a41c6438edc3851"
+	annotationFixRevision        = "ebefd1c20bf51f3c43e4a2bb90085fb60ea21442"
+	originalDevSafeFieldsSHA256  = "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854"
+)
+
+type legacyDeliveryRun struct {
+	ID                   int64  `yaml:"id"`
+	Revision             string `yaml:"revision"`
+	Conclusion           string `yaml:"conclusion"`
+	Scope                string `yaml:"scope"`
+	TenantDigest         string `yaml:"tenantDigest"`
+	MallDigest           string `yaml:"mallDigest"`
+	ReconcilerDigest     string `yaml:"reconcilerDigest"`
+	LegacyImporterDigest string `yaml:"legacyImporterDigest"`
+}
+
 type legacyRebuildStatus struct {
 	Spec struct {
 		DevelopmentIsolation struct {
@@ -74,7 +102,12 @@ type legacyRebuildStatus struct {
 			ClosedScenarios int `yaml:"closedScenarios"`
 		} `yaml:"acceptance"`
 		EvidenceState struct {
+			IndexesConstraintsAndRowCounts     string `yaml:"indexesConstraintsAndRowCounts"`
 			CompatibilityOwnershipReassignment string `yaml:"compatibilityOwnershipReassignment"`
+			KubernetesSystemAcceptance         string `yaml:"kubernetesSystemAcceptance"`
+			ProductionMigration                string `yaml:"productionMigration"`
+			DeliveryCI                         string `yaml:"deliveryCI"`
+			RemoteDevelopmentPlan              string `yaml:"remoteDevelopmentPlan"`
 			IsolatedInfrastructure             string `yaml:"isolatedInfrastructure"`
 			FoundationSecrets                  string `yaml:"foundationSecrets"`
 			DatastoreReadinessJob              string `yaml:"datastoreReadinessJob"`
@@ -113,6 +146,28 @@ type legacyRebuildStatus struct {
 				} `yaml:"attempts"`
 			} `yaml:"legacyImport"`
 			PostImportVerifierJob string `yaml:"postImportVerifierJob"`
+			PostImportVerifier    struct {
+				Revision                           string `yaml:"revision"`
+				Job                                string `yaml:"job"`
+				JobUID                             string `yaml:"jobUID"`
+				Pod                                string `yaml:"pod"`
+				PodUID                             string `yaml:"podUID"`
+				ImageDigest                        string `yaml:"imageDigest"`
+				Result                             string `yaml:"result"`
+				Verification                       string `yaml:"verification"`
+				VerificationFileSHA256             string `yaml:"verificationFileSHA256"`
+				SuccessEvidence                    string `yaml:"successEvidence"`
+				SuccessEvidenceFileSHA256          string `yaml:"successEvidenceFileSHA256"`
+				AnnotationCompatibilityFixRevision string `yaml:"annotationCompatibilityFixRevision"`
+				ReadOnlyExactRetryValidated        bool   `yaml:"readOnlyExactRetryValidated"`
+				NewRevisionVerifierJobCreated      bool   `yaml:"newRevisionVerifierJobCreated"`
+				NewRevisionVerifierPodCreated      bool   `yaml:"newRevisionVerifierPodCreated"`
+				ReceiptConfigMapChangedByFix       bool   `yaml:"receiptConfigMapChangedByFix"`
+				KubernetesWritesFromFixValidation  bool   `yaml:"kubernetesWritesFromFixValidation"`
+			} `yaml:"postImportVerifier"`
+			ReconciliationSecretsOperator  string `yaml:"reconciliationSecretsOperator"`
+			ReconcilerJob                  string `yaml:"reconcilerJob"`
+			IsolatedInAppBrowserAcceptance string `yaml:"isolatedInAppBrowserAcceptance"`
 		} `yaml:"evidenceState"`
 		LocalEvidence struct {
 			MallAdminWeb struct {
@@ -126,12 +181,14 @@ type legacyRebuildStatus struct {
 			} `yaml:"tenantAdminWeb"`
 			CurrentSourceValidation struct {
 				IsolatedCreateOnlyResources struct {
-					InfrastructureObjects   int `yaml:"infrastructureObjects"`
-					FoundationSecrets       int `yaml:"foundationSecrets"`
-					SuccessfulReadinessJobs int `yaml:"successfulReadinessJobs"`
-					FailedImporterJobs      int `yaml:"failedImporterJobs"`
-					SuccessfulImporterJobs  int `yaml:"successfulImporterJobs"`
-					Total                   int `yaml:"total"`
+					InfrastructureObjects     int `yaml:"infrastructureObjects"`
+					FoundationSecrets         int `yaml:"foundationSecrets"`
+					SuccessfulReadinessJobs   int `yaml:"successfulReadinessJobs"`
+					FailedImporterJobs        int `yaml:"failedImporterJobs"`
+					SuccessfulImporterJobs    int `yaml:"successfulImporterJobs"`
+					ReceiptEvidenceConfigMaps int `yaml:"receiptEvidenceConfigMaps"`
+					SuccessfulVerifierJobs    int `yaml:"successfulVerifierJobs"`
+					Total                     int `yaml:"total"`
 				} `yaml:"isolatedCreateOnlyResources"`
 				OriginalDevelopmentReady                    bool   `yaml:"originalDevelopmentReady"`
 				OriginalDevelopmentSelectedSafeFieldsSHA256 string `yaml:"originalDevelopmentSelectedSafeFieldsSHA256"`
@@ -139,18 +196,12 @@ type legacyRebuildStatus struct {
 				IsolatedPostgreSQLReady                     bool   `yaml:"isolatedPostgreSQLReady"`
 				IsolatedRedisReady                          bool   `yaml:"isolatedRedisReady"`
 				SuccessfulLegacyImport                      bool   `yaml:"successfulLegacyImport"`
+				SuccessfulPostImportVerifier                bool   `yaml:"successfulPostImportVerifier"`
 			} `yaml:"currentSourceValidation"`
 			DeliveryImages struct {
-				CurrentFourImagePublication string `yaml:"currentFourImagePublication"`
-				VerifiedRun                 struct {
-					ID                   int64  `yaml:"id"`
-					Revision             string `yaml:"revision"`
-					Conclusion           string `yaml:"conclusion"`
-					TenantDigest         string `yaml:"tenantDigest"`
-					MallDigest           string `yaml:"mallDigest"`
-					ReconcilerDigest     string `yaml:"reconcilerDigest"`
-					LegacyImporterDigest string `yaml:"legacyImporterDigest"`
-				} `yaml:"verifiedRun"`
+				CurrentFourImagePublication string            `yaml:"currentFourImagePublication"`
+				VerifiedRun                 legacyDeliveryRun `yaml:"verifiedRun"`
+				VerifierRun                 legacyDeliveryRun `yaml:"verifierRun"`
 			} `yaml:"deliveryImages"`
 		} `yaml:"localEvidence"`
 		SourcesOfTruth map[string]string `yaml:"sourcesOfTruth"`
@@ -167,8 +218,234 @@ type legacyRebuildStatus struct {
 			IsolatedAdminRuntimeDeployed            bool   `yaml:"isolatedAdminRuntimeDeployed"`
 			LegacyImportAttempts                    int    `yaml:"legacyImportAttempts"`
 			LegacyImportSucceeded                   bool   `yaml:"legacyImportSucceeded"`
+			PostImportVerifierSucceeded             bool   `yaml:"postImportVerifierSucceeded"`
+			IsolatedBrowserAcceptanceExecuted       bool   `yaml:"isolatedBrowserAcceptanceExecuted"`
 		} `yaml:"safety"`
 	} `yaml:"spec"`
+}
+
+type legacyVerificationDocument struct {
+	Version         string `json:"version"`
+	TargetDatabase  string `json:"targetDatabase"`
+	DatabaseMarker  string `json:"databaseMarker"`
+	ReceiptSHA256   string `json:"receiptSHA256"`
+	ManifestSHA256  string `json:"manifestSHA256"`
+	SchemaSHA256    string `json:"schemaSHA256"`
+	TableCount      int    `json:"tableCount"`
+	OrdersRows      int64  `json:"ordersRows"`
+	OrderGoodsRows  int64  `json:"orderGoodsRows"`
+	Namespace       string `json:"namespace"`
+	PodName         string `json:"podName"`
+	PodUID          string `json:"podUID"`
+	Revision        string `json:"revision"`
+	ImageRepository string `json:"imageRepository"`
+	ImageDigest     string `json:"imageDigest"`
+	ImageReference  string `json:"imageReference"`
+}
+
+type legacyVerifierSuccessEvidence struct {
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Metadata   struct {
+		Namespace  string `yaml:"namespace"`
+		CapturedAt string `yaml:"capturedAt"`
+	} `yaml:"metadata"`
+	Spec struct {
+		Receipt struct {
+			CanonicalPayloadSHA256 string `yaml:"canonicalPayloadSHA256"`
+			FileSHA256             string `yaml:"fileSHA256"`
+			ManifestSHA256         string `yaml:"manifestSHA256"`
+			SchemaSHA256           string `yaml:"schemaSHA256"`
+			DatabaseMarker         string `yaml:"databaseMarker"`
+		} `yaml:"receipt"`
+		ImmutableEvidenceConfigMap struct {
+			Name              string   `yaml:"name"`
+			UID               string   `yaml:"uid"`
+			CreatedAt         string   `yaml:"createdAt"`
+			Revision          string   `yaml:"revision"`
+			Immutable         bool     `yaml:"immutable"`
+			DataKeys          []string `yaml:"dataKeys"`
+			ReceiptFileSHA256 string   `yaml:"receiptFileSHA256"`
+			SafeBindingSHA256 string   `yaml:"safeBindingSHA256"`
+		} `yaml:"immutableEvidenceConfigMap"`
+		Verifier struct {
+			Revision         string `yaml:"revision"`
+			Job              string `yaml:"job"`
+			JobUID           string `yaml:"jobUID"`
+			JobCreatedAt     string `yaml:"jobCreatedAt"`
+			JobCompletedAt   string `yaml:"jobCompletedAt"`
+			JobSucceeded     int    `yaml:"jobSucceeded"`
+			JobFailed        int    `yaml:"jobFailed"`
+			Pod              string `yaml:"pod"`
+			PodUID           string `yaml:"podUID"`
+			PodPhase         string `yaml:"podPhase"`
+			RestartCount     int    `yaml:"restartCount"`
+			Retries          int    `yaml:"retries"`
+			ImageRepository  string `yaml:"imageRepository"`
+			ImageDigest      string `yaml:"imageDigest"`
+			ImageReference   string `yaml:"imageReference"`
+			RuntimeImageID   string `yaml:"runtimeImageID"`
+			OutputPath       string `yaml:"outputPath"`
+			OutputFileSHA256 string `yaml:"outputFileSHA256"`
+			JobBindingSHA256 string `yaml:"jobBindingSHA256"`
+			PodBindingSHA256 string `yaml:"podBindingSHA256"`
+			TargetDatabase   string `yaml:"targetDatabase"`
+			TableCount       int    `yaml:"tableCount"`
+			OrdersRows       int64  `yaml:"ordersRows"`
+			OrderGoodsRows   int64  `yaml:"orderGoodsRows"`
+			Result           string `yaml:"result"`
+		} `yaml:"verifier"`
+		NetworkBoundary struct {
+			Policy                               string `yaml:"policy"`
+			PolicyUID                            string `yaml:"policyUID"`
+			SafeBindingSHA256                    string `yaml:"safeBindingSHA256"`
+			Target                               string `yaml:"target"`
+			LegacySourceCredentialMounted        bool   `yaml:"legacySourceCredentialMounted"`
+			LegacySourceEndpointPresent          bool   `yaml:"legacySourceEndpointPresent"`
+			RedisCredentialMounted               bool   `yaml:"redisCredentialMounted"`
+			KubernetesServiceAccountTokenMounted bool   `yaml:"kubernetesServiceAccountTokenMounted"`
+		} `yaml:"networkBoundary"`
+		StageHistory struct {
+			InitialCreate struct {
+				OperatorRevision                 string `yaml:"operatorRevision"`
+				Result                           string `yaml:"result"`
+				FailureReason                    string `yaml:"failureReason"`
+				ConfigMapCreated                 bool   `yaml:"configMapCreated"`
+				VerifierJobCreated               bool   `yaml:"verifierJobCreated"`
+				VerifierOutputAcceptedAtThatTime bool   `yaml:"verifierOutputAcceptedAtThatTime"`
+				ResourcesPreserved               bool   `yaml:"resourcesPreserved"`
+			} `yaml:"initialCreate"`
+			AnnotationCompatibilityFix struct {
+				Revision                  string `yaml:"revision"`
+				ExactKubeSphereVersion    string `yaml:"exactKubeSphereVersion"`
+				SourceTestsPassed         bool   `yaml:"sourceTestsPassed"`
+				IndependentReviewBlockers int    `yaml:"independentReviewBlockers"`
+			} `yaml:"annotationCompatibilityFix"`
+			RejectedNewRevisionDryRun struct {
+				TargetRevision            string `yaml:"targetRevision"`
+				Result                    string `yaml:"result"`
+				Reason                    string `yaml:"reason"`
+				KubernetesWritesPerformed bool   `yaml:"kubernetesWritesPerformed"`
+				ReceiptConfigMapChanged   bool   `yaml:"receiptConfigMapChanged"`
+				NewVerifierJobCreated     bool   `yaml:"newVerifierJobCreated"`
+				NewVerifierPodCreated     bool   `yaml:"newVerifierPodCreated"`
+			} `yaml:"rejectedNewRevisionDryRun"`
+			ReadOnlyExactRetryAudit struct {
+				OperatorRevision          string `yaml:"operatorRevision"`
+				TargetRevision            string `yaml:"targetRevision"`
+				OperatorBinarySHA256      string `yaml:"operatorBinarySHA256"`
+				StageLogSHA256            string `yaml:"stageLogSHA256"`
+				CreateFlag                bool   `yaml:"createFlag"`
+				Created                   bool   `yaml:"created"`
+				ExactRetry                bool   `yaml:"exactRetry"`
+				DryRun                    bool   `yaml:"dryRun"`
+				KubernetesWritesPerformed bool   `yaml:"kubernetesWritesPerformed"`
+				Result                    string `yaml:"result"`
+			} `yaml:"readOnlyExactRetryAudit"`
+		} `yaml:"stageHistory"`
+		DeliveryCI struct {
+			VerifierWorkload struct {
+				RunID                int64  `yaml:"runID"`
+				Revision             string `yaml:"revision"`
+				Conclusion           string `yaml:"conclusion"`
+				TenantDigest         string `yaml:"tenantDigest"`
+				MallDigest           string `yaml:"mallDigest"`
+				ReconcilerDigest     string `yaml:"reconcilerDigest"`
+				LegacyImporterDigest string `yaml:"legacyImporterDigest"`
+			} `yaml:"verifierWorkload"`
+			AnnotationCompatibilityFix struct {
+				RunID                int64  `yaml:"runID"`
+				Revision             string `yaml:"revision"`
+				Conclusion           string `yaml:"conclusion"`
+				Deployed             bool   `yaml:"deployed"`
+				TenantDigest         string `yaml:"tenantDigest"`
+				MallDigest           string `yaml:"mallDigest"`
+				ReconcilerDigest     string `yaml:"reconcilerDigest"`
+				LegacyImporterDigest string `yaml:"legacyImporterDigest"`
+			} `yaml:"annotationCompatibilityFix"`
+		} `yaml:"deliveryCI"`
+		OriginalDevelopmentBoundary struct {
+			Environment                  string `yaml:"environment"`
+			EvidencePath                 string `yaml:"evidencePath"`
+			EvidenceFileSHA256           string `yaml:"evidenceFileSHA256"`
+			SelectedSafeFieldsSHA256     string `yaml:"selectedSafeFieldsSHA256"`
+			UnchangedFromImportBoundary  bool   `yaml:"unchangedFromImportBoundary"`
+			SecretsAccessed              bool   `yaml:"secretsAccessed"`
+			DatabaseConnectionsPerformed bool   `yaml:"databaseConnectionsPerformed"`
+			WritesPerformed              bool   `yaml:"writesPerformed"`
+		} `yaml:"originalDevelopmentBoundary"`
+		CurrentState struct {
+			PostImportVerifierExecuted              bool `yaml:"postImportVerifierExecuted"`
+			ReconciliationExecuted                  bool `yaml:"reconciliationExecuted"`
+			AdminRuntimeDeployed                    bool `yaml:"adminRuntimeDeployed"`
+			IsolatedBrowserAcceptanceExecuted       bool `yaml:"isolatedBrowserAcceptanceExecuted"`
+			BusinessAcceptanceScenariosClosed       int  `yaml:"businessAcceptanceScenariosClosed"`
+			BusinessAcceptanceScenariosRequired     int  `yaml:"businessAcceptanceScenariosRequired"`
+			OriginalDevelopmentEnvironmentUnchanged bool `yaml:"originalDevelopmentEnvironmentUnchanged"`
+			ProductionResourcesAccessed             bool `yaml:"productionResourcesAccessed"`
+		} `yaml:"currentState"`
+	} `yaml:"spec"`
+}
+
+func decodeExactLegacyVerification(data []byte) (legacyVerificationDocument, error) {
+	wantFields := []string{
+		"databaseMarker", "imageDigest", "imageReference", "imageRepository",
+		"manifestSHA256", "namespace", "orderGoodsRows", "ordersRows", "podName",
+		"podUID", "receiptSHA256", "revision", "schemaSHA256", "tableCount",
+		"targetDatabase", "version",
+	}
+	fieldDecoder := json.NewDecoder(bytes.NewReader(data))
+	opening, err := fieldDecoder.Token()
+	if err != nil || opening != json.Delim('{') {
+		return legacyVerificationDocument{}, errors.New("verification evidence is not one JSON object")
+	}
+	seen := make(map[string]struct{}, len(wantFields))
+	for fieldDecoder.More() {
+		token, err := fieldDecoder.Token()
+		if err != nil {
+			return legacyVerificationDocument{}, errors.New("read verification evidence field")
+		}
+		name, ok := token.(string)
+		if !ok {
+			return legacyVerificationDocument{}, errors.New("verification evidence field name is invalid")
+		}
+		if _, duplicate := seen[name]; duplicate {
+			return legacyVerificationDocument{}, errors.New("verification evidence contains a duplicate field")
+		}
+		seen[name] = struct{}{}
+		var value json.RawMessage
+		if err := fieldDecoder.Decode(&value); err != nil {
+			return legacyVerificationDocument{}, errors.New("read verification evidence value")
+		}
+	}
+	closing, err := fieldDecoder.Token()
+	if err != nil || closing != json.Delim('}') {
+		return legacyVerificationDocument{}, errors.New("verification evidence object is incomplete")
+	}
+	var fieldTrailing any
+	if err := fieldDecoder.Decode(&fieldTrailing); !errors.Is(err, io.EOF) {
+		return legacyVerificationDocument{}, errors.New("verification evidence has trailing JSON")
+	}
+	gotFields := make([]string, 0, len(seen))
+	for name := range seen {
+		gotFields = append(gotFields, name)
+	}
+	sort.Strings(gotFields)
+	if !reflect.DeepEqual(gotFields, wantFields) {
+		return legacyVerificationDocument{}, errors.New("verification evidence fields differ from the reviewed 16-field schema")
+	}
+
+	typedDecoder := json.NewDecoder(bytes.NewReader(data))
+	typedDecoder.DisallowUnknownFields()
+	var result legacyVerificationDocument
+	if err := typedDecoder.Decode(&result); err != nil {
+		return legacyVerificationDocument{}, errors.New("decode verification evidence")
+	}
+	var typedTrailing any
+	if err := typedDecoder.Decode(&typedTrailing); !errors.Is(err, io.EOF) {
+		return legacyVerificationDocument{}, errors.New("verification evidence has trailing JSON")
+	}
+	return result, nil
 }
 
 func TestLegacyTableManifestIsTheCompleteCompatibilityBoundary(t *testing.T) {
@@ -330,17 +607,25 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		t.Fatalf("ownership reassignment state = %q, want source-only implementation", status.Spec.EvidenceState.CompatibilityOwnershipReassignment)
 	}
 	evidence := status.Spec.EvidenceState
-	if evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
+	if evidence.IndexesConstraintsAndRowCounts != "import-and-independent-post-import-verifier-passed" ||
+		evidence.KubernetesSystemAcceptance != "partial-datastore-import-and-verifier-only" ||
+		evidence.ProductionMigration != "forbidden-without-explicit-approval" ||
+		evidence.DeliveryCI != "four-image-publications-verified-through-annotation-compatibility-fix" ||
+		evidence.RemoteDevelopmentPlan != "isolated-import-and-verifier-complete-reconciliation-pending" ||
+		evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
 		evidence.DatastoreReadinessJob != "passed-revision-6fed45f" ||
-		evidence.PostImportVerifierJob != "implemented-pending-revision-b-image" {
+		evidence.PostImportVerifierJob != "passed-revision-b-3eb4c72" ||
+		evidence.ReconciliationSecretsOperator != "implemented-not-executed" ||
+		evidence.ReconcilerJob != "source-implemented-not-executed" ||
+		evidence.IsolatedInAppBrowserAcceptance != "pending-not-deployed" {
 		t.Fatalf("isolated infrastructure evidence drifted: %#v", evidence)
 	}
 	fingerprint := evidence.OriginalDevelopmentFingerprint
-	if fingerprint.State != "byte-identical-before-and-after-import-revision-6fed45f" ||
-		fingerprint.EvidencePath != "docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json" ||
-		fingerprint.EvidenceFileSHA256 != "70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d" ||
-		fingerprint.SelectedSafeFieldsSHA256 != "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854" {
+	if fingerprint.State != "selected-safe-fields-unchanged-through-post-verifier-revision-ebefd1c" ||
+		fingerprint.EvidencePath != "docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json" ||
+		fingerprint.EvidenceFileSHA256 != "07eafdd704a05b1768f026ee00a33f53134cd8eba3eadd2e3b6c8ba712448f75" ||
+		fingerprint.SelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 {
 		t.Fatalf("original development fingerprint evidence drifted: %#v", fingerprint)
 	}
 	fingerprintContent, err := os.ReadFile("../" + fingerprint.EvidencePath)
@@ -352,18 +637,28 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		t.Fatal("original development fingerprint evidence file digest drifted")
 	}
 	var fingerprintEvidence struct {
-		Revision                 string `json:"revision"`
-		Environment              string `json:"environment"`
-		AccessMode               string `json:"accessMode"`
-		SelectedSafeFieldsSHA256 string `json:"selectedSafeFieldsSHA256"`
-		SecretsAccessed          bool   `json:"secretsAccessed"`
-		DatabaseConnections      bool   `json:"databaseConnectionsPerformed"`
-		WritesPerformed          bool   `json:"writesPerformed"`
+		Version                  string          `json:"version"`
+		Revision                 string          `json:"revision"`
+		Environment              string          `json:"environment"`
+		AccessMode               string          `json:"accessMode"`
+		SelectedSafeFields       json.RawMessage `json:"selectedSafeFields"`
+		SelectedSafeFieldsSHA256 string          `json:"selectedSafeFieldsSHA256"`
+		SecretsAccessed          bool            `json:"secretsAccessed"`
+		DatabaseConnections      bool            `json:"databaseConnectionsPerformed"`
+		WritesPerformed          bool            `json:"writesPerformed"`
 	}
-	if err := json.Unmarshal(fingerprintContent, &fingerprintEvidence); err != nil {
+	fingerprintDecoder := json.NewDecoder(bytes.NewReader(fingerprintContent))
+	fingerprintDecoder.DisallowUnknownFields()
+	if err := fingerprintDecoder.Decode(&fingerprintEvidence); err != nil {
 		t.Fatalf("parse original development fingerprint evidence: %v", err)
 	}
-	if fingerprintEvidence.Revision != "6fed45f354e93efe104045c6dde86ac33c368d6d" ||
+	var fingerprintTrailing any
+	if err := fingerprintDecoder.Decode(&fingerprintTrailing); !errors.Is(err, io.EOF) {
+		t.Fatal("original development fingerprint evidence has trailing JSON")
+	}
+	if fingerprintEvidence.Version != "mss-shop-original-dev-read-only-kubernetes-fingerprint/v1" ||
+		len(fingerprintEvidence.SelectedSafeFields) == 0 ||
+		fingerprintEvidence.Revision != annotationFixRevision ||
 		fingerprintEvidence.Environment != "r1shop-dev-read-only" ||
 		fingerprintEvidence.AccessMode != "kubernetes-fixed-get-list-only" ||
 		fingerprintEvidence.SelectedSafeFieldsSHA256 != fingerprint.SelectedSafeFieldsSHA256 ||
@@ -572,10 +867,12 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		successSpec.SourceRevision != successfulAttempt.Revision || successSpec.TargetDatabase != "mss_shop_dev" ||
 		successSpec.Image.Repository != "ghcr.io/shop-r1/mss-shop-legacy-importer" ||
 		successSpec.Image.Digest != successfulAttempt.ImageDigest ||
-		boundary.Environment != "r1shop-dev-read-only" || boundary.EvidencePath != fingerprint.EvidencePath ||
-		boundary.BeforeFileSHA256 != fingerprint.EvidenceFileSHA256 ||
-		boundary.AfterFileSHA256 != fingerprint.EvidenceFileSHA256 || !boundary.ByteIdenticalBeforeAndAfter ||
-		boundary.SelectedSafeFieldsSHA256 != fingerprint.SelectedSafeFieldsSHA256 || boundary.SecretsAccessed ||
+		boundary.Environment != "r1shop-dev-read-only" ||
+		boundary.EvidencePath != "docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json" ||
+		boundary.BeforeFileSHA256 != "70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d" ||
+		boundary.AfterFileSHA256 != "70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d" ||
+		!boundary.ByteIdenticalBeforeAndAfter || boundary.SelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 ||
+		boundary.SecretsAccessed ||
 		boundary.DatabaseConnectionsPerformed || boundary.WritesPerformed {
 		t.Fatalf("isolated import source or original-development boundary drifted: %#v", successSpec)
 	}
@@ -723,9 +1020,166 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	if hex.EncodeToString(canonicalDigest[:]) != legacyImport.ReceiptSHA256 {
 		t.Fatal("committed legacy import receipt canonical payload digest drifted")
 	}
-	verificationPath := "../docs/evidence/legacy-import/" + legacyImport.ReceiptSHA256 + "/verification.json"
-	if _, err := os.Stat(verificationPath); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("revision B must not claim unexecuted verifier evidence: %v", err)
+	verificationRelative := "docs/evidence/legacy-import/" + legacyReceiptSHA256 + "/verification.json"
+	verifierEvidenceRelative := "docs/evidence/mss-shop-dev/2026-09-01-verifier-success.yaml"
+	verifierState := evidence.PostImportVerifier
+	if verifierState.Revision != legacyVerifierRevision || verifierState.Job != legacyVerifierJobName ||
+		verifierState.JobUID != legacyVerifierJobUID || verifierState.Pod != legacyVerifierPod ||
+		verifierState.PodUID != legacyVerifierPodUID || verifierState.ImageDigest != legacyVerifierDigest ||
+		verifierState.Result != "succeeded" || verifierState.Verification != verificationRelative ||
+		verifierState.VerificationFileSHA256 != legacyVerificationFileSHA256 ||
+		verifierState.SuccessEvidence != verifierEvidenceRelative ||
+		verifierState.SuccessEvidenceFileSHA256 != legacyVerifierEvidenceSHA256 ||
+		verifierState.AnnotationCompatibilityFixRevision != annotationFixRevision ||
+		!verifierState.ReadOnlyExactRetryValidated || verifierState.NewRevisionVerifierJobCreated ||
+		verifierState.NewRevisionVerifierPodCreated || verifierState.ReceiptConfigMapChangedByFix ||
+		verifierState.KubernetesWritesFromFixValidation {
+		t.Fatalf("post-import verifier state drifted: %#v", verifierState)
+	}
+	verificationContent, err := os.ReadFile("../" + verificationRelative)
+	if err != nil {
+		t.Fatalf("read committed post-import verification: %v", err)
+	}
+	verificationFileDigest := sha256.Sum256(verificationContent)
+	if hex.EncodeToString(verificationFileDigest[:]) != legacyVerificationFileSHA256 {
+		t.Fatal("committed post-import verification file digest drifted")
+	}
+	verification, err := decodeExactLegacyVerification(verificationContent)
+	if err != nil {
+		t.Fatalf("parse committed post-import verification: %v", err)
+	}
+	verifierImageRepository := "ghcr.io/shop-r1/mss-shop-legacy-importer"
+	verifierImageReference := verifierImageRepository + ":" + legacyVerifierRevision + "@" + legacyVerifierDigest
+	if verification.Version != "mss-shop-disposable-verification/v1" ||
+		verification.TargetDatabase != "mss_shop_dev" ||
+		verification.DatabaseMarker != "mss-shop-isolated-dev:legacy-import:v1:"+legacyReceiptSHA256 ||
+		verification.ReceiptSHA256 != legacyReceiptSHA256 ||
+		verification.ManifestSHA256 != legacyManifestSHA256 || verification.SchemaSHA256 != legacySchemaSHA256 ||
+		verification.TableCount != 51 || verification.OrdersRows != 0 || verification.OrderGoodsRows != 0 ||
+		verification.Namespace != "mss-shop-dev" || verification.PodName != legacyVerifierPod ||
+		verification.PodUID != legacyVerifierPodUID || verification.Revision != legacyVerifierRevision ||
+		verification.ImageRepository != verifierImageRepository || verification.ImageDigest != legacyVerifierDigest ||
+		verification.ImageReference != verifierImageReference {
+		t.Fatalf("committed post-import verification drifted: %#v", verification)
+	}
+
+	verifierEvidenceContent, err := os.ReadFile("../" + verifierEvidenceRelative)
+	if err != nil {
+		t.Fatalf("read post-import verifier summary evidence: %v", err)
+	}
+	verifierEvidenceFileDigest := sha256.Sum256(verifierEvidenceContent)
+	if hex.EncodeToString(verifierEvidenceFileDigest[:]) != legacyVerifierEvidenceSHA256 {
+		t.Fatal("post-import verifier summary evidence file digest drifted")
+	}
+	var verifierEvidence legacyVerifierSuccessEvidence
+	verifierEvidenceDecoder := yaml.NewDecoder(bytes.NewReader(verifierEvidenceContent))
+	verifierEvidenceDecoder.KnownFields(true)
+	if err := verifierEvidenceDecoder.Decode(&verifierEvidence); err != nil {
+		t.Fatalf("parse post-import verifier summary evidence: %v", err)
+	}
+	var verifierEvidenceTrailing any
+	if err := verifierEvidenceDecoder.Decode(&verifierEvidenceTrailing); !errors.Is(err, io.EOF) {
+		t.Fatal("post-import verifier summary evidence has trailing YAML documents")
+	}
+	if verifierEvidence.APIVersion != "r1shop.io/v1alpha1" ||
+		verifierEvidence.Kind != "IsolatedLegacyImportVerificationEvidence" ||
+		verifierEvidence.Metadata.Namespace != "mss-shop-dev" ||
+		verifierEvidence.Metadata.CapturedAt != "2026-09-01" {
+		t.Fatalf("post-import verifier summary header drifted: %#v", verifierEvidence)
+	}
+	verificationSpec := verifierEvidence.Spec
+	verificationReceipt := verificationSpec.Receipt
+	if verificationReceipt.CanonicalPayloadSHA256 != legacyReceiptSHA256 ||
+		verificationReceipt.FileSHA256 != legacyReceiptFileSHA256 ||
+		verificationReceipt.ManifestSHA256 != legacyManifestSHA256 ||
+		verificationReceipt.SchemaSHA256 != legacySchemaSHA256 ||
+		verificationReceipt.DatabaseMarker != verification.DatabaseMarker {
+		t.Fatalf("post-import verifier receipt binding drifted: %#v", verificationReceipt)
+	}
+	configMapEvidence := verificationSpec.ImmutableEvidenceConfigMap
+	if configMapEvidence.Name != "mss-shop-legacy-import-receipt" ||
+		configMapEvidence.UID != "699d5d42-0e3a-4535-8182-8fae5829ea7c" ||
+		configMapEvidence.CreatedAt != "2026-09-01T10:32:48Z" ||
+		configMapEvidence.Revision != legacyVerifierRevision || !configMapEvidence.Immutable ||
+		!reflect.DeepEqual(configMapEvidence.DataKeys, []string{"receipt.json"}) ||
+		configMapEvidence.ReceiptFileSHA256 != legacyReceiptFileSHA256 ||
+		configMapEvidence.SafeBindingSHA256 != "d257223d454e276d1e3303f567820cdc2b49b9a648f5ee4a83287fad1aa29afc" {
+		t.Fatalf("immutable receipt ConfigMap evidence drifted: %#v", configMapEvidence)
+	}
+	verifierWorkload := verificationSpec.Verifier
+	if verifierWorkload.Revision != legacyVerifierRevision || verifierWorkload.Job != legacyVerifierJobName ||
+		verifierWorkload.JobUID != legacyVerifierJobUID || verifierWorkload.JobCreatedAt != "2026-09-01T10:32:49Z" ||
+		verifierWorkload.JobCompletedAt != "2026-09-01T10:33:04Z" ||
+		verifierWorkload.JobSucceeded != 1 || verifierWorkload.JobFailed != 0 ||
+		verifierWorkload.Pod != legacyVerifierPod || verifierWorkload.PodUID != legacyVerifierPodUID ||
+		verifierWorkload.PodPhase != "Succeeded" || verifierWorkload.RestartCount != 0 || verifierWorkload.Retries != 0 ||
+		verifierWorkload.ImageRepository != verifierImageRepository ||
+		verifierWorkload.ImageDigest != legacyVerifierDigest || verifierWorkload.ImageReference != verifierImageReference ||
+		verifierWorkload.RuntimeImageID != verifierImageRepository+"@"+legacyVerifierDigest ||
+		verifierWorkload.OutputPath != verificationRelative ||
+		verifierWorkload.OutputFileSHA256 != legacyVerificationFileSHA256 ||
+		verifierWorkload.JobBindingSHA256 != "5be650ea0455b9267b8407baa53a7d8ac6a8a7b4106423e9b43af0193bf1775c" ||
+		verifierWorkload.PodBindingSHA256 != "9c7d64e226bd05ccb287fdf9da7dadf0c23a456a1234ab8247e934d631d63771" ||
+		verifierWorkload.TargetDatabase != verification.TargetDatabase ||
+		verifierWorkload.TableCount != verification.TableCount || verifierWorkload.OrdersRows != 0 ||
+		verifierWorkload.OrderGoodsRows != 0 || verifierWorkload.Result != "succeeded" {
+		t.Fatalf("post-import verifier workload evidence drifted: %#v", verifierWorkload)
+	}
+	networkBoundary := verificationSpec.NetworkBoundary
+	if networkBoundary.Policy != "allow-database-writers-to-postgres-egress" ||
+		networkBoundary.PolicyUID != "ba6b2866-5f90-4ea8-bcc7-57bd84abb71e" ||
+		networkBoundary.SafeBindingSHA256 != "1e7374fbbec74cf3cb333df3a79a70da7a97207d8a3530d7249a4287cff33c7b" ||
+		networkBoundary.Target != "mss-shop-dev/mss-shop-postgres:5432" ||
+		networkBoundary.LegacySourceCredentialMounted || networkBoundary.LegacySourceEndpointPresent ||
+		networkBoundary.RedisCredentialMounted || networkBoundary.KubernetesServiceAccountTokenMounted {
+		t.Fatalf("post-import verifier network boundary is unsafe: %#v", networkBoundary)
+	}
+	stageHistory := verificationSpec.StageHistory
+	initialCreate := stageHistory.InitialCreate
+	if initialCreate.OperatorRevision != legacyVerifierRevision ||
+		initialCreate.Result != "workload-succeeded-stage-post-create-check-failed" ||
+		initialCreate.FailureReason != "unreviewed-kubesphere-revisions-annotation" ||
+		!initialCreate.ConfigMapCreated || !initialCreate.VerifierJobCreated ||
+		initialCreate.VerifierOutputAcceptedAtThatTime || !initialCreate.ResourcesPreserved {
+		t.Fatalf("initial verifier stage history drifted: %#v", initialCreate)
+	}
+	annotationFix := stageHistory.AnnotationCompatibilityFix
+	if annotationFix.Revision != annotationFixRevision || annotationFix.ExactKubeSphereVersion != "v3.1.1" ||
+		!annotationFix.SourceTestsPassed || annotationFix.IndependentReviewBlockers != 0 {
+		t.Fatalf("annotation compatibility fix evidence drifted: %#v", annotationFix)
+	}
+	rejectedNewRevision := stageHistory.RejectedNewRevisionDryRun
+	if rejectedNewRevision.TargetRevision != annotationFixRevision || rejectedNewRevision.Result != "failed-closed" ||
+		rejectedNewRevision.Reason != "immutable-receipt-configmap-remains-bound-to-verifier-revision" ||
+		rejectedNewRevision.KubernetesWritesPerformed || rejectedNewRevision.ReceiptConfigMapChanged ||
+		rejectedNewRevision.NewVerifierJobCreated || rejectedNewRevision.NewVerifierPodCreated {
+		t.Fatalf("new-revision verifier rejection evidence drifted: %#v", rejectedNewRevision)
+	}
+	exactRetry := stageHistory.ReadOnlyExactRetryAudit
+	if exactRetry.OperatorRevision != annotationFixRevision || exactRetry.TargetRevision != legacyVerifierRevision ||
+		exactRetry.OperatorBinarySHA256 != "5f5dacb7674d6b2f03470e255ca65ca415a389f6136aab2013139a676d4b5087" ||
+		exactRetry.StageLogSHA256 != "2924316b98542f33453fd3a21aa6bbcdcef9d768548f5478710f7e49d19d3e46" ||
+		exactRetry.CreateFlag || exactRetry.Created || !exactRetry.ExactRetry || exactRetry.DryRun ||
+		exactRetry.KubernetesWritesPerformed || exactRetry.Result != "passed" {
+		t.Fatalf("read-only exact verifier retry evidence drifted: %#v", exactRetry)
+	}
+	originalBoundary := verificationSpec.OriginalDevelopmentBoundary
+	if originalBoundary.Environment != "r1shop-dev-read-only" ||
+		originalBoundary.EvidencePath != fingerprint.EvidencePath ||
+		originalBoundary.EvidenceFileSHA256 != fingerprint.EvidenceFileSHA256 ||
+		originalBoundary.SelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 ||
+		!originalBoundary.UnchangedFromImportBoundary || originalBoundary.SecretsAccessed ||
+		originalBoundary.DatabaseConnectionsPerformed || originalBoundary.WritesPerformed {
+		t.Fatalf("post-verifier original development boundary is unsafe: %#v", originalBoundary)
+	}
+	verifierCurrentState := verificationSpec.CurrentState
+	if !verifierCurrentState.PostImportVerifierExecuted || verifierCurrentState.ReconciliationExecuted ||
+		verifierCurrentState.AdminRuntimeDeployed || verifierCurrentState.IsolatedBrowserAcceptanceExecuted ||
+		verifierCurrentState.BusinessAcceptanceScenariosClosed != 0 ||
+		verifierCurrentState.BusinessAcceptanceScenariosRequired != 31 ||
+		!verifierCurrentState.OriginalDevelopmentEnvironmentUnchanged ||
+		verifierCurrentState.ProductionResourcesAccessed {
+		t.Fatalf("post-import verifier current state overclaims acceptance: %#v", verifierCurrentState)
 	}
 	if status.Spec.LocalEvidence.MallAdminWeb.ResourceRoutes != 50 || status.Spec.LocalEvidence.MallAdminWeb.OwnershipDeployment != "pending-forward-migrations-not-applied" {
 		t.Fatalf("mall source/deployment state drifted: %#v", status.Spec.LocalEvidence.MallAdminWeb)
@@ -752,26 +1206,55 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	resources := validation.IsolatedCreateOnlyResources
 	if resources.InfrastructureObjects != 24 || resources.FoundationSecrets != 6 ||
 		resources.SuccessfulReadinessJobs != 3 || resources.FailedImporterJobs != 2 ||
-		resources.SuccessfulImporterJobs != 1 ||
+		resources.SuccessfulImporterJobs != 1 || resources.ReceiptEvidenceConfigMaps != 1 ||
+		resources.SuccessfulVerifierJobs != 1 ||
 		resources.Total != resources.InfrastructureObjects+resources.FoundationSecrets+
-			resources.SuccessfulReadinessJobs+resources.FailedImporterJobs+resources.SuccessfulImporterJobs ||
+			resources.SuccessfulReadinessJobs+resources.FailedImporterJobs+resources.SuccessfulImporterJobs+
+			resources.ReceiptEvidenceConfigMaps+resources.SuccessfulVerifierJobs || resources.Total != 38 ||
 		!validation.OriginalDevelopmentReady ||
-		validation.OriginalDevelopmentSelectedSafeFieldsSHA256 != "7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854" ||
+		validation.OriginalDevelopmentSelectedSafeFieldsSHA256 != originalDevSafeFieldsSHA256 ||
 		!validation.IsolatedNamespaceExists || !validation.IsolatedPostgreSQLReady ||
-		!validation.IsolatedRedisReady || !validation.SuccessfulLegacyImport {
+		!validation.IsolatedRedisReady || !validation.SuccessfulLegacyImport ||
+		!validation.SuccessfulPostImportVerifier {
 		t.Fatalf("current isolated validation evidence drifted: %#v", validation)
 	}
 	images := status.Spec.LocalEvidence.DeliveryImages
 	verifiedRun := images.VerifiedRun
-	if images.CurrentFourImagePublication != "verified-successful-import-revision-6fed45f" ||
-		verifiedRun.ID != 33494258866 ||
-		verifiedRun.Revision != "6fed45f354e93efe104045c6dde86ac33c368d6d" ||
-		verifiedRun.Conclusion != "success" ||
-		verifiedRun.TenantDigest != "sha256:fe8db92bce70c12be7d0f6ad8de60e05d65322c2b3aecf384d212deb35abe3fd" ||
-		verifiedRun.MallDigest != "sha256:4db62ab4c264714fd0c23a1033935d569edfd9f54c1c37d4f58f6299df50d925" ||
-		verifiedRun.ReconcilerDigest != "sha256:8cb1e54946b442efd5f33fc433b06bd9e663ec85c81091b8518861855b92e781" ||
-		verifiedRun.LegacyImporterDigest != "sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3" {
+	if images.CurrentFourImagePublication != "verified-annotation-compatibility-fix-ebefd1c-not-deployed" ||
+		verifiedRun.ID != 33500133380 || verifiedRun.Revision != annotationFixRevision ||
+		verifiedRun.Conclusion != "success" || verifiedRun.Scope != "stage-annotation-compatibility-fix-not-deployed" ||
+		verifiedRun.TenantDigest != "sha256:9fe3463cbf88e4312f5b6735e25470d62fe5c9eb685f8cd8d83a3e7b57a34467" ||
+		verifiedRun.MallDigest != "sha256:636159961ab6c0bc9303ed9e9ef759dea30510ca9a84c3e33d829e636d678a2c" ||
+		verifiedRun.ReconcilerDigest != "sha256:3afa8204a0f14dfbbe1fd9510d1c0a0e0cd0153f13dc4e3421bde56810705baf" ||
+		verifiedRun.LegacyImporterDigest != "sha256:80a382e42aa43d49c2e4431798d72699d12077106c9fa7755466df28e822adc3" {
 		t.Fatalf("verified four-image evidence drifted: %#v", images)
+	}
+	verifierRun := images.VerifierRun
+	if verifierRun.ID != 33497583981 || verifierRun.Revision != legacyVerifierRevision ||
+		verifierRun.Conclusion != "success" || verifierRun.Scope != "successful-post-import-verifier-revision-b" ||
+		verifierRun.TenantDigest != "sha256:69e790e145e81c8d1586d8c829ba45152cdfd14d508beb2c3b758bcfb4b57e43" ||
+		verifierRun.MallDigest != "sha256:e5415ff0dec41d08d315d74426b788e4c7cb189a39ee5a587d04364e37289f40" ||
+		verifierRun.ReconcilerDigest != "sha256:abb9703daeaf8bab16bd6c020390b1da1de1bce31e664589a1c67749c46ec810" ||
+		verifierRun.LegacyImporterDigest != legacyVerifierDigest {
+		t.Fatalf("revision-B verifier delivery evidence drifted: %#v", images)
+	}
+	verifierDeliveryCI := verificationSpec.DeliveryCI.VerifierWorkload
+	if verifierDeliveryCI.RunID != verifierRun.ID || verifierDeliveryCI.Revision != verifierRun.Revision ||
+		verifierDeliveryCI.Conclusion != verifierRun.Conclusion ||
+		verifierDeliveryCI.TenantDigest != verifierRun.TenantDigest ||
+		verifierDeliveryCI.MallDigest != verifierRun.MallDigest ||
+		verifierDeliveryCI.ReconcilerDigest != verifierRun.ReconcilerDigest ||
+		verifierDeliveryCI.LegacyImporterDigest != verifierRun.LegacyImporterDigest {
+		t.Fatalf("verifier summary CI binding drifted: %#v", verifierDeliveryCI)
+	}
+	fixDeliveryCI := verificationSpec.DeliveryCI.AnnotationCompatibilityFix
+	if fixDeliveryCI.RunID != verifiedRun.ID || fixDeliveryCI.Revision != verifiedRun.Revision ||
+		fixDeliveryCI.Conclusion != verifiedRun.Conclusion || fixDeliveryCI.Deployed ||
+		fixDeliveryCI.TenantDigest != verifiedRun.TenantDigest ||
+		fixDeliveryCI.MallDigest != verifiedRun.MallDigest ||
+		fixDeliveryCI.ReconcilerDigest != verifiedRun.ReconcilerDigest ||
+		fixDeliveryCI.LegacyImporterDigest != verifiedRun.LegacyImporterDigest {
+		t.Fatalf("annotation-fix summary CI binding drifted: %#v", fixDeliveryCI)
 	}
 
 	requiredSources := []string{
@@ -780,8 +1263,9 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		"memoryGovernance", "memoryCheck", "mcpIntegration", "mcpConfiguration",
 		"mss137GenerationNotes", "localBrowserAcceptance",
 		"remoteDevelopmentDecision", "remoteDevelopmentRunbook", "catalogLogisticsDesignReview",
-		"originalDevelopmentEvidence", "isolatedImportAttemptEvidence",
-		"isolatedImportSuccessEvidence", "isolatedImportReceipt",
+		"originalDevelopmentEvidence", "postVerifierOriginalDevelopmentEvidence",
+		"isolatedImportAttemptEvidence", "isolatedImportSuccessEvidence", "isolatedImportReceipt",
+		"isolatedVerifierEvidence", "isolatedVerification",
 	}
 	for _, name := range requiredSources {
 		if _, exists := status.Spec.SourcesOfTruth[name]; !exists {
@@ -801,7 +1285,12 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		}
 	}
 	if status.Spec.SourcesOfTruth["decision"] != "docs/decisions/DEC-0009-tenant-owned-catalog-and-logistics.md" ||
-		status.Spec.SourcesOfTruth["qualificationDecision"] != "docs/decisions/DEC-0007-qualified-legacy-business-contract.md" {
+		status.Spec.SourcesOfTruth["qualificationDecision"] != "docs/decisions/DEC-0007-qualified-legacy-business-contract.md" ||
+		status.Spec.SourcesOfTruth["originalDevelopmentEvidence"] != "docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json" ||
+		status.Spec.SourcesOfTruth["postVerifierOriginalDevelopmentEvidence"] != fingerprint.EvidencePath ||
+		status.Spec.SourcesOfTruth["isolatedImportReceipt"] != legacyImport.Receipt ||
+		status.Spec.SourcesOfTruth["isolatedVerifierEvidence"] != verifierEvidenceRelative ||
+		status.Spec.SourcesOfTruth["isolatedVerification"] != verificationRelative {
 		t.Fatalf("legacy decisions drifted: %#v", status.Spec.SourcesOfTruth)
 	}
 	safety := status.Spec.Safety
@@ -811,7 +1300,8 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		safety.TargetOrderRowsImported || safety.TargetOrderGoodsRowsImported ||
 		!safety.SystemTestsUseDisposableKubernetesPods || !safety.IsolatedInfrastructureStaged ||
 		safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 3 ||
-		!safety.LegacyImportSucceeded {
+		!safety.LegacyImportSucceeded || !safety.PostImportVerifierSucceeded ||
+		safety.IsolatedBrowserAcceptanceExecuted {
 		t.Fatalf("unsafe legacy verification memory: %#v", status.Spec.Safety)
 	}
 }

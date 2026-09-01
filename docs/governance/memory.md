@@ -61,6 +61,12 @@ redacted by construction, and is reviewed before commit.
 - A planned operator or verification command remains labelled as a gate until
   its implementation and tests exist. A manifest or local build is not
   evidence that infrastructure, import, reconciliation or UI acceptance ran.
+- Record create-only stage outcomes without collapsing their meaning:
+  `created` proves one new object, `exactRetry` proves only a read-only identity
+  match, and a failed-closed preflight proves no execution. Exact retry and
+  rejected preflight never increase resource counts or close an acceptance
+  row. An immutable receipt ConfigMap remains bound to the verifier revision
+  that created it; do not delete or rewrite it to force a later verifier run.
 - Accepted ADRs and prior migration evidence are superseded, not deleted.
 
 ## Review cadence

@@ -47,3 +47,9 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
    read-only source connection, and production reconciliation remains
    deliberately unavailable; the storefront worker is still a local
    simulation.
+9. For create-only stage evidence, distinguish a new `created` resource from a
+   read-only `exactRetry` and from a failed-closed preflight. Only `created`
+   changes the resource count; neither exact retry nor rejection proves a new
+   workload execution. Keep the receipt ConfigMap immutable and bound to the
+   revision that created it. A later verifier revision must fail closed instead
+   of deleting, relabelling or replacing that evidence object.

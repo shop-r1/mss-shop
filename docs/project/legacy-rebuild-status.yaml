@@ -61,7 +61,7 @@ spec:
     modelTableInventory: verified
     developmentColumnsAndPrimaryKeys: verified-read-only
     developmentSnapshotCatalogInventory: verified-read-only-seven-tables-columns-primary-keys-indexes-and-counts
-    indexesConstraintsAndRowCounts: import-receipt-persisted-post-import-verifier-pending
+    indexesConstraintsAndRowCounts: import-and-independent-post-import-verifier-passed
     genericCompatibilityAPI: verified-local-read-only
     mallCompatibilityBackend: pending-post-ownership-move-validation
     tenantSharedCatalogBackend: pending-post-ownership-move-validation
@@ -75,16 +75,16 @@ spec:
     inAppBrowserAcceptance:
       mallPlatform: historical-pre-dec-0009-compatibility-surface
       tenantPlatform: pending
-    kubernetesSystemAcceptance: partial-datastore-readiness-and-import-only
+    kubernetesSystemAcceptance: partial-datastore-import-and-verifier-only
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: four-image-publication-verified-for-successful-import-revision
-    remoteDevelopmentPlan: isolated-import-complete-post-import-verifier-pending
+    deliveryCI: four-image-publications-verified-through-annotation-compatibility-fix
+    remoteDevelopmentPlan: isolated-import-and-verifier-complete-reconciliation-pending
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
     originalDevelopmentFingerprint:
-      state: byte-identical-before-and-after-import-revision-6fed45f
-      evidencePath: docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json
-      evidenceFileSHA256: 70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d
+      state: selected-safe-fields-unchanged-through-post-verifier-revision-ebefd1c
+      evidencePath: docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json
+      evidenceFileSHA256: 07eafdd704a05b1768f026ee00a33f53134cd8eba3eadd2e3b6c8ba712448f75
       selectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
     datastoreReadinessJob: passed-revision-6fed45f
     legacyImport:
@@ -129,7 +129,25 @@ spec:
           imageDigest: sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3
           result: succeeded
           receiptEmitted: true
-    postImportVerifierJob: implemented-pending-revision-b-image
+    postImportVerifierJob: passed-revision-b-3eb4c72
+    postImportVerifier:
+      revision: 3eb4c72b485066e7b189446fab5b66a1047e66a2
+      job: mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2
+      jobUID: 8721d08a-a4ab-4dfa-9ee2-b69841d1fe3e
+      pod: mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a10475779m
+      podUID: 5ddc28b0-76f3-4799-b1a6-763a549f8696
+      imageDigest: sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799
+      result: succeeded
+      verification: docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/verification.json
+      verificationFileSHA256: 47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c
+      successEvidence: docs/evidence/mss-shop-dev/2026-09-01-verifier-success.yaml
+      successEvidenceFileSHA256: b54d073017cae36f230e1541d2f48692e3744a34a9da252b9a41c6438edc3851
+      annotationCompatibilityFixRevision: ebefd1c20bf51f3c43e4a2bb90085fb60ea21442
+      readOnlyExactRetryValidated: true
+      newRevisionVerifierJobCreated: false
+      newRevisionVerifierPodCreated: false
+      receiptConfigMapChangedByFix: false
+      kubernetesWritesFromFixValidation: false
     reconciliationSecretsOperator: implemented-not-executed
     reconcilerJob: source-implemented-not-executed
     isolatedInAppBrowserAcceptance: pending-not-deployed
@@ -227,13 +245,16 @@ spec:
         successfulReadinessJobs: 3
         failedImporterJobs: 2
         successfulImporterJobs: 1
-        total: 36
+        receiptEvidenceConfigMaps: 1
+        successfulVerifierJobs: 1
+        total: 38
       originalDevelopmentReady: true
       originalDevelopmentSelectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
       isolatedNamespaceExists: true
       isolatedPostgreSQLReady: true
       isolatedRedisReady: true
       successfulLegacyImport: true
+      successfulPostImportVerifier: true
     deliveryImages:
       workflow: .github/workflows/ci.yml
       pullRequestMode: build-without-push
@@ -241,16 +262,25 @@ spec:
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
-      currentFourImagePublication: verified-successful-import-revision-6fed45f
+      currentFourImagePublication: verified-annotation-compatibility-fix-ebefd1c-not-deployed
       verifiedRun:
-        id: 33494258866
-        revision: 6fed45f354e93efe104045c6dde86ac33c368d6d
+        id: 33500133380
+        revision: ebefd1c20bf51f3c43e4a2bb90085fb60ea21442
         conclusion: success
-        scope: successful-isolated-import-revision-a
-        tenantDigest: sha256:fe8db92bce70c12be7d0f6ad8de60e05d65322c2b3aecf384d212deb35abe3fd
-        mallDigest: sha256:4db62ab4c264714fd0c23a1033935d569edfd9f54c1c37d4f58f6299df50d925
-        reconcilerDigest: sha256:8cb1e54946b442efd5f33fc433b06bd9e663ec85c81091b8518861855b92e781
-        legacyImporterDigest: sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3
+        scope: stage-annotation-compatibility-fix-not-deployed
+        tenantDigest: sha256:9fe3463cbf88e4312f5b6735e25470d62fe5c9eb685f8cd8d83a3e7b57a34467
+        mallDigest: sha256:636159961ab6c0bc9303ed9e9ef759dea30510ca9a84c3e33d829e636d678a2c
+        reconcilerDigest: sha256:3afa8204a0f14dfbbe1fd9510d1c0a0e0cd0153f13dc4e3421bde56810705baf
+        legacyImporterDigest: sha256:80a382e42aa43d49c2e4431798d72699d12077106c9fa7755466df28e822adc3
+      verifierRun:
+        id: 33497583981
+        revision: 3eb4c72b485066e7b189446fab5b66a1047e66a2
+        conclusion: success
+        scope: successful-post-import-verifier-revision-b
+        tenantDigest: sha256:69e790e145e81c8d1586d8c829ba45152cdfd14d508beb2c3b758bcfb4b57e43
+        mallDigest: sha256:e5415ff0dec41d08d315d74426b788e4c7cb189a39ee5a587d04364e37289f40
+        reconcilerDigest: sha256:abb9703daeaf8bab16bd6c020390b1da1de1bce31e664589a1c67749c46ec810
+        legacyImporterDigest: sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799
       packages:
         - ghcr.io/shop-r1/mss-shop-tenant-platform
         - ghcr.io/shop-r1/mss-shop-mall-platform
@@ -280,9 +310,12 @@ spec:
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
     originalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json
+    postVerifierOriginalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json
     isolatedImportAttemptEvidence: docs/evidence/mss-shop-dev/2026-09-01-import-attempts.yaml
     isolatedImportSuccessEvidence: docs/evidence/mss-shop-dev/2026-09-01-import-success.yaml
     isolatedImportReceipt: docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/receipt.json
+    isolatedVerifierEvidence: docs/evidence/mss-shop-dev/2026-09-01-verifier-success.yaml
+    isolatedVerification: docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/verification.json
   safety:
     productionReadOnly: true
     originalDevelopmentEnvironmentImmutable: true
@@ -298,4 +331,5 @@ spec:
     isolatedAdminRuntimeDeployed: false
     legacyImportAttempts: 3
     legacyImportSucceeded: true
+    postImportVerifierSucceeded: true
     isolatedBrowserAcceptanceExecuted: false

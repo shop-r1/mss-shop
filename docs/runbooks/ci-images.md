@@ -96,6 +96,42 @@ The exact importer digest passed the revision-bound readiness Job and produced
 the committed canonical import receipt. It is revision-A provenance only; the
 independent verifier must use a new clean revision-B importer digest.
 
+Run
+[`33497583981`](https://github.com/shop-r1/mss-shop/actions/runs/33497583981)
+verified the four-image contract for revision B
+`3eb4c72b485066e7b189446fab5b66a1047e66a2`. Its immutable digests were:
+
+- tenant-platform:
+  `sha256:69e790e145e81c8d1586d8c829ba45152cdfd14d508beb2c3b758bcfb4b57e43`;
+- mall-platform:
+  `sha256:e5415ff0dec41d08d315d74426b788e4c7cb189a39ee5a587d04364e37289f40`;
+- reconciler:
+  `sha256:abb9703daeaf8bab16bd6c020390b1da1de1bce31e664589a1c67749c46ec810`;
+- legacy-importer/verifier:
+  `sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799`.
+
+The last digest is the exact image used by the one successful disposable
+verifier Job. It is workload provenance for B, independent of later stage-tool
+fixes.
+
+Run
+[`33500133380`](https://github.com/shop-r1/mss-shop/actions/runs/33500133380)
+verified and published all four receipts for annotation-compatibility fix
+revision `ebefd1c20bf51f3c43e4a2bb90085fb60ea21442`:
+
+- tenant-platform:
+  `sha256:9fe3463cbf88e4312f5b6735e25470d62fe5c9eb685f8cd8d83a3e7b57a34467`;
+- mall-platform:
+  `sha256:636159961ab6c0bc9303ed9e9ef759dea30510ca9a84c3e33d829e636d678a2c`;
+- reconciler:
+  `sha256:3afa8204a0f14dfbbe1fd9510d1c0a0e0cd0153f13dc4e3421bde56810705baf`;
+- legacy-importer:
+  `sha256:80a382e42aa43d49c2e4431798d72699d12077106c9fa7755466df28e822adc3`.
+
+No image from this run was deployed. The fix was used only to validate the
+existing B Job as a read-only exact retry. A new B2 verifier preflight failed
+closed at the immutable B-bound receipt ConfigMap and created no Job or Pod.
+
 ## Permissions and package source
 
 Validation and build-only jobs have read-only repository permission. Only the
@@ -137,11 +173,11 @@ Manual isolated rollout follows DEC-0010 and the remote acceptance runbook:
 9. run disposable-Pod system verification and in-app-browser acceptance.
 
 The importer Job renderer/create-only path, disposable verification runner and
-post-receipt application/bootstrap Secret operator are implemented and tested,
-and remain ordered gates after the successful receipt-bound import. The
-disposable verifier must pass before the application/bootstrap Secret operator
-or reconciler may run. Do not replace them with ad-hoc template substitution
-or `kubectl apply`.
+post-receipt application/bootstrap Secret operator are implemented and tested.
+The disposable verifier has passed once for the successful receipt-bound
+import; the application/bootstrap Secret operator and reconciler remain the
+next ordered gates. Do not replace them with ad-hoc template substitution or
+`kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

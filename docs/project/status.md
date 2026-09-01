@@ -132,11 +132,11 @@ Last verified: 2026-09-01
   contracts, followed by Buildx verification. Push builds publish four
   full-SHA images—tenant-platform, mall-platform, reconciler and
   legacy-importer—with digest-bound receipts; pull requests build without
-  pushing and no workflow deploys them. The current complete publication is run
-  `33494258866` for successful import revision A
-  `6fed45f354e93efe104045c6dde86ac33c368d6d`; the older 12c6 publication is
-  retained as historical pre-source-catalog-fix evidence. See
-  `docs/runbooks/ci-images.md`.
+  pushing and no workflow deploys them. Run `33494258866` supplied the
+  successful import revision-A image; run `33497583981` supplied the revision-B
+  verifier image; and run `33500133380` validates the later stage-annotation
+  compatibility fix without deploying it. The older 12c6 publication remains
+  historical pre-source-catalog-fix evidence. See `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
   work and dependency order in
@@ -147,10 +147,11 @@ Last verified: 2026-09-01
   isolated `mss-shop-dev` write target, four-image flow, create-only operators,
   receipt-bound A-to-B-to-C import/verification/reconciliation evidence chain,
   disposable-Pod verification and in-app-browser acceptance requirements. The
-  isolated infrastructure, foundation Secrets, revision-bound readiness and
-  one successful legacy import has executed. The receipt is persisted under
-  its canonical SHA; independent post-import verification, reconciliation,
-  runtime rollout and cluster/browser acceptance are still open.
+  isolated infrastructure, foundation Secrets, revision-bound readiness, one
+  successful legacy import and its independent revision-B verifier have
+  executed. The receipt and verifier output are persisted under the canonical
+  receipt SHA; reconciliation, runtime rollout and cluster/browser acceptance
+  are still open.
 - A catalog/logistics redesign review covering CL-01 through CL-12. Its
   recommendations for product/SKU identity, inventory, packing rules, courier
   adapters, credentials, outbox and replay remain **awaiting project-owner
@@ -168,11 +169,11 @@ Last verified: 2026-09-01
   worker queue/inbox, or persistent desired/observed control-plane integration.
   The fixed first-tenant development driver and operator resources still need
   their immutable-image cluster rehearsal and browser acceptance.
-- Completing the independent post-import verifier, reconciliation-secret
-  operator and reconciler Job against the isolated cluster. The successful
-  importer and immutable receipt now form revision A-to-B evidence, but they do
-  not authorize reconciliation until a clean revision-B verifier image passes.
-  These gates may not be replaced by ad-hoc deployment commands.
+- Executing the reconciliation-secret operator and reconciler Job against the
+  isolated cluster. The successful importer, immutable receipt and clean
+  revision-B verifier now form the A-to-B-to-C evidence chain, but no
+  reconciliation Secret or reconciler workload has been created yet. These
+  gates may not be replaced by ad-hoc deployment commands.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
@@ -201,15 +202,14 @@ Last verified: 2026-09-01
 
 ## Next milestone and acceptance criteria
 
-Commit the byte-exact import receipt and synchronized evidence as clean
-revision B, publish and verify all four revision-B image receipts, then run the
-independent receipt verifier using the revision-B legacy-importer digest. Its
-disposable Pod must prove the persisted marker, the 51-table inventory and
-zero rows in both `orders` and `order_goods` before application/bootstrap
-Secrets, reconciliation or Admin runtime staging. Acceptance then needs
-isolated system tests and in-app-browser review with URLs left for owner
-verification. The original development environment and production remain
-unchanged.
+Commit the byte-exact verifier output and synchronized provenance as clean
+revision C, publish and verify its four image receipts, then run the
+reconciliation-secret operator in dry-run mode against the committed receipt
+and verifier evidence. Only after that gate passes may the three
+receipt-bound application/bootstrap Secrets and the reconciler Job be created
+in `mss-shop-dev`. Acceptance still requires isolated disposable-Pod system
+tests and in-app-browser review with URLs left for owner verification. The
+original development environment and production remain unchanged.
 
 ## Verification evidence
 
@@ -284,6 +284,19 @@ Verification evidence recorded on 2026-09-01:
   `6fed45f354e93efe104045c6dde86ac33c368d6d`. Its legacy-importer digest is
   `sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3`;
   this is the exact image used by the successful readiness and import Jobs.
+- GitHub Actions run
+  [`33497583981`](https://github.com/shop-r1/mss-shop/actions/runs/33497583981)
+  passed every current gate and published all four revision-B
+  `3eb4c72b485066e7b189446fab5b66a1047e66a2` image receipts. The
+  legacy-importer digest
+  `sha256:a3e1609e75164187557c9207f3565efe7bf8fb413b0adc7f6cceb71c1d531799`
+  is the exact verifier workload image.
+- GitHub Actions run
+  [`33500133380`](https://github.com/shop-r1/mss-shop/actions/runs/33500133380)
+  passed every current gate for stage-tool fix revision
+  `ebefd1c20bf51f3c43e4a2bb90085fb60ea21442`. Its four images were not
+  deployed. The fix permits exact KubeSphere v3.1.1 controller-owned Job
+  status annotations without accepting stale, foreign or extra metadata.
 - The exact 24 infrastructure objects and six immutable foundation Secrets
   were created only in `mss-shop-dev`. Its PostgreSQL 17.6 and Redis 8.6.3 are
   ready. The original-development metadata fingerprint was captured from the
@@ -319,12 +332,36 @@ Verification evidence recorded on 2026-09-01:
   the byte-exact receipt and safe workload provenance are versioned under
   `docs/evidence/legacy-import/` and
   `docs/evidence/mss-shop-dev/2026-09-01-import-success.yaml`.
+- Revision-B Job
+  `mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2`
+  completed once in `mss-shop-dev` with one succeeded Pod, zero failures and
+  zero restarts. Its digest-bound in-cluster verifier independently matched the
+  marker, all 51 receipt tables and target schema, and proved both `orders` and
+  `order_goods` contain zero rows. The original one-line stdout is committed as
+  `docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/verification.json`;
+  its file SHA-256 is
+  `47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c`.
+- The initial stage command reported a post-create failure only because
+  KubeSphere added its `revisions` annotation between Create and GET; the
+  already-created verifier itself succeeded. Revision `ebefd1c...` corrected
+  that bounded annotation check and then accepted the existing B resources as
+  a read-only exact retry (`created=false`). A new B2 verifier preflight was
+  separately rejected because the immutable receipt ConfigMap remains bound to
+  B; it performed no write and created no second Job or Pod. Full safe
+  provenance is recorded in
+  `docs/evidence/mss-shop-dev/2026-09-01-verifier-success.yaml`.
 - The fixed metadata-only original-development fingerprint was captured both
   before and after this import. The complete documents were byte-identical
   (`70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d`),
   the selected safe-fields digest remained
   `7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`,
   and the helper recorded no Secret access, database connection or write.
+- The same helper was run again after verifier acceptance at revision
+  `ebefd1c...`. Its selected safe-fields digest is still
+  `7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`;
+  the complete new file is
+  `docs/evidence/original-dev/2026-09-01-post-verifier-ebefd1c.json`, and again
+  records no Secret access, database connection or write.
 - Before DEC-0009, the local mall UI fixture passed full Host backend tests/vet
   and focused race checks; its tests proved 43-table completeness, ten-row
   idempotent seeding, readiness and rejection of DSNs, escaped paths, symlinks,
@@ -351,11 +388,12 @@ Verification evidence recorded on 2026-09-01:
   `docs/runbooks/local-development.md`; root strict doctor and explicit CI
   jobs are the project-level proof.
 
-A successful bounded legacy snapshot import has been performed only in the
-dedicated `mss-shop-dev` PostgreSQL database. No post-import verifier,
-reconciliation, Admin runtime rollout, isolated browser acceptance, production
-migration or production write has been performed. Import evidence alone is not
-business or system acceptance. The original `r1shop-dev` environment remains
-ready with a byte-identical safe metadata fingerprint. The target is now gated
-on revision-B verifier evidence and the ordered reconciliation/runtime/
-disposable-Pod controls above. Accepted business scenarios remain 0/31.
+A successful bounded legacy snapshot import and its independent disposable
+verifier have been performed only against the dedicated `mss-shop-dev`
+PostgreSQL database. No reconciliation, Admin runtime rollout, isolated browser
+acceptance, production migration or production write has been performed. The
+import/verifier evidence is not business or complete system acceptance. The
+original `r1shop-dev` environment remains ready with the same selected safe
+metadata fingerprint. The target is now gated on the ordered
+reconciliation/runtime/disposable-Pod controls above. Accepted business
+scenarios remain 0/31.

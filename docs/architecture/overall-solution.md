@@ -264,11 +264,14 @@ Admin runtime objects be staged. Production is outside this workflow. See
 This remains the target delivery topology rather than completed runtime
 acceptance. Its exact 24-object infrastructure boundary, six immutable
 foundation Secrets and dedicated PostgreSQL/Redis datastores now exist only in
-`mss-shop-dev`, and two revision-bound readiness Jobs passed. Two importer
-attempts then failed before opening the target transaction, so no successful
-import receipt or Admin runtime deployment exists. Kubernetes system and
-isolated browser acceptance remain pending, the original `r1shop-dev` is
-unchanged, and the business matrix is still 0/31.
+`mss-shop-dev`, and three revision-bound readiness Jobs passed. Two importer
+attempts failed before opening the target transaction; the third completed one
+bounded snapshot import and persisted its canonical receipt. A subsequent
+revision-B disposable verifier independently proved the 51-table receipt and
+zero target rows in `orders` and `order_goods`. Reconciliation Secrets, the
+reconciler, Admin runtime deployment, complete Kubernetes system acceptance and
+isolated browser acceptance remain pending. The original `r1shop-dev` safe
+metadata fingerprint is unchanged, and the business matrix is still 0/31.
 
 ## Mobile boundary
 

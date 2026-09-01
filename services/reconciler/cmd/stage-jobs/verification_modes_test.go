@@ -211,6 +211,11 @@ func TestVerifierExistingJobRequiresByteExactReceiptConfigMap(t *testing.T) {
 			value.Data["receipt.json"] += "\n"
 			return value
 		}()},
+		{name: "different-revision", configMap: func() *corev1.ConfigMap {
+			value := testServerReceiptConfigMap(desiredReceipt, true)
+			value.Annotations[revisionKey] = strings.Repeat("f", 40)
+			return value
+		}()},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			objects := verificationPrerequisites(t, modeVerifier)
@@ -224,7 +229,8 @@ func TestVerifierExistingJobRequiresByteExactReceiptConfigMap(t *testing.T) {
 				if err != nil || !result.exactRetry || result.created || harness.configMapCreates != 0 || harness.jobCreates != 0 {
 					t.Fatalf("exact retry rejected or mutated state: result=%+v err=%v", result, err)
 				}
-			} else if err == nil || harness.configMapCreates != 0 || harness.jobCreates != 0 {
+			} else if err == nil || harness.configMapDryRuns != 0 || harness.configMapCreates != 0 ||
+				harness.jobDryRuns != 0 || harness.jobCreates != 0 {
 				t.Fatalf("incomplete verifier identity accepted or repaired implicitly: result=%+v", result)
 			}
 			assertVerificationMutationBoundary(t, harness.client.Actions())
