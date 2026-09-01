@@ -260,6 +260,74 @@ func TestConvergeDryRunNeverPersistsEitherJob(t *testing.T) {
 	}
 }
 
+func TestEquivalentJobRequiresExactKubernetesServerDefaults(t *testing.T) {
+	desired := renderTestJob(t, modeReadiness, "")
+	firstFieldRef := func(job *batchv1.Job) *corev1.ObjectFieldSelector {
+		t.Helper()
+		for containerIndex := range job.Spec.Template.Spec.Containers {
+			for envIndex := range job.Spec.Template.Spec.Containers[containerIndex].Env {
+				valueFrom := job.Spec.Template.Spec.Containers[containerIndex].Env[envIndex].ValueFrom
+				if valueFrom != nil && valueFrom.FieldRef != nil {
+					return valueFrom.FieldRef
+				}
+			}
+		}
+		t.Fatal("readiness fixture has no downward API fieldRef")
+		return nil
+	}
+	if err := validateEquivalentJob(testPersistedJob(desired), desired, true); err != nil {
+		t.Fatalf("exact Kubernetes server defaults rejected: %v", err)
+	}
+
+	tests := map[string]func(*batchv1.Job){
+		"missing-completion-mode": func(job *batchv1.Job) {
+			job.Spec.CompletionMode = nil
+		},
+		"indexed-completion-mode": func(job *batchv1.Job) {
+			value := batchv1.IndexedCompletion
+			job.Spec.CompletionMode = &value
+		},
+		"missing-suspend": func(job *batchv1.Job) {
+			job.Spec.Suspend = nil
+		},
+		"suspended": func(job *batchv1.Job) {
+			value := true
+			job.Spec.Suspend = &value
+		},
+		"missing-pod-replacement-policy": func(job *batchv1.Job) {
+			job.Spec.PodReplacementPolicy = nil
+		},
+		"failed-only-pod-replacement-policy": func(job *batchv1.Job) {
+			value := batchv1.Failed
+			job.Spec.PodReplacementPolicy = &value
+		},
+		"non-cluster-first-dns": func(job *batchv1.Job) {
+			job.Spec.Template.Spec.DNSPolicy = corev1.DNSDefault
+		},
+		"missing-scheduler": func(job *batchv1.Job) {
+			job.Spec.Template.Spec.SchedulerName = ""
+		},
+		"foreign-scheduler": func(job *batchv1.Job) {
+			job.Spec.Template.Spec.SchedulerName = "foreign-scheduler"
+		},
+		"missing-downward-api-version": func(job *batchv1.Job) {
+			firstFieldRef(job).APIVersion = ""
+		},
+		"foreign-downward-api-version": func(job *batchv1.Job) {
+			firstFieldRef(job).APIVersion = "v2"
+		},
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			observed := testPersistedJob(desired)
+			mutate(observed)
+			if err := validateEquivalentJob(observed, desired, true); err == nil {
+				t.Fatal("unreviewed Kubernetes server default was accepted")
+			}
+		})
+	}
+}
+
 func TestConvergeNamespaceGateIsTheFirstAndOnlyActionOnOwnershipOrLifecycleFailure(t *testing.T) {
 	desired := renderTestJob(t, modeImporter, "")
 	for _, test := range []struct {
@@ -866,6 +934,7 @@ func testPersistedJob(desired *batchv1.Job) *batchv1.Job {
 
 func testServerJob(desired *batchv1.Job, persisted bool) *batchv1.Job {
 	job := desired.DeepCopy()
+	applyReviewedJobServerDefaults(job)
 	job.UID = types.UID("job-uid-" + desired.Name)
 	if persisted {
 		job.ResourceVersion = "100"

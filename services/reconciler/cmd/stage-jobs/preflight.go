@@ -788,8 +788,52 @@ func normalizedJob(input, desired *batchv1.Job, observed bool) (*batchv1.Job, er
 	if result.Spec.Template.Spec.DeprecatedServiceAccount == "default" {
 		result.Spec.Template.Spec.DeprecatedServiceAccount = ""
 	}
+	if observed {
+		if err := validateReviewedJobServerDefaults(result); err != nil {
+			return nil, err
+		}
+	}
+	applyReviewedJobServerDefaults(result)
 	kubescheme.Scheme.Default(result)
 	return result, nil
+}
+
+func validateReviewedJobServerDefaults(job *batchv1.Job) error {
+	if job.Spec.CompletionMode == nil || *job.Spec.CompletionMode != batchv1.NonIndexedCompletion ||
+		job.Spec.Suspend == nil || *job.Spec.Suspend ||
+		job.Spec.PodReplacementPolicy == nil || *job.Spec.PodReplacementPolicy != batchv1.TerminatingOrFailed ||
+		job.Spec.Template.Spec.DNSPolicy != corev1.DNSClusterFirst ||
+		job.Spec.Template.Spec.SchedulerName != "default-scheduler" {
+		return errors.New("observed isolated Job has unreviewed Kubernetes server defaults")
+	}
+	for containerIndex := range job.Spec.Template.Spec.Containers {
+		for envIndex := range job.Spec.Template.Spec.Containers[containerIndex].Env {
+			fieldRef := job.Spec.Template.Spec.Containers[containerIndex].Env[envIndex].ValueFrom
+			if fieldRef != nil && fieldRef.FieldRef != nil && fieldRef.FieldRef.APIVersion != "v1" {
+				return errors.New("observed isolated Job has an unreviewed downward API default")
+			}
+		}
+	}
+	return nil
+}
+
+func applyReviewedJobServerDefaults(job *batchv1.Job) {
+	completionMode := batchv1.NonIndexedCompletion
+	suspend := false
+	podReplacementPolicy := batchv1.TerminatingOrFailed
+	job.Spec.CompletionMode = &completionMode
+	job.Spec.Suspend = &suspend
+	job.Spec.PodReplacementPolicy = &podReplacementPolicy
+	job.Spec.Template.Spec.DNSPolicy = corev1.DNSClusterFirst
+	job.Spec.Template.Spec.SchedulerName = "default-scheduler"
+	for containerIndex := range job.Spec.Template.Spec.Containers {
+		for envIndex := range job.Spec.Template.Spec.Containers[containerIndex].Env {
+			fieldRef := job.Spec.Template.Spec.Containers[containerIndex].Env[envIndex].ValueFrom
+			if fieldRef != nil && fieldRef.FieldRef != nil {
+				fieldRef.FieldRef.APIVersion = "v1"
+			}
+		}
+	}
 }
 
 func stripGeneratedJobSelector(job *batchv1.Job, uid types.UID) error {
