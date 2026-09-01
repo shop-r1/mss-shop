@@ -1,15 +1,18 @@
 # CI and delivery image runbook
 
-The authoritative workflow is `.github/workflows/ci.yml`. It keeps the merge
-signal deliberately small: backend unit tests, Admin Web unit tests, executable
-project/memory contracts, platform-boundary validation and buildability of the
-four delivery images. It never deploys an image or mutates Kubernetes,
-PostgreSQL, Redis, Secrets, Cloudflare or a production service.
+The authoritative CI workflow is `.github/workflows/ci.yml`. It keeps the
+merge signal deliberately small: backend unit tests, Admin Web unit tests,
+executable project/memory contracts, platform-boundary validation and
+buildability of the four delivery images. CI performs no direct Kubernetes
+command. For the one qualifying development pull-request shape, it may call
+the repository-local reusable `.github/workflows/dev-cd.yml` after successful
+four-image publication; DEC-0012 fixes that workflow to two Admin image
+updates in `mss-shop-dev`.
 
 ## Triggers and gates
 
-Pull requests, workflow dispatches and pushes to `main` or `codex/**` run the
-same validation jobs:
+Pull requests targeting `main`, workflow dispatches and pushes to `main` or
+`codex/**` run the same validation jobs:
 
 1. `go test ./...` independently in the root module, tenant-platform and
    mall-platform;
@@ -18,11 +21,15 @@ same validation jobs:
 3. strict MSS 1.3.7 diagnosis, `tools/check-project-memory.sh` and the platform
    boundary check.
 
-After those jobs pass, pull requests and workflow dispatches build all four
-images for `linux/amd64` without authenticating to GHCR and without pushing.
-A qualifying branch push publishes all four images. Race checks, vet, lint,
-complete `mss verify --all`, cluster tests and browser acceptance remain
-milestone evidence rather than mandatory image-publish gates.
+After those jobs pass, workflow dispatches and non-qualifying pull requests
+build all four images for `linux/amd64` without pushing. Pushes to `main` or
+`codex/**` publish all four images. A pull request also publishes all four
+images only when its head is in this repository, its head branch matches
+`codex/**`, its base is `main`, and it is not a Dependabot change. That
+publication is bound to the exact PR head SHA and must finish before the local
+reusable dev CD is called. Race checks, vet, lint, complete `mss verify --all`,
+cluster tests and browser acceptance remain milestone evidence rather than
+mandatory image-publish or CD gates.
 
 ## Four published images
 
@@ -45,6 +52,50 @@ the receipt and still retains the full-SHA tag for human traceability.
 
 All four receipts must belong to the same successful run and revision before
 isolated staging. A missing importer or reconciler receipt blocks deployment.
+
+## Qualifying pull-request development CD
+
+The `Dev CD` reusable workflow is a deliberately narrow continuation of CI,
+not a general deployment tool. It accepts the qualifying PR's complete head
+SHA as its only image tag. The caller must already have passed the three CI
+job families above and published all four same-SHA images and receipts.
+
+The job references the GitHub Environment `mss-shop-dev` and materializes its
+Kubernetes client configuration only from the Environment secret
+`MSS_SHOP_DEV_KUBECONFIG` on the ephemeral runner. The Environment and named
+secret are configured outside the repository; the value is never stored in
+Git, uploaded as an artifact or printed. Configuration alone cannot be
+reported as a successful deployment.
+
+The kubeconfig represents the namespace-local
+`ServiceAccount/mss-shop-dev-image-updater`. Its Role and RoleBinding have the
+same name and grant only `get`/`patch` on the two exact Admin Deployments. The
+same-named service-account token Secret completes the four-object access
+bootstrap. Authorization checks have denied other Deployments, Secrets and
+Pods. These objects are present but are accounted separately from the exact 24
+DEC-0010 infrastructure objects and six foundation Secrets; `Dev CD` never
+creates or mutates them.
+
+The workflow runs exactly two `kubectl set image` commands in namespace
+`mss-shop-dev`:
+
+- `Deployment/mss-shop-tenant-admin`: set both `migrate` and `admin` to
+  `ghcr.io/shop-r1/mss-shop-tenant-platform:<full-pr-head-sha>`;
+- `Deployment/mss-shop-mall-admin-aussibuy`: set both `migrate` and `admin` to
+  `ghcr.io/shop-r1/mss-shop-mall-platform:<full-pr-head-sha>`.
+
+Changing the Pod template causes Kubernetes to replace Pods and run each
+matching `migrate` init container. The CD workflow itself issues no database
+or migration command. It does not update an annotation, ConfigMap, Service,
+Ingress, Certificate, Secret or RBAC object; deploy the reconciler or importer;
+wait for rollout; run a test; or produce acceptance evidence. It never targets
+`r1shop-dev`, the shared `database` namespace or production. Concurrent calls
+are serialized under one development-image concurrency group rather than
+cancelled midway.
+
+This tag-only refresh is a development convenience. Digest-bound manual
+staging remains authoritative for bootstrap, data reconciliation, TLS/host
+changes, evidence-bearing releases and any future production promotion.
 
 ### Historical evidence
 
@@ -212,8 +263,18 @@ performed no deployment.
 ## Permissions and package source
 
 Validation and build-only jobs have read-only repository permission. Only the
-push publication job receives `packages: write`, using the workflow-scoped
-`GITHUB_TOKEN`. Pull requests never receive package write access.
+publication job receives `packages: write`, using the workflow-scoped
+`GITHUB_TOKEN`; on a pull request that permission is exercised only for the
+same-repository `codex/**`-to-`main` shape. A fork never receives package or
+Environment credentials.
+
+Only the called `Dev CD` job references the `mss-shop-dev` Environment and its
+Kubernetes secret. The job does not check out the application tree or consume
+a pull-request artifact, but the local reusable workflow is resolved from the
+same commit as the caller. Accordingly, same-repository `codex/**` writers are
+trusted development collaborators and the kubeconfig must remain restricted
+to the exact two-Deployment Role; it must never contain cluster-admin, SSH or
+production access. No cluster credential is stored in the repository.
 
 The locked MSS Admin Web 1.3.7 packages come from their GitHub Release
 artifacts; remaining public frontend packages come from npm. Lockfiles pin the
@@ -222,9 +283,10 @@ committed.
 
 ## Deployment boundary
 
-Publishing an image is not deployment approval. The workflow contains no
-Kubernetes client invocation, environment credential and rollout step.
-Production and the original `r1shop-dev` environment are not CI targets.
+Publishing an image is not general deployment approval. DEC-0012 pre-approves
+only the exact qualifying PR call to the image-only reusable workflow described
+above. Production and the original `r1shop-dev` environment are not CI or CD
+targets, and every non-image `mss-shop-dev` change remains outside this path.
 
 Manual isolated rollout follows DEC-0010, the DEC-0011 DNS-only Admin TLS
 extension and the remote acceptance runbook:
@@ -258,6 +320,10 @@ extension and the remote acceptance runbook:
 11. run disposable-Pod system verification and, only after trusted HTTPS
    post-cutover checks, in-app-browser acceptance.
 
+That ordered procedure remains the bootstrap and evidence-bearing release
+path. A routine DEC-0012 PR-head image refresh does not repeat or satisfy any
+of its infrastructure, import, reconciliation, TLS, system or browser gates.
+
 The importer Job renderer/create-only path, disposable verification runner and
 post-receipt application/bootstrap Secret operator are implemented and tested.
 For revision `3e64a57dae8bb3dd4d337a423015baae6c352b32`, the receipt-bound
@@ -268,7 +334,8 @@ database failures; they are retained only as non-authoritative diagnostics.
 Confirmed-login in-app-browser workspace smoke passed for the later
 `f202b094...` HTTPS cutover. Detailed route/locale review and explicit business
 workflow acceptance remain separate gates. Do not replace any repeat or later
-release with ad-hoc template substitution or `kubectl apply`.
+evidence-bearing release with the tag-only dev refresh, ad-hoc template
+substitution or `kubectl apply`.
 
 The reconciler and importer images are fixed isolated-development tools, not
 production-capable general operators. Storefront API and worker images remain

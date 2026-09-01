@@ -66,3 +66,9 @@ decisions:
     date: 2026-09-02
     path: DEC-0011-dns-only-admin-tls-and-host-cutover.md
     applies_to: [mss-shop]
+  - id: DEC-0012
+    title: Refresh isolated Admin images from qualifying pull requests
+    status: accepted
+    date: 2026-09-02
+    path: DEC-0012-pr-head-admin-image-refresh.md
+    applies_to: [mss-shop]

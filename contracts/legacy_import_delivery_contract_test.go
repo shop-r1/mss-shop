@@ -247,10 +247,14 @@ func TestLegacyImporterDockerfileIsPinnedAndReproducible(t *testing.T) {
 	}
 }
 
-func TestCIPreservesFourReceiptBoundDeliveryImagesWithoutDeployment(t *testing.T) {
+func TestCIPublishesTrustedPRImagesBeforeCallingIsolatedDevCD(t *testing.T) {
 	content := readContractFile(t, "../.github/workflows/ci.yml")
 	verify := workflowJobBlock(t, content, "  verify-delivery-images:", "  publish-delivery-images:")
-	publish := workflowJobBlock(t, content, "  publish-delivery-images:", "")
+	publish := workflowJobBlock(t, content, "  publish-delivery-images:", "  deploy-dev:")
+	deploy := workflowJobBlock(t, content, "  deploy-dev:", "")
+	if !strings.Contains(content, "  pull_request:\n    branches:\n      - main") {
+		t.Fatal("CI pull requests must target main")
+	}
 	images := []struct {
 		name, context, dockerfile, image string
 	}{
@@ -282,26 +286,128 @@ func TestCIPreservesFourReceiptBoundDeliveryImagesWithoutDeployment(t *testing.T
 		t.Fatal("mall delivery image must apply the reviewed 930 KiB bundle budget")
 	}
 	if !strings.Contains(verify, "push: false") || !strings.Contains(publish, "push: true") {
-		t.Fatal("CI must verify pull requests without publishing and publish only the push matrix")
+		t.Fatal("CI must retain build-only verification and the gated publication matrix")
 	}
 	for _, required := range []string{
+		"DELIVERY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}",
+		"github.event.pull_request.base.ref == 'main'",
+		"github.event.pull_request.head.repo.full_name == github.repository",
+		"startsWith(github.event.pull_request.head.ref, 'codex/')",
+		"github.actor != 'dependabot[bot]'",
+		"ref: ${{ env.DELIVERY_SHA }}",
+		"tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ env.DELIVERY_SHA }}",
 		"IMAGE_DIGEST: ${{ steps.build.outputs.digest }}",
 		"^sha256:[0-9a-f]{64}$",
+		"--arg revision \"${DELIVERY_SHA}\"",
 		"--arg digest \"${IMAGE_DIGEST}\"",
 		"reference: ($repository + \":\" + $revision + \"@\" + $digest)",
-		"name: image-receipt-${{ matrix.image }}-${{ github.sha }}",
+		"name: image-receipt-${{ matrix.image }}-${{ env.DELIVERY_SHA }}",
 		"if-no-files-found: error",
 	} {
-		if !strings.Contains(publish, required) {
+		if !strings.Contains(content, required) && !strings.Contains(publish, required) {
 			t.Fatalf("publish image job lacks immutable receipt binding %q", required)
 		}
 	}
-	for _, forbidden := range []string{"kubectl ", "helm ", "kustomize ", "rollout ", "set image ", "apply -f"} {
-		if strings.Contains(strings.ToLower(content), forbidden) {
-			t.Fatalf("CI contains forbidden automatic deployment command %q", forbidden)
+	for _, required := range []string{
+		"      - publish-delivery-images",
+		"github.event.pull_request.base.ref == 'main'",
+		"github.event.pull_request.head.repo.full_name == github.repository",
+		"startsWith(github.event.pull_request.head.ref, 'codex/')",
+		"github.actor != 'dependabot[bot]'",
+		"uses: ./.github/workflows/dev-cd.yml",
+		"image_tag: ${{ github.event.pull_request.head.sha }}",
+	} {
+		if !strings.Contains(deploy, required) {
+			t.Fatalf("trusted Dev CD caller lacks %q", required)
 		}
 	}
+	if strings.Contains(deploy, "secrets:") {
+		t.Fatal("CI caller must not pass repository or organization secrets to Dev CD")
+	}
+	for _, forbidden := range []string{"kubectl ", "helm ", "kustomize ", "rollout ", "set image ", "apply -f"} {
+		if strings.Contains(strings.ToLower(content), forbidden) {
+			t.Fatalf("CI caller contains deployment implementation instead of the isolated reusable workflow: %q", forbidden)
+		}
+	}
+	assertWorkflowActionsPinned(t, "CI", content)
+}
 
+func TestDevCDOnlyUpdatesTwoIsolatedAdminDeployments(t *testing.T) {
+	content := readContractFile(t, "../.github/workflows/dev-cd.yml")
+	for _, required := range []string{
+		"name: Dev CD",
+		"  workflow_call:",
+		"permissions: {}",
+		"group: mss-shop-dev-admin-images",
+		"cancel-in-progress: false",
+		"github.event_name == 'pull_request'",
+		"github.event.pull_request.base.ref == 'main'",
+		"github.event.pull_request.head.repo.full_name == github.repository",
+		"startsWith(github.event.pull_request.head.ref, 'codex/')",
+		"github.actor != 'dependabot[bot]'",
+		"environment: mss-shop-dev",
+		"IMAGE_TAG: ${{ inputs.image_tag }}",
+		"PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}",
+		"KUBECONFIG_CONTENT: ${{ secrets.MSS_SHOP_DEV_KUBECONFIG }}",
+		"printf '%s' \"${KUBECONFIG_CONTENT}\" > \"${KUBECONFIG}\"",
+		"[[ \"${IMAGE_TAG}\" =~ ^[0-9a-f]{40}$ ]]",
+		"test \"${IMAGE_TAG}\" = \"${PR_HEAD_SHA}\"",
+		"tenant_image=\"ghcr.io/shop-r1/mss-shop-tenant-platform:${IMAGE_TAG}\"",
+		"mall_image=\"ghcr.io/shop-r1/mss-shop-mall-platform:${IMAGE_TAG}\"",
+		"if: ${{ always() }}",
+		"run: rm -f -- \"${KUBECONFIG}\"",
+	} {
+		if !strings.Contains(content, required) {
+			t.Fatalf("Dev CD lacks fixed boundary %q", required)
+		}
+	}
+	if strings.Count(content, "secrets.") != 1 || strings.Count(content, "MSS_SHOP_DEV_KUBECONFIG") != 1 {
+		t.Fatal("Dev CD must consume only the isolated Environment kubeconfig secret")
+	}
+	if strings.Count(content, "KUBECONFIG: ${{ runner.temp }}/mss-shop-dev-kubeconfig") != 3 {
+		t.Fatal("Dev CD must bind the same runner-temporary kubeconfig only to configure, update and cleanup steps")
+	}
+	wantKubectl := []string{
+		"kubectl --kubeconfig \"${KUBECONFIG}\" --namespace mss-shop-dev set image deployment/mss-shop-tenant-admin admin=\"${tenant_image}\" migrate=\"${tenant_image}\"",
+		"kubectl --kubeconfig \"${KUBECONFIG}\" --namespace mss-shop-dev set image deployment/mss-shop-mall-admin-aussibuy admin=\"${mall_image}\" migrate=\"${mall_image}\"",
+	}
+	var gotKubectl []string
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "kubectl ") {
+			gotKubectl = append(gotKubectl, trimmed)
+		}
+	}
+	if !reflect.DeepEqual(gotKubectl, wantKubectl) {
+		t.Fatalf("Dev CD kubectl commands = %v, want exact image-only commands %v", gotKubectl, wantKubectl)
+	}
+	for _, forbidden := range []string{
+		"actions/checkout@",
+		"actions/download-artifact@",
+		"actions/upload-artifact@",
+		"secrets: inherit",
+		"kubectl rollout",
+		"kubectl wait",
+		"kubectl apply",
+		"kubectl create",
+		"kubectl delete",
+		"kubectl patch",
+		"kubectl annotate",
+		"r1shop.io/full-git-sha",
+		"helm ",
+		"kustomize ",
+		"ssh ",
+		"echo \"${KUBECONFIG_CONTENT}",
+	} {
+		if strings.Contains(strings.ToLower(content), strings.ToLower(forbidden)) {
+			t.Fatalf("Dev CD contains forbidden extra operation %q", forbidden)
+		}
+	}
+	assertWorkflowActionsPinned(t, "Dev CD", content)
+}
+
+func assertWorkflowActionsPinned(t *testing.T, name, content string) {
+	t.Helper()
 	var actions []string
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -313,7 +419,7 @@ func TestCIPreservesFourReceiptBoundDeliveryImagesWithoutDeployment(t *testing.T
 		action = strings.Fields(action)[0]
 		parts := strings.Split(action, "@")
 		if len(parts) != 2 || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(parts[1]) {
-			t.Fatalf("CI action is not pinned by a complete commit: %s", action)
+			t.Fatalf("%s action is not pinned by a complete commit: %s", name, action)
 		}
 	}
 }

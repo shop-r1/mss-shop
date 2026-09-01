@@ -52,6 +52,10 @@ redacted by construction, and is reviewed before commit.
   documents together, and never rewrites an accepted decision to describe the
   new state. The original `r1shop-dev` environment remains immutable; only
   `mss-shop-dev` may be a development write target.
+- A committed deployment workflow is configuration evidence, not execution
+  evidence. Record a development CD as pending until its GitHub Environment
+  credential exists and one qualifying run completes; never infer rollout,
+  health, system verification or browser acceptance from `kubectl set image`.
 - An API change starts in the authoritative contract, then updates downstream
   snapshots and generated clients with compatibility evidence.
 - A new locale updates catalogs, negotiation, formatting tests and capability
@@ -132,7 +136,11 @@ Before a milestone is committed, review these artifacts as one change set:
    create-only, with NetworkPolicies before two inert storage binders and a
    stable, cluster-wide node/local-path exclusivity gate before StatefulSets;
    the six foundation Secrets are immutable and namespace-local; old Redis is
-   not shared; and CI produces four images without deploying them.
+   not shared; CI publishes four full-SHA images; and the separate dev CD can
+   change only the two fixed Admin Deployments' `migrate` and `admin` image
+   fields after a qualifying same-repository PR succeeds. The four namespace-
+   local CD access-bootstrap objects are recorded separately and never folded
+   into the historical 24 infrastructure plus six foundation-Secret counts.
 6. `tools/check-project-memory.sh` passes. It checks required project memory,
    runs the executable contracts, validates all repository Skills with the
    exact MSS tool and rejects whitespace errors. The contracts prove that the

@@ -15,6 +15,24 @@ both order tables remain empty. This fast smoke cutover does not close any of
 the 31 business acceptance scenarios. All earlier environment claims in this
 document apply only to their named revision.
 
+The repository now defines a DEC-0012 development CD contract for a
+same-repository `codex/**` pull request targeting `main`: after the existing CI
+gates publish all four images for the exact PR-head SHA, a local reusable
+workflow may update only the `migrate` and `admin` images in the two existing
+`mss-shop-dev` Admin Deployments. This is currently
+`ready-environment-secret-configured-first-success-pending`. The
+`mss-shop-dev` GitHub Environment now contains `MSS_SHOP_DEV_KUBECONFIG`
+outside Git; no automatic deployment, rollout health or acceptance result is
+claimed until a qualifying execution succeeds.
+
+The namespace-side CD access bootstrap is complete: ServiceAccount, Role,
+RoleBinding and service-account token Secret are all named
+`mss-shop-dev-image-updater` in `mss-shop-dev`. The Role was verified to allow
+only `get`/`patch` on the two named Admin Deployments and to deny other
+Deployments, Secrets and Pods. These four objects are tracked separately from
+the historical 24 infrastructure objects and six foundation Secrets. Their
+presence and the configured GitHub Environment secret do not prove a CD run.
+
 ## Confirmed decisions
 
 - Admin foundation: `mss-boot-admin` Distribution `v1.3.7`, consumed as an
@@ -34,6 +52,12 @@ document apply only to their named revision.
   dedicated PostgreSQL 17.6, Redis 8.6.3, PVCs, TLS, credentials and network
   policy. The exact old TimescaleDB is a bounded read-only import source; old
   Redis is not shared. See DEC-0010.
+- Development image delivery: a successful same-repository `codex/**` pull
+  request to `main` may call the local reusable dev CD only after all four
+  same-head-SHA images are published. That CD changes only the two isolated
+  Admin Deployments' `migrate` and `admin` image fields and has no production,
+  old-development, database, configuration or acceptance authority. See
+  DEC-0012.
 - Tenant isolation: every mall runtime is configured with one immutable tenant
   identity and one core/business schema pair. There is no request-time schema
   switch.
@@ -164,8 +188,13 @@ document apply only to their named revision.
   tests for all three modules, exact MSS/project-memory and architecture
   contracts, followed by Buildx verification. Push builds publish four
   full-SHA images—tenant-platform, mall-platform, reconciler and
-  legacy-importer—with digest-bound receipts; pull requests build without
-  pushing and no workflow deploys them. Run `33494258866` supplied the
+  legacy-importer—with digest-bound receipts. A same-repository `codex/**` PR
+  to `main` may publish the same four-image set after all gates and then call a
+  reusable CD that only updates both existing Admin Deployments' `migrate` and
+  `admin` image tags in `mss-shop-dev`. Forks and other PR shapes receive no
+  package or deployment credential. The CD source and Environment secret are
+  present, but its first successful run remains pending. Run
+  `33494258866` supplied the
   successful import revision-A image; run `33497583981` supplied the revision-B
   verifier image; run `33500133380` validates the later stage-annotation
   compatibility fix; and run `33503127917` validates revision-C evidence and
@@ -198,6 +227,12 @@ document apply only to their named revision.
   business writes or those redesigns.
 
 ## Not implemented yet
+
+- The first operational DEC-0012 dev CD execution. Its repository workflow is
+  configured, its namespace access identity is present and the
+  `mss-shop-dev` GitHub Environment kubeconfig is provisioned outside Git, but
+  a qualifying PR run must complete before the status can change to deployed.
+  This pending execution is not a system or browser acceptance failure.
 
 - A persistent control-plane repository, leases or observed-status integration
   between the tenant Admin module and reconciler.
@@ -250,6 +285,11 @@ document apply only to their named revision.
 
 The HTTPS Admin runtime and confirmed-login smoke gate is complete for revision
 `f202b094...`; both isolated URLs remain available for owner inspection.
+The configured DEC-0012 workflow may refresh those two Admin images from a
+qualifying PR head after its CI publication, but it performs no rollout wait or
+acceptance. The Environment secret is configured, but until the first
+qualifying run succeeds, the deployed revision remains the historical
+`f202b094...` evidence above.
 Continue the detailed route/locale review and later domain work without
 treating these two read-only slices as full business restoration. Payment
 writes wait for
@@ -259,6 +299,17 @@ items. The original development environment and production remain unchanged.
 ## Verification evidence
 
 Verification evidence recorded on 2026-09-02:
+
+- The DEC-0012 namespace access bootstrap created exactly
+  `ServiceAccount/mss-shop-dev-image-updater`,
+  `Role/mss-shop-dev-image-updater`,
+  `RoleBinding/mss-shop-dev-image-updater` and service-account token
+  `Secret/mss-shop-dev-image-updater` in `mss-shop-dev`. Authorization checks
+  allowed only `get`/`patch` on the tenant and mall Admin Deployments and
+  denied other Deployments, Secrets and Pods. No Secret value is recorded in
+  the repository. The GitHub Environment and named secret are now configured;
+  the first CD execution remains pending, so this is access-boundary evidence
+  rather than deployment or acceptance evidence.
 
 - GitHub Actions run
   [`33565434916`](https://github.com/shop-r1/mss-shop/actions/runs/33565434916)

@@ -239,16 +239,38 @@ tenants add mall runtime/schema pairs without changing the image. This trades
 some resource overhead for clear blast-radius, migration and rollback
 boundaries.
 
-No GitHub Actions workflow auto-deploys Kubernetes resources. Pull requests
-run unit and contract validation and prove four delivery Dockerfiles without
-pushing. Pushes to `codex/**` and `main` publish the tenant-platform,
+The CI workflow keeps the merge signal small and owns all four delivery-image
+builds. Pushes to `codex/**` and `main` publish the tenant-platform,
 mall-platform, fixed isolated database reconciler and one-time legacy importer
-`linux/amd64` images to GHCR. Every image is tagged by the same complete Git
-SHA and receives a digest-bound CI receipt. The root proof, storefront API and
-worker are not delivery images. Development rollout remains a deliberate
-manual action, and every production write needs explicit approval. The exact
-package, permission and rollback policy is in
-[`ci-images.md`](../runbooks/ci-images.md).
+`linux/amd64` images to GHCR. A same-repository `codex/**` pull request to
+`main` may also publish all four images for its complete head SHA, but only
+after the existing backend, frontend and contract gates pass. Every published
+image receives that same SHA tag and a digest-bound CI receipt. Forks and
+other pull-request shapes never receive package or deployment credentials.
+
+After the qualifying PR publication completes, CI may call the repository-
+local reusable `Dev CD` workflow. DEC-0012 limits that workflow to changing
+only the `migrate` and `admin` image fields of the existing tenant and mall
+Admin Deployments in `mss-shop-dev`, using the full PR-head SHA tag. Its
+Kubernetes configuration comes only from the `mss-shop-dev` GitHub Environment
+secret. It does not update configuration or annotations, touch a database,
+wait for rollout, run acceptance, or target the original development or
+production environments. The workflow is configured source, not evidence of
+execution. Its Environment secret is configured outside Git; the first
+qualifying successful run remains pending and no rollout or acceptance result
+is inferred from configuration.
+
+The CD identity is a separate namespace-local access bootstrap: one
+ServiceAccount, Role, RoleBinding and service-account token Secret, all named
+`mss-shop-dev-image-updater`. The Role allows only `get` and `patch` on the two
+named Admin Deployments and denies other Deployments, Secrets and Pods. These
+four DEC-0012 objects are not part of DEC-0010's 24 infrastructure objects or
+six foundation Secrets.
+
+The root proof, storefront API and worker are not delivery images. Bootstrap,
+data, TLS and host changes remain deliberate operator stages, and every
+production write still needs explicit approval. The exact package, permission
+and deployment policy is in [`ci-images.md`](../runbooks/ci-images.md).
 
 The isolated Admin review endpoints use DNS Only records for
 `tenant-admin.mss.r1shop.net` and `mall-admin.mss.r1shop.net`, resolving
@@ -276,7 +298,8 @@ new domain or TLS contract.
 
 This DNS-only TLS and host-cutover contract is recorded by DEC-0011; DEC-0010
 continues to own the immutable isolated-development boundary and historical
-runtime decision.
+runtime decision. DEC-0012 adds only the later image-field refresh for the two
+already-created Admin Deployments; it does not reopen either bootstrap stage.
 
 Development work may use the versioned checkout on `167.17.68.242` because the
 workstation is resource-constrained. The only write target is the isolated

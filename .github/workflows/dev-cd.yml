@@ -1,0 +1,63 @@
+name: Dev CD
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Full Git SHA tag published by the trusted pull-request CI run
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: mss-shop-dev-admin-images
+  cancel-in-progress: false
+
+jobs:
+  update-admin-images:
+    name: Update Admin image tags
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'codex/') &&
+      github.actor != 'dependabot[bot]'
+    environment: mss-shop-dev
+    runs-on: ubuntu-24.04
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Install matching kubectl
+        uses: Azure/setup-kubectl@829323503d1be3d00ca8346e5391ca0b07a9ab0d # v5.1.0
+        with:
+          version: v1.32.8
+      - name: Configure isolated dev access
+        shell: bash
+        env:
+          KUBECONFIG: ${{ runner.temp }}/mss-shop-dev-kubeconfig
+          KUBECONFIG_CONTENT: ${{ secrets.MSS_SHOP_DEV_KUBECONFIG }}
+        run: |
+          set -euo pipefail
+          test -n "${KUBECONFIG_CONTENT}"
+          umask 077
+          printf '%s' "${KUBECONFIG_CONTENT}" > "${KUBECONFIG}"
+      - name: Update isolated Admin image tags
+        shell: bash
+        env:
+          KUBECONFIG: ${{ runner.temp }}/mss-shop-dev-kubeconfig
+        run: |
+          set -euo pipefail
+          [[ "${IMAGE_TAG}" =~ ^[0-9a-f]{40}$ ]]
+          test "${IMAGE_TAG}" = "${PR_HEAD_SHA}"
+          tenant_image="ghcr.io/shop-r1/mss-shop-tenant-platform:${IMAGE_TAG}"
+          mall_image="ghcr.io/shop-r1/mss-shop-mall-platform:${IMAGE_TAG}"
+          kubectl --kubeconfig "${KUBECONFIG}" --namespace mss-shop-dev set image deployment/mss-shop-tenant-admin admin="${tenant_image}" migrate="${tenant_image}"
+          kubectl --kubeconfig "${KUBECONFIG}" --namespace mss-shop-dev set image deployment/mss-shop-mall-admin-aussibuy admin="${mall_image}" migrate="${mall_image}"
+      - name: Remove temporary kubeconfig
+        if: ${{ always() }}
+        shell: bash
+        env:
+          KUBECONFIG: ${{ runner.temp }}/mss-shop-dev-kubeconfig
+        run: rm -f -- "${KUBECONFIG}"

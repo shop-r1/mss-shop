@@ -125,6 +125,10 @@ separately and business acceptance remains 0/31.
 | Target Redis | Redis 8.6.3, `mss-shop-redis.mss-shop-dev.svc:6379` |
 | Legacy read-only source | `timescaledb-r1shop-dev.database.svc:5432/r1shop_dev` only |
 | Permitted old Secret reads | exact database credential Secret and `r1shop-dev/ghcr-r1shop-token`, GET only |
+| Routine dev CD source | same-repository `codex/**` pull request targeting `main` |
+| Routine dev CD target | image fields of `mss-shop-dev/mss-shop-tenant-admin` and `mss-shop-dev/mss-shop-mall-admin-aussibuy` only |
+| Routine dev CD identity | four `mss-shop-dev-image-updater` access-bootstrap objects; Role allows only exact two-Deployment `get`/`patch` |
+| GitHub Environment | `mss-shop-dev`; kubeconfig supplied only by `MSS_SHOP_DEV_KUBECONFIG` |
 | Planned tenant Admin entry | `https://tenant-admin.mss.r1shop.net` |
 | Planned mall Admin entry | `https://mall-admin.mss.r1shop.net` |
 | Historical Revision `3e64a57` tenant evidence host | `http://tenant-admin.167.17.68.242.nip.io` |
@@ -136,6 +140,47 @@ Pod selected by the exact source-egress NetworkPolicy. Its startup packet
 disables event triggers and all source work is repeatable-read and read-only.
 The isolated PostgreSQL and Redis require their generated TLS identities. The
 old Redis is not read or shared.
+
+### Routine qualifying-PR Admin image refresh
+
+DEC-0012 adds a small steady-state image path after the one-time isolated
+bootstrap. A pull request qualifies only when its head is in this repository,
+its branch matches `codex/**`, its base is `main`, and the existing CI gates
+succeed. CI must publish all four delivery images and receipts for the same
+complete PR-head SHA before it calls the repository-local reusable `Dev CD`
+workflow.
+
+The reusable workflow reads its Kubernetes configuration only from the
+`mss-shop-dev` GitHub Environment secret `MSS_SHOP_DEV_KUBECONFIG`. It runs
+only two `kubectl set image` commands: one for
+`Deployment/mss-shop-tenant-admin` and one for
+`Deployment/mss-shop-mall-admin-aussibuy`, both in `mss-shop-dev`. Each command
+sets the workload's `migrate` init container and `admin` container to the
+matching tenant or mall GHCR image tagged by the full PR-head SHA.
+
+The namespace-local access bootstrap contains exactly these four objects, all
+named `mss-shop-dev-image-updater`: ServiceAccount, Role, RoleBinding and a
+service-account token Secret. The Role grants only `get` and `patch` on the two
+named Admin Deployments. A cluster authorization check has verified that scope
+and denied other Deployments, Secrets and Pods. The objects are DEC-0012 CD
+access, not application infrastructure: keep them outside the DEC-0010 count
+of 24 infrastructure objects and six foundation Secrets. The reusable workflow
+does not create, update or delete them.
+
+This path does not apply a manifest, update configuration or annotations,
+touch a database, create a Job, wait for rollout, run a verification case or
+perform browser acceptance. The Pod-template change itself causes the matching
+`migrate` init container to run when Kubernetes replaces the Pod. The
+reconciler and importer images are published but not deployed. The original
+`r1shop-dev`, shared `database` namespace and production remain unchanged.
+
+The four access-bootstrap objects are present, their Role boundary is verified,
+and the GitHub Environment credential is configured outside the repository.
+The first qualifying run is still **pending**. Source configuration, image
+publication or a `set image` invocation alone must not be recorded as rollout
+health, system acceptance or business acceptance. The ordered procedure below
+remains authoritative for bootstrap and evidence-bearing releases; routine CD
+does not repeat or close any of its gates.
 
 ### Planned Admin host and HTTPS gate
 
@@ -208,8 +253,10 @@ node health remains stable.
 
 ## Mandatory write declaration
 
-Before **every** Kubernetes or database write, write this information into the
-active task/evidence record:
+Before every interactive Kubernetes or database write, write this information
+into the active task/evidence record. The DEC-0012 reusable CD is the narrow
+exception: its fixed workflow source, qualifying PR metadata and GitHub job log
+declare the exact two image mutations, but do not create an acceptance record.
 
 1. namespace (`mss-shop-dev` only);
 2. every resource kind/name that may be created or changed;
@@ -239,7 +286,8 @@ published four immutable image receipts:
 
 Each receipt must bind repository, full revision, `linux/amd64` and a nonzero
 `sha256:` digest. A historical run that contains only the two Admin images is
-not sufficient. CI publication is not deployment approval.
+not sufficient. Outside the exact DEC-0012 qualifying-PR image refresh, CI
+publication is not deployment approval.
 
 ### 2. Read-only fingerprint of the original environment
 

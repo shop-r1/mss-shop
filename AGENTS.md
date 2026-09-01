@@ -59,6 +59,19 @@
   A deployment command must fail closed if it targets
   `r1shop-dev`, `database/timescaledb-r1shop-dev`, or
   `database/redis-r1shop-dev` for mutation.
+- The only automatic development deployment is the DEC-0012 image-only path.
+  After a same-repository `codex/**` pull request to `main` passes CI and
+  publishes all four images for its exact head SHA, the local reusable CD may
+  use the `mss-shop-dev` GitHub Environment credential to run `kubectl set
+  image` for only `mss-shop-tenant-admin` and
+  `mss-shop-mall-admin-aussibuy`, updating both `migrate` and `admin`. It must
+  not mutate configuration, databases, Secrets, networking, the original
+  development environment or production, and it is not acceptance evidence.
+  Its namespace identity is the fixed `mss-shop-dev-image-updater`
+  ServiceAccount/Role/RoleBinding/token Secret set; the Role permits only
+  `get`/`patch` on those two Deployments. Account these four DEC-0012 access
+  objects separately from DEC-0010's 24 infrastructure objects and six
+  foundation Secrets.
 - Work on `codex/...` branches. Do not push, deploy, merge to a production
   branch, or trigger a frontend release unless the user explicitly requests it.
 - The current project-owner sequence is development first, formal validation

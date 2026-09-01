@@ -46,6 +46,23 @@ spec:
       resources:
         - database/timescaledb-r1shop-dev-auth
         - r1shop-dev/ghcr-r1shop-token
+    devCDAccessBootstrap:
+      status: created-and-rbac-verified
+      namespace: mss-shop-dev
+      serviceAccount: mss-shop-dev-image-updater
+      role: mss-shop-dev-image-updater
+      roleBinding: mss-shop-dev-image-updater
+      serviceAccountTokenSecret: mss-shop-dev-image-updater
+      allowedVerbs: [get, patch]
+      allowedDeployments:
+        - mss-shop-tenant-admin
+        - mss-shop-mall-admin-aussibuy
+      otherDeploymentsDenied: true
+      secretsDenied: true
+      podsDenied: true
+      objectCount: 4
+      includedInInfrastructureObjectCount: false
+      includedInFoundationSecretCount: false
   verifiedInventory:
     legacyTables: 54
     tenantPlatformTables: 4
@@ -406,8 +423,10 @@ spec:
       successfulPostImportVerifier: true
     deliveryImages:
       workflow: .github/workflows/ci.yml
-      pullRequestMode: build-without-push
+      devCDWorkflow: .github/workflows/dev-cd.yml
+      pullRequestMode: same-repository-codex-to-main-publish-four-then-call-dev-cd
       pushBranches: [main, "codex/**"]
+      qualifyingPullRequest: same-repository-codex-branch-to-main-non-dependabot
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
@@ -435,7 +454,12 @@ spec:
         - ghcr.io/shop-r1/mss-shop-mall-platform
         - ghcr.io/shop-r1/mss-shop-reconciler
         - ghcr.io/shop-r1/mss-shop-legacy-importer
-      autoDeploy: false
+      deploymentTarget: mss-shop-dev-two-admin-deployments-admin-and-migrate-images-only
+      environment: mss-shop-dev
+      environmentSecret: MSS_SHOP_DEV_KUBECONFIG
+      accessBootstrap: mss-shop-dev-image-updater-four-objects-created-and-rbac-verified
+      autoDeploy: true
+      configurationStatus: ready-environment-secret-configured-first-success-pending
   sourcesOfTruth:
     architecture: docs/architecture/overall-solution.md
     invariants: docs/architecture/invariants.yaml
@@ -458,6 +482,7 @@ spec:
     mallSettingsDevelopment: docs/project/mall-settings-development.md
     memberLevelsDevelopment: docs/project/member-levels-development.md
     remoteDevelopmentDecision: docs/decisions/DEC-0010-remote-development-and-dev-reconciliation.md
+    devCDDecision: docs/decisions/DEC-0012-pr-head-admin-image-refresh.md
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
     originalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json
@@ -489,6 +514,10 @@ spec:
     legacyImportSucceeded: true
     postImportVerifierSucceeded: true
     isolatedBrowserAcceptanceExecuted: true
+    devCDAccessBootstrapCreated: true
+    devCDAccessBoundaryVerified: true
+    devCDEnvironmentSecretConfigured: true
+    devCDExecutionSucceeded: false
     currentWorkingTreeTested: true
     currentWorkingTreeRemoteLocalPreviewHealthy: true
     currentWorkingTreeProductionBuilt: true

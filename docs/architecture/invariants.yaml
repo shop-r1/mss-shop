@@ -40,6 +40,11 @@ invariants:
     owner: platform-operations
     decision: DEC-0011
     enforced_by: [stage-admin-tls-create-only, exact-acme-solver-network-policy, stage-runtime-tls-prerequisite-gate, certificate-san-check, http-to-https-redirect-check, in-app-browser-password-gate]
+  - id: ENV-004
+    statement: Development CD admits only a successful same-repository codex/** pull request to main after its complete head SHA publishes all four delivery images, and may change only the admin and migrate image fields of the two fixed mss-shop-dev Admin Deployments.
+    owner: platform-operations
+    decision: DEC-0012
+    enforced_by: [same-repository-pr-gate, full-sha-four-image-publication-gate, local-reusable-dev-cd, github-environment-secret, namespace-service-account, resource-named-get-patch-role, exact-deployment-and-container-allowlist]
   - id: API-001
     statement: Storefront clients use /app/v1 and never use the MSS Admin API.
     owner: storefront-api

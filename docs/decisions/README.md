@@ -23,3 +23,5 @@ in the same change.
   development and isolated `mss-shop-dev` stage resources
 - [DEC-0011](DEC-0011-dns-only-admin-tls-and-host-cutover.md): DNS-only
   ingress TLS bootstrap and isolated Admin host cutover
+- [DEC-0012](DEC-0012-pr-head-admin-image-refresh.md): qualifying pull-request
+  Admin image refresh in isolated development

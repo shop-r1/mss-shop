@@ -2,6 +2,8 @@ name: Test and Build Delivery Images
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -16,6 +18,7 @@ env:
   NODE_VERSION: 24.19.0
   PNPM_VERSION: 10.34.5
   MSS_VERSION: v1.3.7
+  DELIVERY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   backend-unit:
@@ -101,7 +104,12 @@ jobs:
 
   verify-delivery-images:
     name: Verify image (${{ matrix.name }})
-    if: github.event_name != 'push'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       (github.event.pull_request.head.repo.full_name != github.repository ||
+        !startsWith(github.event.pull_request.head.ref, 'codex/') ||
+        github.actor == 'dependabot[bot]'))
     needs:
       - backend-unit
       - frontend-unit
@@ -137,16 +145,22 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: false
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ env.DELIVERY_SHA }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.DELIVERY_SHA }}
+            org.opencontainers.image.version=${{ env.DELIVERY_SHA }}
           cache-from: type=gha,scope=${{ matrix.image }}
 
   publish-delivery-images:
     name: Publish image (${{ matrix.name }})
-    if: github.event_name == 'push'
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.base.ref == 'main' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.event.pull_request.head.ref, 'codex/') &&
+       github.actor != 'dependabot[bot]')
     needs:
       - backend-unit
       - frontend-unit
@@ -177,6 +191,8 @@ jobs:
             image: mss-shop-legacy-importer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.DELIVERY_SHA }}
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       - name: Sign in to GHCR for branch builds
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -192,11 +208,11 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ env.DELIVERY_SHA }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.revision=${{ env.DELIVERY_SHA }}
+            org.opencontainers.image.version=${{ env.DELIVERY_SHA }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           provenance: mode=max
@@ -211,17 +227,31 @@ jobs:
           test "${IMAGE_DIGEST}" != "sha256:0000000000000000000000000000000000000000000000000000000000000000"
           jq -n \
             --arg repository "ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" \
-            --arg revision "${GITHUB_SHA}" \
+            --arg revision "${DELIVERY_SHA}" \
             --arg digest "${IMAGE_DIGEST}" \
             --arg workflow "${GITHUB_WORKFLOW}" \
             --arg runId "${GITHUB_RUN_ID}" \
             --arg runAttempt "${GITHUB_RUN_ATTEMPT}" \
             '{schemaVersion: 1, repository: $repository, revision: $revision, digest: $digest, reference: ($repository + ":" + $revision + "@" + $digest), platform: "linux/amd64", workflow: $workflow, runId: $runId, runAttempt: $runAttempt}' \
-            > "${IMAGE_NAME}-${GITHUB_SHA}.json"
+            > "${IMAGE_NAME}-${DELIVERY_SHA}.json"
       - name: Upload immutable image receipt
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: image-receipt-${{ matrix.image }}-${{ github.sha }}
-          path: ${{ matrix.image }}-${{ github.sha }}.json
+          name: image-receipt-${{ matrix.image }}-${{ env.DELIVERY_SHA }}
+          path: ${{ matrix.image }}-${{ env.DELIVERY_SHA }}.json
           if-no-files-found: error
           retention-days: 30
+
+  deploy-dev:
+    name: Deploy Admin images to dev
+    needs:
+      - publish-delivery-images
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'codex/') &&
+      github.actor != 'dependabot[bot]'
+    uses: ./.github/workflows/dev-cd.yml
+    with:
+      image_tag: ${{ github.event.pull_request.head.sha }}
