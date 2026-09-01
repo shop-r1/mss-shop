@@ -12,6 +12,7 @@ for memory_file in \
   docs/project/status.md \
   docs/project/legacy-rebuild-status.yaml \
   docs/project/legacy-restoration-gap.md \
+  docs/project/mall-settings-development.md \
   docs/governance/memory.md \
   docs/migration/legacy-tables.yaml \
   docs/migration/legacy-admin-acceptance-matrix.md \

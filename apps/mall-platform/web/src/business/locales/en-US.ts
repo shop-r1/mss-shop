@@ -327,6 +327,65 @@ const fieldTitles: Record<LegacyFieldName, string> = {
 // Chinese and English navigation labels.
 const messages: Record<string, string> = {
   'menu.legacyBusiness': 'Business',
+  'menu.mallSettings': 'Mall Settings',
+  'menu.legacyBusiness.settings.mallSettings': 'Mall Settings',
+  'mallSettings.general.title': 'Mall settings',
+  'mallSettings.general.description':
+    'Manage the reviewed general-setting allow-list for this tenant without exposing raw metadata or secrets.',
+  'mallSettings.general.summary.title': 'General settings',
+  'mallSettings.general.editor.title': 'Edit general settings',
+  'mallSettings.general.fields.mallName': 'Mall name',
+  'mallSettings.general.fields.mallNameHelp':
+    'The customer-facing mall name. An empty value still means the legacy value is not configured.',
+  'mallSettings.general.fields.mallNamePlaceholder': 'Enter the mall name',
+  'mallSettings.general.fields.orderPrefix': 'Legacy order prefix',
+  'mallSettings.general.fields.orderPrefixHelp':
+    'Preserves the legacy ewePrefix value for later order-workflow restoration; it does not change order, tracking, or shipping-label numbers yet.',
+  'mallSettings.general.fields.orderPrefixPlaceholder': 'Enter the legacy order prefix',
+  'mallSettings.general.fields.defaultSenderName': 'Default sender',
+  'mallSettings.general.fields.defaultSenderNameHelp':
+    'Reserved as the fallback sender for the future fulfillment workflow; saving it does not call a courier or change historical orders.',
+  'mallSettings.general.fields.defaultSenderNamePlaceholder': 'Enter the default sender name',
+  'mallSettings.general.fields.defaultSenderPhone': 'Default sender phone',
+  'mallSettings.general.fields.defaultSenderPhoneHelp':
+    'Used with the default sender by the future fulfillment workflow.',
+  'mallSettings.general.fields.defaultSenderPhonePlaceholder': 'Enter the default sender phone',
+  'mallSettings.general.actions.retry': 'Try again',
+  'mallSettings.general.actions.refresh': 'Refresh',
+  'mallSettings.general.actions.save': 'Save',
+  'mallSettings.general.actions.cancel': 'Cancel',
+  'mallSettings.general.actions.configure': 'Configure settings',
+  'mallSettings.general.actions.edit': 'Edit',
+  'mallSettings.general.feedback.saved': 'General settings saved',
+  'mallSettings.general.feedback.savedDescription':
+    'The four allow-listed values were written to this tenant\'s legacy appConfig; every other setting was preserved.',
+  'mallSettings.general.states.requestFailed':
+    'The request could not be completed. Try again later.',
+  'mallSettings.general.states.forbidden': 'You do not have permission to view mall settings.',
+  'mallSettings.general.states.error': 'Unable to load mall settings',
+  'mallSettings.general.states.refreshFailed': 'The displayed settings could not be refreshed',
+  'mallSettings.general.states.updateForbidden':
+    'You no longer have permission to update mall settings.',
+  'mallSettings.general.states.saveError': 'Unable to save mall settings',
+  'mallSettings.general.states.empty':
+    'No general mall settings have been configured for this tenant.',
+  'mallSettings.general.validation.string': 'Enter text.',
+  'mallSettings.general.validation.maxBytes': '{field} must be {max} UTF-8 bytes or fewer.',
+  'mallSettings.errors.authenticationRequired': 'Your session has expired. Sign in again.',
+  'mallSettings.errors.forbidden':
+    'You do not have permission to perform this mall-settings operation.',
+  'mallSettings.errors.authorizationUnavailable':
+    'The authorization service is unavailable. Try again later.',
+  'mallSettings.errors.invalidRequest': 'The request is invalid. Check it and try again.',
+  'mallSettings.errors.validationFailed':
+    'The submitted mall settings did not pass validation.',
+  'mallSettings.errors.conflict':
+    'The settings changed concurrently or duplicate legacy rows exist. Refresh and try again.',
+  'mallSettings.errors.legacyMetadataIncompatible':
+    'The legacy appConfig data is incompatible, so the original data was not overwritten.',
+  'mallSettings.errors.schemaNotReady': 'This tenant\'s mall business schema is not ready.',
+  'mallSettings.errors.internal':
+    'The mall-settings service could not complete the request.',
   'legacy.value.yes': 'Yes',
   'legacy.value.no': 'No',
   'legacy.table.actions': 'Actions',

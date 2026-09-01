@@ -27,7 +27,8 @@
   generic editor as a substitute for order, inventory, payment, wallet,
   promotion or import workflows.
 - Legacy compatibility ownership is 50 mall resources plus the one
-  tenant-platform `payments` resource. All 51 are read-only. The checked-in
+  tenant-platform `payments` resource. All 51 generic compatibility resources
+  are read-only. The checked-in
   source includes forward-only ownership migrations, but they are not evidence
   that any environment has applied or deployed them. Do not enable generic
   mutation until one resource and operation has restored and proved its legacy
@@ -59,6 +60,12 @@
   `database/redis-r1shop-dev` for mutation.
 - Work on `codex/...` branches. Do not push, deploy, merge to a production
   branch, or trigger a frontend release unless the user explicitly requests it.
+- The current project-owner sequence is development first, formal validation
+  and isolated rollout later. Until `docs/project/status.md` lifts that hold,
+  label new modules `source-implemented-unverified`, do not push merely to run
+  CI, and do not treat a loopback remote-server preview as test or acceptance
+  evidence. This sequencing rule does not waive any test; it defers the full
+  suite to the pre-PR clean-SHA checkpoint.
 - Do not commit credentials, DSNs, tokens, private keys, database files, logs,
   build caches, or machine-specific absolute paths.
 

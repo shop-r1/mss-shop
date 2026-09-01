@@ -51,7 +51,7 @@ invariants:
     decision: DEC-0010
     enforced_by: [legacy-manifest, compiled-import-manifest, schema-inventory-test, receipt-row-count-and-hash-check, order-empty-check]
   - id: DATA-003
-    statement: All current legacy Admin compatibility resources are read-only, and JSON documents with declared nested secrets cannot be searched, filtered, or sorted.
+    statement: All generic legacy Admin compatibility resources are read-only, and JSON documents with declared nested secrets cannot be searched, filtered, or sorted.
     owner: tenant-platform-and-mall-platform
     decision: DEC-0007
     enforced_by: [capability-manifest, mutation-negative-tests, nested-secret-query-negative-tests]
@@ -60,6 +60,11 @@ invariants:
     owner: mall-platform
     decision: DEC-0009
     enforced_by: [legacy-manifest, ownership-contract-tests, fixed-schema-binding, migration-reconciliation]
+  - id: DATA-005
+    statement: A dedicated system_configs write uses a closed server-owned row and field allow-list, preserves every unapproved metadata value, never returns secrets or revives soft deletes, and serializes concurrent first creation.
+    owner: mall-platform
+    decision: DEC-0007
+    enforced_by: [mall-settings-feature-contract, fixed-schema-qualified-repository, typed-dto, postgres-advisory-lock, generic-mutation-lockdown]
   - id: I18N-001
     statement: User-visible text, including authorized dynamic menus, is selected by a locale key and never used as a business or error code.
     owner: all-ui

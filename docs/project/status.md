@@ -2,6 +2,15 @@
 
 Last verified: 2026-09-01
 
+Current working-tree note: development has continued after the latest verified
+Revision C evidence. The reconciliation-secret concurrency hardening and the
+Mall Settings vertical slice are source-complete but intentionally not covered
+by the deferred formal suite, production build, CI or isolated deployment. A
+bounded remote local-process preview compiled and started the Mall backend and
+Admin Web and applied only the demo-SQLite authorization migration. It remains
+unpushed and is not system evidence. All later verification claims in this
+document apply to their named revision, not to these current changes.
+
 ## Confirmed decisions
 
 - Admin foundation: `mss-boot-admin` Distribution `v1.3.7`, consumed as an
@@ -102,8 +111,10 @@ Last verified: 2026-09-01
   result-count oracle.
 - A tenant-platform payment-catalog backend and Admin UI containing only
   `payments`. The seven product/logistics resources have forward tenant policy
-  revocations and mall grants. All 51 resources remain read-only, and no
-  environment application or deployment of those migrations is claimed.
+  revocations and mall grants. All 51 generic compatibility resources remain
+  read-only; the separate Mall Settings source workflow does not alter that
+  generic capability. No environment application or deployment of those
+  migrations is claimed.
 - A flat bilingual compatibility-error contract shared by both platforms. It
   includes stable code/key/fallback fields and reduces old or malformed nested
   responses to React-safe strings.
@@ -113,6 +124,16 @@ Last verified: 2026-09-01
   is explicitly excluded from migration or system-acceptance evidence.
 - An MSS-generated migration-checkpoint module used only as a review ledger,
   plus a handwritten Feature contract for fixed legacy schema compatibility.
+- A dedicated Mall Settings source slice with a closed four-field DTO,
+  fixed-schema/legacy-tenant repository, PostgreSQL first-create serialization,
+  old `system_configs.appConfig` merge preservation, independent MSS
+  read/update permissions, an MSS-style focused page and complete Chinese and
+  English messages. It deliberately excludes raw metadata, secrets, payment,
+  logistics, storefront and native-App settings. A local-process remote preview
+  starts successfully with the repository demo SQLite, but the source has not
+  yet completed the deferred formal tests, production build, isolated
+  migration, deployment or acceptance; see
+  `docs/project/mall-settings-development.md`.
 - A repository Skill and contract tests that keep the target table ownership,
   50/one source catalogs, acceptance matrix, MCP registration and
   project-memory source paths in sync with code.
@@ -182,6 +203,10 @@ Last verified: 2026-09-01
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
+- Validation and rollout of the new Mall Settings source slice. Its four safe
+  fields are implemented, but business switches, credential rotation,
+  PostgreSQL/SQLite integration evidence, permission-matrix evidence and
+  isolated browser acceptance remain open; `CONFIG-001` is not closed.
 - Applying and verifying the product/logistics ownership migrations in an
   isolated development environment, including per-tenant data conversion,
   menu/policy results, row counts, hashes and relationship checks. The source
@@ -205,16 +230,17 @@ Last verified: 2026-09-01
 - A storefront API image or production reconciler/worker image. Those
   components do not yet own complete production entrypoints and Dockerfiles.
 
-## Next milestone and acceptance criteria
+## Current development sequence and later acceptance
 
-Publish and verify the reconciliation-secret safety revision's four image
-receipts, then run its default API-server dry-run against the committed receipt
-and verifier evidence. Only after that gate passes and the exact write is
-declared may the three receipt-bound application/bootstrap Secrets be created
-in `mss-shop-dev`; the reconciler Job remains a separate later gate. Acceptance
-still requires isolated disposable-Pod system tests and in-app-browser review
-with URLs left for owner verification. The original development environment
-and production remain unchanged.
+Continue implementing the domain slices without claiming test or deployment
+evidence. The next unblocked work after Mall Settings is control/IAM and member
+management; payment writes wait for DEC-0008 approval, and product/logistics
+writes wait for the open CL review items. After the planned business source is
+complete, run the deferred unit/integration suite, publish immutable images,
+execute the reconciliation-secret API-server dry-run and the subsequent exact
+isolated gates, then deploy only to `mss-shop-dev` for disposable-Pod system
+tests and in-app-browser acceptance. The original development environment and
+production remain unchanged.
 
 ## Verification evidence
 
@@ -248,17 +274,17 @@ Verification evidence recorded on 2026-09-01:
   owner counts of four/50, the 51-resource allocation of one/50, exact source
   catalogs, the 31-row acceptance baseline, safety flags and required memory
   paths.
-- The current complete source tree passed `GOWORK=off GOMAXPROCS=2 go test
+- Revision C passed `GOWORK=off GOMAXPROCS=2 go test
   -p=1 ./...` and `go vet ./...` at the platform root and independently in
   both final Thin Hosts. This includes the isolated infrastructure, Secret,
   Job, reconciliation-evidence, runtime and original-development fingerprint
   operators plus the 51-table importer/readiness/verifier packages.
-- The current tenant Admin Web passed 7 files / 26 tests and the mall Admin Web
+- At Revision C, the tenant Admin Web passed 7 files / 26 tests and the mall Admin Web
   passed 9 files / 33 tests using Node 24.19.0 and pnpm 10.34.5 with the exact
   1.3.7 package. The root proof Web had no matching test files and exited
   successfully. Final production bundles remain gated by the four-image CI
   build for the committed revision.
-- `tools/check-project-memory.sh` passed in the same temporary checkout with the
+- `tools/check-project-memory.sh` passed for Revision C in the same temporary checkout with the
   official MSS 1.3.7 tool. It reran the contract suite, validated all nine
   repository Skills and completed the whitespace checks;
   `scripts/check-platform-boundaries.sh` also passed. No database or Kubernetes

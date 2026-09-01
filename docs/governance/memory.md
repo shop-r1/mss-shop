@@ -52,6 +52,11 @@ redacted by construction, and is reviewed before commit.
   contract when applicable, acceptance rows, bilingual catalogs, verification
   evidence and project status in the same commit. Code completion alone does
   not close a business-acceptance row.
+- When the project owner defers validation until a later development
+  checkpoint, record every new slice as `source-implemented-unverified`, name
+  the last actually verified revision, and keep tests, migrations, deployment
+  and acceptance independently false. A running local or remote-process
+  preview is not durable verification evidence.
 - A compatibility mutation is recorded as unavailable until one resource and
   operation has dedicated evidence for legacy validation, relationships/tenant
   scope, hooks, authorization and deletion semantics. Historical exploratory

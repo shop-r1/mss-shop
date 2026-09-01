@@ -71,14 +71,26 @@ spec:
     compatibilityOwnershipReassignment: implemented-source-not-deployed
     catalogAndLogisticsDesignReview: awaiting-project-owner-review
     localMallBrowserFixture: pending-post-ownership-move-validation
-    domainWorkflows: pending
+    domainWorkflows: mall-settings-four-field-source-implemented-unverified-all-other-workflows-pending
+    mallSettingsWorkflow:
+      status: source-implemented-unverified
+      api: GET-PUT-/admin/api/mall-settings/general
+      fields: [mallName, orderPrefix, defaultSenderName, defaultSenderPhone]
+      legacyRow: fixed-schema-fixed-legacy-tenant-appConfig-active-row
+      genericSystemConfigsMutation: disabled
+      authorizationMigration: "66966149766804"
+      tests: deferred-until-planned-development-complete
+      migrationApplied: demo-sqlite-only
+      deployed: false
+      remoteLocalPreview: healthy-backend-and-admin-web-demo-sqlite-not-acceptance
+      acceptanceScenarioClosed: false
     inAppBrowserAcceptance:
       mallPlatform: historical-pre-dec-0009-compatibility-surface
       tenantPlatform: pending
     kubernetesSystemAcceptance: partial-datastore-import-and-verifier-only
     productionMigration: forbidden-without-explicit-approval
     deliveryCI: four-image-publications-verified-through-revision-c-evidence
-    remoteDevelopmentPlan: revision-c-ci-complete-reconciliation-secret-dry-run-not-executed
+    remoteDevelopmentPlan: development-first-current-source-unverified-revision-c-ci-complete-reconciliation-secret-dry-run-not-executed
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
     originalDevelopmentFingerprint:
@@ -171,9 +183,24 @@ spec:
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
       ownershipDeployment: pending-forward-migrations-not-applied
-      fullTests: passed-current-source-tree
-      vet: passed-current-source-tree
+      fullTests: passed-revision-c-before-current-working-tree
+      vet: passed-revision-c-before-current-working-tree
       focusedRace: pending-post-ownership-move
+    mallSettingsWorkflow:
+      implementation: source-complete-not-validated
+      featureContract: apps/mall-platform/.mss/features/mall-settings.yaml
+      developmentRecord: docs/project/mall-settings-development.md
+      backend: apps/mall-platform/internal/modules/mallsettings
+      frontend: apps/mall-platform/web/src/business/mall-settings
+      permissions: [mall-settings:read, mall-settings:update]
+      legacyMetadataKeys: [mall_name, ewePrefix, default_sender_name, default_sender_phone]
+      unknownMetadataPreserved: source-contract
+      nestedSecretsReturned: false
+      genericCompatibilityWriteEnabled: false
+      tests: not-run-development-first
+      build: remote-dev-startup-compiled-production-build-not-run
+      deployment: remote-local-process-preview-only-kubernetes-not-executed
+      acceptance: open
     tenantSharedCatalogBackend:
       manifestResources: 1
       targetResource: payments
@@ -182,21 +209,21 @@ spec:
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
       ownershipDeployment: pending-forward-migrations-not-applied
-      fullTests: passed-current-source-tree
-      vet: passed-current-source-tree
+      fullTests: passed-revision-c-before-current-working-tree
+      vet: passed-revision-c-before-current-working-tree
       focusedRace: pending-post-ownership-move
     compatibilityErrorContract:
       envelope: flat-errorCode-errorMessage-messageKey-params
       bilingualCatalogs: passed
       malformedResponseStringSafety: passed
     mssContracts:
-      ownershipAndMemoryContract: passed-current-remote-checkout
+      ownershipAndMemoryContract: passed-revision-c-before-current-working-tree
       generatedModuleDryRun: unchanged
       featurePlan: passed
       strictDoctorMall: passed
       strictDoctorTenant: passed
-      fullVerifyMall: passed-current-source-tree
-      fullVerifyTenant: passed-current-source-tree
+      fullVerifyMall: passed-revision-c-before-current-working-tree
+      fullVerifyTenant: passed-revision-c-before-current-working-tree
     localMallBrowserFixture:
       reviewedTables: 50
       nonSensitiveRows: 10
@@ -230,8 +257,13 @@ spec:
       hostFacadeContractTests: passed
     memoryContracts:
       command: tools/check-project-memory.sh
-      result: passed-current-remote-checkout
+      result: passed-revision-c-before-current-working-tree
     currentSourceValidation:
+      scope: revision-c-fc6d1bf-before-current-unvalidated-working-tree
+      currentWorkingTreeValidation: deferred-by-project-owner-development-first
+      unvalidatedSourceChanges:
+        - reconciliation-secret-concurrency-hardening
+        - mall-settings-four-field-vertical-slice
       rootGoTest: passed
       rootGoVet: passed
       tenantGoTestAndVet: passed
@@ -306,6 +338,7 @@ spec:
     localDevelopmentRunbook: docs/runbooks/local-development.md
     ciImageRunbook: docs/runbooks/ci-images.md
     legacyRestorationGap: docs/project/legacy-restoration-gap.md
+    mallSettingsDevelopment: docs/project/mall-settings-development.md
     remoteDevelopmentDecision: docs/decisions/DEC-0010-remote-development-and-dev-reconciliation.md
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
@@ -333,3 +366,7 @@ spec:
     legacyImportSucceeded: true
     postImportVerifierSucceeded: true
     isolatedBrowserAcceptanceExecuted: false
+    currentWorkingTreeTested: false
+    currentWorkingTreeRemoteLocalPreviewHealthy: true
+    currentWorkingTreeProductionBuilt: false
+    currentWorkingTreeDeployed: false

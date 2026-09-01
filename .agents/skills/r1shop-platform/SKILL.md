@@ -58,3 +58,10 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
     Require an explicit `--create` or `--apply` for persistence and repeat the
     complete collision, evidence and object preflight immediately before the
     allowed write. This never authorizes a write outside `mss-shop-dev`.
+11. Read the current sequence in `docs/project/status.md` and
+    `docs/runbooks/remote-development-and-dev-acceptance.md` before starting
+    validation or rollout. While the development-first hold is active, keep
+    new modules explicitly `source-implemented-unverified`: do not reuse prior
+    CI receipts, local remote-server previews or old browser evidence as proof
+    for the working tree. Resume the acceptance run only from a new clean full
+    SHA and its exact immutable receipts.

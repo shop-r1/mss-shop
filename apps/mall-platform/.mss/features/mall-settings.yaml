@@ -1,0 +1,118 @@
+apiVersion: mss.io/v1alpha1
+kind: Feature
+metadata:
+  name: mall-settings
+  displayName: Mall settings
+  description: Manage a deliberately small, non-sensitive subset of the legacy appConfig document through a typed, permission-enforced workflow.
+  owner: product-engineering
+spec:
+  problem: The legacy system_configs.metadata document mixes ordinary mall settings with secrets and settings owned by payment, logistics, storefront and native applications, so exposing the document as generic CRUD would bypass domain boundaries and leak credentials.
+  goals:
+    - Read and update the mall name, order prefix and default sender identity through one focused Admin workflow.
+    - Preserve the existing appConfig row, primary key, tenant scope, unknown metadata and nested secret values while changing only four approved keys.
+    - Keep the runtime bound to one startup-issued tenant and fully qualified business schema with backend-enforced read and update permissions.
+  nonGoals:
+    - Do not expose or rotate AppSecret, payment credentials, logistics credentials or any arbitrary metadata.
+    - Do not manage native application versions, WeChat application identity, Host bindings, supplier strings or workflow switches whose owning domain is not implemented yet.
+    - Do not enable create, update or delete on the generic system_configs compatibility resource.
+  actors:
+    - id: mall-administrator
+      displayName: Mall administrator
+      description: Maintains ordinary presentation and sender defaults for the one mall bound to this runtime.
+  requirements:
+    - id: typed-general-settings
+      title: Typed general settings
+      description: The dedicated API and MSS-style page expose exactly mallName, orderPrefix, defaultSenderName and defaultSenderPhone.
+      priority: must
+      actor: mall-administrator
+      permission: mall-settings:read
+      rules:
+        - Responses contain no raw metadata object, unknown key, App identifier, secret, payment field, logistics field or native application field.
+        - Missing legacy values are represented by stable empty defaults and do not cause a read-side write.
+        - orderPrefix preserves the legacy ewePrefix value for later order-workflow restoration; this settings slice does not claim that a new order number consumer exists.
+        - Chinese and English labels, validation feedback, loading, empty, forbidden and error states are part of the page contract.
+    - id: legacy-app-config-update
+      title: Preserve the legacy appConfig row
+      description: A permitted update changes only the four approved keys in the active system_configs appConfig document for the startup-bound legacy tenant.
+      priority: must
+      actor: mall-administrator
+      permission: mall-settings:update
+      rules:
+        - The repository uses the fixed business schema and legacy tenant binding; no request field, header, Host or token can select a schema or tenant.
+        - Existing primary keys and every unapproved metadata entry are preserved, including nested secret-bearing entries that are never returned.
+        - Duplicate active appConfig rows, malformed JSON or an unexpected column shape fail closed without a write.
+        - If no active row exists, creation uses a legacy-compatible 18-digit identifier; soft-deleted rows are never revived, and no replacement configuration table or permanent dual write is created.
+        - Update and create run in one transaction with cross-process first-create serialization and retain the legacy soft-delete contract.
+    - id: settings-authorization
+      title: Enforce settings authorization
+      description: Read and update routes require their exact persisted MSS component and API policies.
+      priority: must
+      actor: mall-administrator
+      permission: mall-settings:update
+      rules:
+        - Authentication and authorization are checked by the backend before the repository is resolved or the request body is applied.
+        - The forward migration creates the menu, hidden component permissions, API permissions and default admin policies without altering the legacy business table.
+        - Readiness proves the migration, policies, fixed binding and exact system_configs table fingerprint before routes become ready.
+  constraints:
+    - id: fixed-binding
+      type: security
+      statement: Tenant and schema identity are startup configuration and never HTTP input.
+    - id: secret-non-disclosure
+      type: security
+      statement: Arbitrary metadata and nested secrets never appear in API responses, logs, error params, audit bodies or frontend state.
+    - id: generic-compatibility-remains-read-only
+      type: compatibility
+      statement: The generic system_configs resource remains read-only and its metadata remains excluded from search, filtering and sorting.
+    - id: source-preservation
+      type: compatibility
+      statement: The legacy system_configs table and appConfig document remain authoritative until a separately accepted migration replaces them.
+  acceptance:
+    - id: typed-contract-tests
+      requirement: typed-general-settings
+      statement: Contract tests reject missing, extra, wrongly typed and secret-bearing response fields and prove bilingual page states.
+      level: integration
+      phase: development-complete-validation
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/mallsettings
+        - type: command
+          value: pnpm test -- mall-settings
+    - id: legacy-preservation-tests
+      requirement: legacy-app-config-update
+      statement: SQLite and PostgreSQL fixtures prove fixed tenant/schema qualification, unknown-key and secret preservation, duplicate rejection, soft-delete behavior and transactional create/update semantics.
+      level: integration
+      phase: development-complete-validation
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/mallsettings
+    - id: permission-matrix-tests
+      requirement: settings-authorization
+      statement: Root, allowed role, denied role, missing identity and forged-route tests prove persisted backend policy enforcement before database access.
+      level: integration
+      phase: development-complete-validation
+      required: true
+      evidence:
+        - type: command
+          value: go test ./internal/modules/mallsettings
+  risks:
+    - id: metadata-overwrite
+      description: Replacing the complete appConfig document from a four-field form could silently erase credentials and domain settings.
+      severity: critical
+      mitigation: Merge only four allow-listed legacy keys inside the transaction and prove every other JSON value is preserved.
+    - id: secret-response-regression
+      description: Reusing the generic compatibility DTO could return nested secrets.
+      severity: critical
+      mitigation: Use a closed response struct with no metadata or extension field and reject unknown response shapes on the frontend.
+    - id: configuration-without-consumer
+      description: Publishing workflow switches before their order, logistics or storefront consumers exist would create misleading settings.
+      severity: medium
+      mitigation: Defer every switch until its owning workflow is implemented and separately qualified.
+  validation:
+    changed: mss verify --changed
+    all: mss verify --all
+  rollout:
+    strategy: vertical-slice
+    migration: Apply only the MSS authorization migration, then exercise writes against the isolated development schema after all planned development is complete.
+    rollback: Remove the dedicated route and restore the previous runtime; the legacy appConfig row remains readable by the old system because its table and keys are unchanged.

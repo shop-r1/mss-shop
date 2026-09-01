@@ -71,6 +71,13 @@ description: Implement or review R1Shop Admin business capabilities that must pr
    `system_configs.metadata`, must not participate in free-text search,
    exact/contains/icontains filtering or sorting because result counts can leak
    the presence of a guessed secret.
+   A writable `system_configs` workflow must use a closed DTO and one fixed
+   server-side `name`; merge only reviewed keys into the active row for the
+   fixed legacy tenant, preserve all unapproved metadata, never revive a soft
+   delete, serialize concurrent first creation across replicas, and keep the
+   generic compatibility resource read-only. Record unconsumed legacy values
+   as compatibility references rather than claiming that a missing domain
+   workflow already uses them.
 9. Return business failures with a flat, React-safe envelope containing
    `errorCode`, a non-sensitive fallback `errorMessage`, stable `messageKey`
    and optional scalar `params`. Keep the key in both locale catalogs. During

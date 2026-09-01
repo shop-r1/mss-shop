@@ -95,8 +95,13 @@ cross-schema writes from a mall runtime remain forbidden.
 ### 2.1 Current Admin compatibility safety boundary
 
 The compatibility allocation is 50 mall resources plus the one tenant payment
-resource. All 51 remain read-only: they advertise no create, update or delete
-capability, and their generic mutation endpoints fail closed. Source code
+resource. All 51 **generic compatibility resources** remain read-only: they
+advertise no create, update or delete capability, and their generic mutation
+endpoints fail closed. A separate four-field Mall Settings workflow is now
+implemented in source for the active `system_configs.appConfig` row; it does
+not change the generic resource capability. A demo-SQLite development preview
+starts, but the workflow remains without formal tests, production build,
+isolated PostgreSQL/Kubernetes migration, deployment or acceptance. Source code
 contains forward-only route and permission migrations for this allocation, but
 they have not been applied or deployed to any environment. The prior published
 43 mall/eight tenant projection remains historical evidence, not an alternate
@@ -289,7 +294,7 @@ APIs to storefront clients.
 | All other tenant commerce and ERP domains | Custom mall/storefront/worker modules | Preserve the remaining tenant table contracts until a separately versioned migration changes them |
 | 'messages', 'message_users' | Dormant in active admin routing; candidate for archive or MSS notification mapping | Preserve data until retention and user mapping are approved; do not silently drop |
 | 'message_events', 'message_templates' | Business event configuration | Migrate as custom notification rules/templates; keep tenant ownership and status |
-| 'system_configs' | Business configuration, not an MSS dictionary | Keep current Admin compatibility read-only; define typed public/private DTOs; preserve raw JSON only in the private business schema; recursively redact nested secrets and exclude `metadata` from search, filtering and sorting |
+| 'system_configs' | Business configuration, not an MSS dictionary | Keep generic Admin compatibility read-only; use dedicated closed DTOs for reviewed keys; preserve raw JSON only in the private business schema; recursively redact nested secrets and exclude `metadata` from search, filtering and sorting. The four-field general-settings source slice starts in a demo-SQLite preview but is not formal validation or deployment evidence. |
 
 Legacy user and member passwords use scrypt with parameters 'N=16384', 'r=8',
 'p=1', a 32-byte derived key and a separately stored salt
@@ -315,8 +320,9 @@ The new implementation therefore must:
 5. include negative tests for a valid user without the permission, a user with
    the wrong warehouse scope and a principal from another tenant;
 6. keep a mall runtime fixed to one core/business schema pair at startup;
-7. keep all 51 current compatibility resources read-only until one resource and
-   operation passes its dedicated legacy-semantics qualification;
+7. keep all 51 generic compatibility resources read-only; every write must use
+   a dedicated workflow that separately passes its legacy-semantics
+   qualification;
 8. exclude any JSON column with declared nested secrets from free-text search,
    exact/contains/icontains filtering and sorting.
 
@@ -462,7 +468,7 @@ default, index or constraint.
 
 | # | Table and source | Target ownership | Key fields and relations | Lifecycle and historical semantics | Required checks |
 | ---: | --- | --- | --- | --- | --- |
-| 44 | 'system_configs' — 'app/shop/models/config.go' | tenant business schema | 'id', 'tenant_id', indexed 'name', metadata JSON | soft delete; arbitrary JSON historically mixes public settings and secret-bearing integration settings; current Admin compatibility is read-only and `metadata` is not searchable, filterable or sortable | N,K,P,J,S,B: duplicate-name profile; typed public/private classification; no secret can appear in storefront DTO or evidence; guessed nested-secret queries are rejected |
+| 44 | 'system_configs' — 'app/shop/models/config.go' | tenant business schema | 'id', 'tenant_id', indexed 'name', metadata JSON | soft delete; arbitrary JSON historically mixes public settings and secret-bearing integration settings; generic Admin compatibility is read-only and `metadata` is not searchable, filterable or sortable; a dedicated four-key `appConfig` source workflow exists but is not yet verified or deployed | N,K,P,J,S,B: duplicate-name profile; typed public/private classification; no secret can appear in storefront DTO or evidence; guessed nested-secret queries are rejected; dedicated writes preserve every unapproved metadata value and never revive tombstones |
 | 45 | 'messages' — 'app/shop/models/message.go' | tenant business archive pending decision | 'id', tenant, title/content, hits/top, created-at | no soft delete/update; no active admin route found | N,K,P,T,B: retention/mapping decision; content and ordering preserved until approved |
 | 46 | 'message_users' — 'app/shop/models/message.go' | tenant business archive pending decision | composite 'message_id/user_id', tenant, read flag/time | no soft delete; user refers to legacy admin identity | N,K,P,R,T,B: map user IDs to MSS identities or archive atomically with messages |
 | 47 | 'message_events' — 'app/shop/models/message.go' | tenant business schema | 'id', tenant, name, app/object/event, status | soft delete; event identity is a tuple in practice | N,K,P,E,B: tuple duplicate profile and supported event inventory |

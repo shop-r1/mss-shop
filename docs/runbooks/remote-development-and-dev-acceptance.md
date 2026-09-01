@@ -20,6 +20,22 @@ persisted beside the receipt. No reconciliation, Admin runtime, complete
 Kubernetes system acceptance or isolated browser acceptance has executed;
 business acceptance remains 0/31.
 
+## Current development-first hold
+
+The project owner has directed the team to continue business development first
+and defer the formal validation, CI publication, reconciliation and acceptance
+sequence until the planned source restoration is complete. Therefore the
+ordered procedure below remains authoritative but is presently on hold: do not
+interpret source-complete modules, a local remote-server preview, or prior
+Revision C receipts as permission to advance a Kubernetes or database gate.
+
+During this hold, remote local-process previews may use only repository-owned
+SQLite fixtures and loopback listeners. They are development aids, not system
+acceptance. They must not connect to or mutate `r1shop-dev`, `r1shop-prod`, or
+the isolated cluster datastore. When the hold is lifted, restart the procedure
+from a new clean full SHA and fresh four-image receipts; never reuse the
+temporary preview as evidence.
+
 ## Fixed boundaries
 
 | Item | Fixed value |

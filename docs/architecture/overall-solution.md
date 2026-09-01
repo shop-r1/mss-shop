@@ -209,9 +209,12 @@ Tenant-owned views have an immutable tenant predicate. The seven source-global
 product and logistics tables are instead seeded as an ID-preserving,
 reconciled copy in every tenant business schema; the platform does not retain
 their shared writer. The Admin allocation is 50 mall resources plus one tenant
-payment resource, and all 51 are read-only. A future writable view requires
-per-resource workflow qualification and `WITH CHECK OPTION` where PostgreSQL
-supports it; table shape alone is never sufficient. The mall role has no
+payment resource, and all 51 generic compatibility surfaces are read-only.
+Writes require separately qualified domain workflows; the first four-field
+Mall Settings workflow is source-implemented but still unverified and
+undeployed. A future writable view requires per-resource workflow qualification
+and `WITH CHECK OPTION` where PostgreSQL supports it; table shape alone is
+never sufficient. The mall role has no
 permission to select an arbitrary legacy schema or base table. Permanent dual
 write is forbidden. See DEC-0007, DEC-0009 and
 `docs/migration/legacy-tables.yaml`.
