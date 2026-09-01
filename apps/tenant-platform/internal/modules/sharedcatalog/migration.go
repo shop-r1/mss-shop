@@ -47,7 +47,7 @@ func applyAuthorizationMigration(
 	if version != AuthorizationMigrationID.String() {
 		return errors.New("shared catalogue authorization migration version mismatch")
 	}
-	if len(registry.All()) != legacydb.ExpectedSharedResourceCount {
+	if len(registry.All()) != legacydb.PublishedSharedResourceCount {
 		return errors.New("shared catalogue authorization migration registry is incomplete")
 	}
 
@@ -325,8 +325,8 @@ func verifyAuthorizationReadiness(ctx context.Context, db *gorm.DB, binding fixe
 	var versions int64
 	if err := db.WithContext(ctx).Table(qualifiedCoreTable(binding, "mss_boot_migration")).
 		Where("version IN ?", []string{
-			AuthorizationMigrationID.String(), MenuLocalizationMigrationID.String(), CapabilityLockdownMigrationID.String(),
-		}).Count(&versions).Error; err != nil || versions != 3 {
+			AuthorizationMigrationID.String(), MenuLocalizationMigrationID.String(), CapabilityLockdownMigrationID.String(), OwnershipTransferMigrationID.String(),
+		}).Count(&versions).Error; err != nil || versions != 4 {
 		return errors.New("authorization migrations are not applied")
 	}
 	adminRole, err := resolveReadinessRole(ctx, db, binding, "admin")
@@ -364,7 +364,10 @@ func verifyAuthorizationReadiness(ctx context.Context, db *gorm.DB, binding fixe
 			return fmt.Errorf("required authorization policy is unavailable for %s %s", policy.method, policy.path)
 		}
 	}
-	return verifyCapabilityLockdownReadiness(ctx, db, binding, registry)
+	if err := verifyCapabilityLockdownReadiness(ctx, db, binding, registry); err != nil {
+		return err
+	}
+	return verifyOwnershipTransferReadiness(ctx, db, binding, legacydb.PublishedRegistry(), registry)
 }
 
 type authorizationRequirement struct {
@@ -379,7 +382,7 @@ func authorizationRequirements(registry legacydb.Registry) []authorizationRequir
 	required = append(required, authorizationRequirement{
 		accessType: adminpkg.DirectoryAccessType,
 		path:       sharedCatalogRootPath, method: httpGet,
-		permission: PermissionCode("brands", string(actionRead)),
+		permission: PermissionCode("payments", string(actionRead)),
 	})
 	for _, definition := range registry.All() {
 		resource := definition.Resource

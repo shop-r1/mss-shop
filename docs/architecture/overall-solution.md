@@ -34,6 +34,7 @@ mss-shop/
     mall-platform/         # MSS Thin Host: mall admin backend + web
   services/
     reconciler/            # desired/observed-state convergence and DDL owner
+    legacy-importer/       # one-time bounded import into isolated development
     storefront-api/        # public/member API under /app/v1
     worker/                # asynchronous commerce jobs
   contracts/
@@ -64,17 +65,47 @@ manifest and generated paths must stay coherent.
 - Uses its own control-plane storage. If it consumes MSS, keep MSS core tables
   isolated from control business tables so an MSS migration cannot rewrite
   application-owned columns.
+- Owns the transitional `payments` compatibility catalog; it does not own
+  product or logistics records stored in tenant mall schemas.
 
 ### Reconciler
 
-- Is the sole writer for tenant schemas, database roles, generated credentials
-  and mall runtime resources.
+- Is the sole writer for tenant PostgreSQL roles, schemas, snapshots,
+  compatibility views and grants.
 - Converts desired state into observed state through idempotent steps, leases,
   retries and recorded checkpoints.
 - Produces auditable status without returning secret values to the control
   plane UI.
 - Applies MSS core migrations only to a core schema and R1Shop migrations only
   to the matching business schema.
+- The current fixed `mss-shop-dev` Job has no ServiceAccount token or
+  Kubernetes API permission and changes only the receipt-bound isolated
+  database reconciliation boundary in one locked transaction. It verifies the
+  import marker and empty order tables before reconciling roles, schemas,
+  compatibility owners, snapshots, views and grants. It is not a generalized
+  lifecycle or production driver.
+
+### Trusted stage operator
+
+- Runs only from a clean checkout for the reviewed full Git SHA with an
+  explicit local operator kubeconfig; it is not an HTTP or in-cluster control
+  plane.
+- Owns three separated stages in the isolated namespace: the exact 24-object
+  create-only infrastructure boundary, six immutable foundation Secrets, and,
+  only after verified import, the two application Secrets plus transient
+  reconciler bootstrap Secret. Each operator runs from a clean full-SHA
+  checkout with an explicit kubeconfig and never prints Secret values.
+- The foundation credential stage may GET only the exact old database
+  credential and GHCR pull Secret. It creates independent PostgreSQL/Redis
+  credentials and TLS identities in `mss-shop-dev`; it does not read or reuse
+  the old Redis.
+- Runs an independent trigger-disabled, receipt-bound database catalog
+  preflight before reconciliation. The in-cluster Job repeats the fixed target
+  and catalog boundary.
+- Applies only the two ConfigMaps, Deployments, Services and Ingresses recorded
+  by DEC-0010 in `mss-shop-dev`, after exact object-binding and cluster-wide
+  host collision checks. It does not force field conflicts or adopt any
+  original-development resource.
 
 ### Mall platform
 
@@ -85,7 +116,10 @@ manifest and generated paths must stay coherent.
 - Uses an explicitly injected business database handle for commerce modules.
 - Keeps the MSS connection's current schema limited to the fixed core schema;
   every legacy commerce query uses a startup-bound, validated, fully qualified
-  business or shared-catalog object name.
+  business object name.
+- Owns that tenant's product masters, categories, brands, logistics providers
+  and packing rules in the fixed business schema. The tenant platform does not
+  provide a permanent cross-tenant product/logistics writer.
 - Never chooses a tenant or schema from a request header, route, JWT claim sent
   by an untrusted client, or UI selector.
 
@@ -133,7 +167,8 @@ reconciler derives a short collision-checked key and creates:
 
 ```text
 r1_m_<tenant-key>_core   MSS users, roles, menus, Casbin, sessions, MSS ledger
-r1_m_<tenant-key>_biz    products, inventory, carts, orders and translations
+r1_m_<tenant-key>_biz    product masters, logistics rules, inventory, carts,
+                         orders and translations
 ```
 
 This pair is one tenant isolation unit. Separate database roles receive only
@@ -155,15 +190,26 @@ most tenant data by `tenant_id`. It is not safe to make that schema the MSS
 current schema because legacy `users`, `roles` and `tenants` collide with Admin
 names and the framework migration above inspects `CURRENT_SCHEMA`.
 
-During migration, the reconciler may project old rows into the fixed tenant
-business schema through security-barrier compatibility views. Tenant-owned
-views have an immutable tenant predicate. In the current phase all 43 mall and
-eight shared-catalog Admin compatibility resources are read-only. A future
-writable view requires per-resource workflow qualification and `WITH CHECK
-OPTION` where PostgreSQL supports it; table shape alone is never sufficient.
-The mall role has no permission to select an arbitrary legacy schema or base
-table. A verified isolated copy can replace a view behind the same qualified
-repository contract; permanent dual write is forbidden. See DEC-0007 and
+The isolated-development migration uses one bounded importer before the
+reconciler. It reads exactly 51 reviewed business tables from the fixed legacy
+source into the fresh isolated target, while carrying `orders` and
+`order_goods` as empty structures only; identity tables are not copied. Its
+deterministic receipt binds the compiled schema fingerprint and per-table
+source/target counts and hashes to the target database marker. The plaintext
+source connection is a fixed exception because the immutable source has SSL
+disabled; the target always uses verified TLS.
+
+After receipt verification, the reconciler projects imported rows into the
+fixed tenant business schema through security-barrier compatibility views.
+Tenant-owned views have an immutable tenant predicate. The seven source-global
+product and logistics tables are instead seeded as an ID-preserving,
+reconciled copy in every tenant business schema; the platform does not retain
+their shared writer. The Admin allocation is 50 mall resources plus one tenant
+payment resource, and all 51 are read-only. A future writable view requires
+per-resource workflow qualification and `WITH CHECK OPTION` where PostgreSQL
+supports it; table shape alone is never sufficient. The mall role has no
+permission to select an arbitrary legacy schema or base table. Permanent dual
+write is forbidden. See DEC-0007, DEC-0009 and
 `docs/migration/legacy-tables.yaml`.
 
 ## Authentication and sessions
@@ -186,13 +232,39 @@ some resource overhead for clear blast-radius, migration and rollback
 boundaries.
 
 No GitHub Actions workflow auto-deploys Kubernetes resources. Pull requests
-run unit and contract validation and prove both delivery Dockerfiles without
-pushing. Pushes to `codex/**` and `main` publish only the tenant-platform and
-mall-platform `linux/amd64` images to GHCR, tagged by the complete immutable Git
-SHA. The root proof, storefront API, reconciler and worker are not delivery
-images. Development rollout remains a deliberate manual action, and every
-production write needs explicit approval. The exact package, permission and
-rollback policy is in [`ci-images.md`](../runbooks/ci-images.md).
+run unit and contract validation and prove four delivery Dockerfiles without
+pushing. Pushes to `codex/**` and `main` publish the tenant-platform,
+mall-platform, fixed isolated database reconciler and one-time legacy importer
+`linux/amd64` images to GHCR. Every image is tagged by the same complete Git
+SHA and receives a digest-bound CI receipt. The root proof, storefront API and
+worker are not delivery images. Development rollout remains a deliberate
+manual action, and every production write needs explicit approval. The exact
+package, permission and rollback policy is in
+[`ci-images.md`](../runbooks/ci-images.md).
+
+Development work may use the versioned checkout on `167.17.68.242` because the
+workstation is resource-constrained. The only write target is the isolated
+`mss-shop-dev` namespace with its own PostgreSQL 17.6, Redis 8.6.3, PVCs, TLS,
+credentials and default-deny networking. A create-only operator creates an
+exact 24-object boundary: every NetworkPolicy precedes two inert scheduling-only
+storage binders, and both PVCs must then pass a cluster-wide node/local-path
+exclusivity gate before either StatefulSet can be created. A second operator
+creates six immutable foundation Secrets only in that namespace.
+
+Every resource in the original `r1shop-dev` environment is immutable. The only
+old data path is a constrained, read-only import from
+`timescaledb-r1shop-dev.database.svc:5432/r1shop_dev`, plus GET of the exact
+database credential and GHCR pull Secret. Old Redis is not shared. The
+one-time importer persists a receipt-bound marker; only after a disposable Pod
+independently proves that marker and zero target rows in `orders` and
+`order_goods` may application/bootstrap Secrets, the reconciler and the eight
+Admin runtime objects be staged. Production is outside this workflow. See
+[`remote-development-and-dev-acceptance.md`](../runbooks/remote-development-and-dev-acceptance.md).
+
+This is the target delivery topology, not current runtime evidence. The
+isolated environment has not yet been deployed or imported, Kubernetes system
+and isolated browser acceptance remain pending, and the business matrix is
+still 0/31.
 
 ## Mobile boundary
 

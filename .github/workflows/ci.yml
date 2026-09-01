@@ -13,7 +13,7 @@ permissions:
 
 env:
   GO_VERSION: 1.26.6
-  NODE_VERSION: 24.13.1
+  NODE_VERSION: 24.19.0
   PNPM_VERSION: 10.34.5
   MSS_VERSION: v1.3.7
 
@@ -113,10 +113,20 @@ jobs:
         include:
           - name: tenant-platform
             context: apps/tenant-platform
+            dockerfile: Dockerfile
             image: mss-shop-tenant-platform
           - name: mall-platform
             context: apps/mall-platform
+            dockerfile: Dockerfile
             image: mss-shop-mall-platform
+          - name: reconciler
+            context: .
+            dockerfile: services/reconciler/Dockerfile
+            image: mss-shop-reconciler
+          - name: legacy-importer
+            context: .
+            dockerfile: services/legacy-importer/Dockerfile
+            image: mss-shop-legacy-importer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -124,6 +134,7 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: false
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
@@ -150,10 +161,20 @@ jobs:
         include:
           - name: tenant-platform
             context: apps/tenant-platform
+            dockerfile: Dockerfile
             image: mss-shop-tenant-platform
           - name: mall-platform
             context: apps/mall-platform
+            dockerfile: Dockerfile
             image: mss-shop-mall-platform
+          - name: reconciler
+            context: .
+            dockerfile: services/reconciler/Dockerfile
+            image: mss-shop-reconciler
+          - name: legacy-importer
+            context: .
+            dockerfile: services/legacy-importer/Dockerfile
+            image: mss-shop-legacy-importer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
@@ -164,9 +185,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build delivery image
+        id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
@@ -176,3 +199,29 @@ jobs:
             org.opencontainers.image.version=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          provenance: mode=max
+          sbom: true
+      - name: Write immutable image receipt
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          test -n "${IMAGE_DIGEST}"
+          printf '%s\n' "${IMAGE_DIGEST}" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          test "${IMAGE_DIGEST}" != "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          jq -n \
+            --arg repository "ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" \
+            --arg revision "${GITHUB_SHA}" \
+            --arg digest "${IMAGE_DIGEST}" \
+            --arg workflow "${GITHUB_WORKFLOW}" \
+            --arg runId "${GITHUB_RUN_ID}" \
+            --arg runAttempt "${GITHUB_RUN_ATTEMPT}" \
+            '{schemaVersion: 1, repository: $repository, revision: $revision, digest: $digest, reference: ($repository + ":" + $revision + "@" + $digest), platform: "linux/amd64", workflow: $workflow, runId: $runId, runAttempt: $runAttempt}' \
+            > "${IMAGE_NAME}-${GITHUB_SHA}.json"
+      - name: Upload immutable image receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-receipt-${{ matrix.image }}-${{ github.sha }}
+          path: ${{ matrix.image }}-${{ github.sha }}.json
+          if-no-files-found: error
+          retention-days: 30

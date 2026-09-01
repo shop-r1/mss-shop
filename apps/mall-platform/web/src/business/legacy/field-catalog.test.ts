@@ -13,7 +13,7 @@ function backendVisibleFields(): string[] {
     .split('\n')
     .filter((line) => line.includes('{name:') && line.includes('columns:'));
 
-  expect(seeds).toHaveLength(43);
+  expect(seeds).toHaveLength(50);
   expect(source).toContain('Label:    "legacy.fields." + name');
 
   const visible = new Set<string>();
@@ -37,7 +37,7 @@ function backendVisibleFields(): string[] {
 }
 
 describe('mall legacy field locale contract', () => {
-  it('matches every visible field in the 43-resource backend manifest', () => {
+  it('matches every visible field in the 50-resource backend manifest', () => {
     expect([...LEGACY_FIELDS]).toEqual([...LEGACY_FIELDS].sort());
     expect(new Set(LEGACY_FIELDS).size).toBe(LEGACY_FIELDS.length);
     expect([...LEGACY_FIELDS]).toEqual(backendVisibleFields());

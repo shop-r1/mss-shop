@@ -10,11 +10,13 @@ The review used the in-app browser, MSS 1.3.7, the local backend on port 8080
 and the local Admin Web on port 8001. It did not use a development or
 production database, Kubernetes, or customer data.
 
-This evidence proves that the reviewed compatibility UI can run and perform a
-small set of representative reads. All 43 mall compatibility resources and all
-eight tenant shared-catalog resources are now read-only. It does **not** close
-any row in the 31-scenario legacy business acceptance matrix. The
-closed-scenario count remains zero until the dedicated workflows and
+This evidence proves that the reviewed compatibility UI could run and perform a
+small set of representative reads at the recorded revision. At review time the
+43 mall and eight tenant compatibility resources were read-only. DEC-0009 later
+moved the source allocation to 50 mall/one tenant payment resource, so this
+report does **not** prove the seven-resource relocation or the current UI. It
+does not close any row in the 31-scenario legacy business acceptance matrix.
+The closed-scenario count remains zero until the dedicated workflows and
 disposable-Pod system evidence exist.
 
 The `show_categories` create/update below was executed against an earlier,
@@ -47,8 +49,8 @@ delete operation was executed.
 
 ## Not covered
 
-- a current write workflow for any of the 43 resources; generic create, update
-  and delete are disabled rather than accepted;
+- a write workflow for any of the 43 resources present at review time; generic
+  create, update and delete were disabled rather than accepted;
 - an exhaustive browser recheck across every resource; the four resources
   formerly classified as generic-writable were rechecked after correction,
   while the complete 51-resource read-only boundary is enforced by manifests,
@@ -56,7 +58,8 @@ delete operation was executed.
 - delete confirmation or deletion;
 - a browser-level denied-role/HTTP 403 flow;
 - tenant-platform browser acceptance;
-- exhaustive navigation or operation coverage across all 43 mall resources;
+- exhaustive navigation or operation coverage across the former 43 or current
+  50 mall resources;
 - historical order, payment, inventory, wallet, promotion, import/export, or
   other cross-table side-effect workflows;
 - a legacy PostgreSQL/TimescaleDB data copy, row-count reconciliation, or

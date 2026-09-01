@@ -1,0 +1,129 @@
+# Fixed, create-only pre-import readiness probe for the isolated environment.
+# Never apply or substitute this template manually. The trusted stage-jobs
+# command renders it from a clean full Git revision and exact importer-image
+# digest, proves the mss-shop-dev Namespace first, then validates both isolated
+# StatefulSets/PVCs and every immutable credential before Create Job.
+#
+# The isolated-readiness network role can reach only the new PostgreSQL and
+# Redis Pods. It is deliberately excluded from the legacy-source policy and
+# receives no source Secret or Kubernetes API token. Its sole stdout value is
+# one strict, non-secret readiness JSON document; capture it before the TTL.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mss-shop-readiness-0000000000000000000000000000000000000000
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-import-readiness
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Job:mss-shop-readiness-0000000000000000000000000000000000000000
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/image-digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-import-readiness
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: isolated-readiness
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: readiness
+          image: ghcr.io/shop-r1/mss-shop-legacy-importer:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/mss-shop-legacy-readiness"]
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          env:
+            - name: MSS_READY_POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: username
+            - name: MSS_READY_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: password
+            - name: MSS_READY_POSTGRES_TLS_CA_FILE
+              value: /etc/mss-shop/postgres-tls/ca.crt
+            - name: MSS_READY_POSTGRES_TLS_SERVER_NAME
+              value: mss-shop-postgres.mss-shop-dev.svc
+            - name: MSS_READY_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-redis-auth
+                  key: password
+            - name: MSS_READY_REDIS_TLS_CA_FILE
+              value: /etc/mss-shop/redis-tls/ca.crt
+            - name: MSS_READY_REDIS_TLS_SERVER_NAME
+              value: mss-shop-redis.mss-shop-dev.svc
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MSS_IMAGE_REVISION
+              value: "0000000000000000000000000000000000000000"
+            - name: MSS_IMAGE_DIGEST
+              value: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          volumeMounts:
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: redis-ca
+              mountPath: /etc/mss-shop/redis-tls
+              readOnly: true
+      volumes:
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: redis-ca
+          secret:
+            secretName: mss-shop-redis-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt

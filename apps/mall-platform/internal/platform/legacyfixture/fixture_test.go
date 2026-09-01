@@ -244,7 +244,7 @@ func TestApplyRejectsSymlinkAndIncompatibleExistingRelation(t *testing.T) {
 	})
 }
 
-func TestSQLiteReadinessDoesNotPretendToProvideSharedSchemaIsolation(t *testing.T) {
+func TestSQLiteReadinessDoesNotPretendToProvideCoreSchemaIsolation(t *testing.T) {
 	root := newMallRoot(t)
 	target := filepath.Join(root, DatabaseFilename)
 	database := openTestSQLite(t, target)
@@ -295,7 +295,7 @@ func newMallRoot(t *testing.T) string {
 func fixtureBinding(tenantID string) fixedbinding.Binding {
 	return fixedbinding.Binding{
 		TenantID: "local-ui-control", AdminTenantID: fixedbinding.MSS137AdminTenantID,
-		LegacyTenantID: tenantID, BusinessSchema: "main", SharedSchema: "shared_demo",
+		LegacyTenantID: tenantID, BusinessSchema: "main",
 	}
 }
 

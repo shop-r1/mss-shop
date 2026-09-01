@@ -17,7 +17,6 @@ const (
 	AdminTenantIDEnvironment  = "R1SHOP_ADMIN_TENANT_ID"
 	LegacyTenantIDEnvironment = "R1SHOP_LEGACY_TENANT_ID"
 	BusinessSchemaEnvironment = "R1SHOP_BIZ_SCHEMA"
-	SharedSchemaEnvironment   = "R1SHOP_SHARED_SCHEMA"
 )
 
 var (
@@ -34,7 +33,6 @@ type Binding struct {
 	AdminTenantID  string
 	LegacyTenantID string
 	BusinessSchema string
-	SharedSchema   string
 }
 
 // Validate rejects values that cannot be safely used by the qualified-table
@@ -54,12 +52,6 @@ func (binding Binding) Validate() error {
 	}
 	if err := validateSchema("business", binding.BusinessSchema); err != nil {
 		return err
-	}
-	if err := validateSchema("shared", binding.SharedSchema); err != nil {
-		return err
-	}
-	if binding.BusinessSchema == binding.SharedSchema {
-		return fmt.Errorf("%w: business and shared schemas must be distinct", ErrInvalidBinding)
 	}
 	return nil
 }
@@ -90,14 +82,13 @@ func validateIdentity(label, value string) error {
 // inject a static source without changing process environment.
 type Source func() (Binding, error)
 
-// EnvironmentSource reads only the five documented server-side variables.
+// EnvironmentSource reads only the four documented server-side variables.
 func EnvironmentSource() (Binding, error) {
 	binding := Binding{
 		TenantID:       os.Getenv(TenantIDEnvironment),
 		AdminTenantID:  os.Getenv(AdminTenantIDEnvironment),
 		LegacyTenantID: os.Getenv(LegacyTenantIDEnvironment),
 		BusinessSchema: os.Getenv(BusinessSchemaEnvironment),
-		SharedSchema:   os.Getenv(SharedSchemaEnvironment),
 	}
 	if err := binding.Validate(); err != nil {
 		return Binding{}, err

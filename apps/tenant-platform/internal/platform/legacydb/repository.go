@@ -10,6 +10,7 @@ import (
 
 	"github.com/shop-r1/mss-shop/apps/tenant-platform/internal/platform/fixedbinding"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const (
@@ -56,7 +57,11 @@ func NewRepository(db *gorm.DB, binding fixedbinding.Binding, registry Registry)
 	if len(registry.All()) != ExpectedSharedResourceCount {
 		return nil, fmt.Errorf("shared catalogue registry must contain %d reviewed resources", ExpectedSharedResourceCount)
 	}
-	return &Repository{db: db, binding: binding, registry: registry}, nil
+	// Legacy rows can contain credentials and historical customer data. Keep
+	// query parameters out of application logs even when GORM reports a slow or
+	// failed statement. The scoped session does not change the MSS host logger.
+	legacySession := db.Session(&gorm.Session{Logger: logger.Discard})
+	return &Repository{db: legacySession, binding: binding, registry: registry}, nil
 }
 
 func (repository *Repository) Resource(name string) (Resource, error) {

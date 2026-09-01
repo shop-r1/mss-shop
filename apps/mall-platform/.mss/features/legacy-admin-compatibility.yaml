@@ -6,7 +6,7 @@ metadata:
   description: Preserve the legacy mall administration data contract through fixed, schema-qualified, permission-enforced business modules.
   owner: product-engineering
 spec:
-  problem: The legacy Admin surface spans 43 tenant-owned tables and workflow side effects that cannot be represented safely by generated CRUD or by copying data into replacement tables.
+  problem: The legacy Admin surface spans 50 tenant-owned tables and workflow side effects that cannot be represented safely by generated CRUD or by copying data into replacement tables.
   goals:
     - Read every approved legacy mall resource through one immutable tenant and schema binding.
     - Preserve primary keys, soft deletes, sensitive fields and historical values while enforcing backend permissions.
@@ -31,14 +31,14 @@ spec:
   requirements:
     - id: fixed-legacy-binding
       title: Bind legacy data at startup
-      description: Every business query uses a validated startup binding and fully qualified table from the checked 43-table mall allow-list.
+      description: Every business query uses a validated startup binding and fully qualified table from the checked 50-table mall allow-list.
       priority: must
       actor: platform-operator
       module: legacycheckpoint
       permission: legacy-resources:read
       rules:
-        - Headers, routes, query parameters, tokens and request bodies cannot alter the tenant, core schema, business schema or shared schema.
-        - The mall registry excludes every control or shared-catalog table, including courier_links.
+        - Headers, routes, query parameters, tokens and request bodies cannot alter the tenant, core schema or business schema.
+        - The mall registry excludes control/identity inputs and the platform payment catalogue; the seven DEC-0009 product/logistics snapshots use explicit schema scope rather than an empty tenant predicate.
         - Editable checkpoint records are informational and cannot make an unready schema or policy ready.
     - id: permissioned-resource-access
       title: Enforce record access on the backend
@@ -49,7 +49,7 @@ spec:
       permission: legacy-resources:read
       rules:
         - Every handler enforces its exact persisted API permission and returns a stable forbidden error when it is absent.
-        - All 43 resources remain read-only until one resource and operation restores legacy validation, relationships, tenant constraints, hooks, authorization and deletion semantics in a dedicated domain contract.
+        - All 50 resources remain read-only until one resource and operation restores legacy validation, relationships, tenant constraints, hooks, authorization and deletion semantics in a dedicated domain contract.
         - Secret fields are never returned in plaintext, and a JSON column with nested secrets cannot be searched, filtered or sorted.
     - id: explicit-domain-workflows
       title: Implement historical side effects explicitly
@@ -77,7 +77,7 @@ spec:
   acceptance:
     - id: fixed-binding-negative-tests
       requirement: fixed-legacy-binding
-      statement: Forged tenant or schema input cannot change the resolved qualified table and the mall registry contains exactly 43 approved tables.
+      statement: Forged tenant or schema input cannot change the resolved qualified table and the mall registry contains exactly 50 approved tables.
       level: integration
       phase: checkpoint
       required: true

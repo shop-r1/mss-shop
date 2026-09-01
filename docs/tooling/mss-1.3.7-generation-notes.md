@@ -60,10 +60,12 @@ required by readiness.
 ## Legacy compatibility mutation qualification
 
 The generated AdminModule CRUD profile is not evidence that a legacy table is
-safe to mutate. The current compatibility catalogs expose 43 mall resources
-and eight tenant shared-catalog resources as read-only. All generic create,
-update and delete requests fail closed. This includes the eight resources that
-were initially treated as simple configuration/catalog records.
+safe to mutate. The earlier published evidence covered 43 mall resources and
+eight tenant resources. DEC-0009 source changes allocate 50 mall resources and
+one tenant payment resource through forward-only migrations; those migrations
+are not recorded here as deployed. All generic create, update and delete
+requests fail closed. This includes the eight resources that were initially
+treated as simple configuration/catalog records.
 
 The earlier four-plus-four writable classification was withdrawn after review
 showed that table shape, fixed-schema binding and soft-delete support do not by
@@ -100,9 +102,13 @@ After changing the AdminModule specification:
 5. If a workaround is no longer needed in a later MSS release, remove it from
    the specification and this note in the same upgrade change.
 
-Current successful frontend evidence is:
+The pre-DEC-0009 successful frontend evidence was:
 
 - mall-platform: 9 test files / 33 tests, lint with the generated warning above,
-  and a production build containing all 43 mall legacy resource routes;
+  and a production build containing the former 43 mall legacy resource
+  routes;
 - tenant-platform: 7 test files / 26 tests, lint with the generated warning
-  above, and a production build containing all eight shared-catalog routes.
+  above, and a production build containing the former eight tenant routes.
+
+The 50/one source allocation requires its own post-change frontend test, lint
+and build evidence before this section can describe it as verified.

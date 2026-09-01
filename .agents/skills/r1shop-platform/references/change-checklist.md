@@ -8,7 +8,7 @@
 | `/app/v1` request/response/error | DEC-0003, DEC-0005 and authoritative contract | public-field negative test, mobile snapshot and checksums |
 | Locale/message/content format | i18n architecture, DEC-0004 | catalog parity and both-client-target tests |
 | MSS module | `.mss` spec and `mss-thin-host` Skill | `mss verify --module` and `--all` as scoped |
-| Reconciler/worker simulation | DEC-0006 and lifecycle invariants | race test, replay/fault test and production-mode rejection |
+| Reconciler or stage operator | DEC-0006, DEC-0010 and lifecycle invariants | transaction replay/fault test, no-overwrite pre/postflight, least privilege and production-mode rejection |
 | Data migration | migration roadmap and runbook | dev-only rehearsal, row counts and rollback |
 
 For production-impacting work, stop before mutation until the user approves the

@@ -46,19 +46,11 @@ function resource<const Resource extends string>(
 }
 
 /**
- * The fixed eight-resource shared catalogue allowlist. Every resource remains
- * read-only until a dedicated workflow owns its legacy hooks, cache
- * invalidation, and cross-tenant side effects. This list is never database
- * discovery or a SQL selector.
+ * The fixed tenant-platform allowlist now retains only the source payment
+ * catalogue. Product and logistics resources are tenant-owned mall data under
+ * DEC-0009. Payment remains read-only while DEC-0008 is under review.
  */
 export const SHARED_CATALOG_RESOURCES = [
-  resource('brands', false),
-  resource('categories', false),
-  resource('classes', false),
-  resource('goods_infos', false),
-  resource('couriers', false),
-  resource('courier_pack_rules', false),
-  resource('courier_links', false),
   resource('payments', false),
 ] as const;
 
@@ -71,46 +63,12 @@ export const SHARED_CATALOG_FIELDS = [
   'created_at',
   'updated_at',
   'deleted_at',
-  'name_zh',
-  'name_en',
   'logo',
   'site_url',
-  'index_img',
-  'bg_img',
   'description',
-  'sort',
   'status',
-  'parent_id',
   'name',
-  'alias',
-  'img',
-  'tag',
-  'pack_rule',
-  'category_id',
-  'attributes',
-  'parent_category_id',
-  'brand_id',
-  'album',
-  'image',
-  'video',
-  'keywords',
-  'bar_code',
-  'content',
-  'weight',
-  'has_pack_rule',
-  'unit',
-  'goods_type',
-  'region',
   'method',
-  'courier_id',
-  'simple',
-  'mixed',
-  'mixed_sum',
-  'price_unit',
-  'price_total',
-  'link_id',
-  'left_rule_id',
-  'object_ids_data',
   'type',
   'terminals',
 ] as const;

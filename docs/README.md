@@ -18,13 +18,19 @@ local runtime state.
 9. [Legacy Admin acceptance matrix](migration/legacy-admin-acceptance-matrix.md)
 10. [Mall local browser compatibility acceptance](acceptance/mall-local-browser-acceptance.md)
 11. [CI and delivery image runbook](runbooks/ci-images.md)
-12. [Decision records](decisions/README.md)
-13. [Memory governance](governance/memory.md)
-14. [MCP integration](tooling/mcp.md)
-15. [MSS 1.3.7 generation qualification notes](tooling/mss-1.3.7-generation-notes.md)
+12. [Remote development and isolated mss-shop-dev acceptance](runbooks/remote-development-and-dev-acceptance.md)
+13. [Catalog and logistics redesign review](reviews/legacy-catalog-logistics-redesign.md)
+14. [Decision records](decisions/README.md)
+15. [Memory governance](governance/memory.md)
+16. [MCP integration](tooling/mcp.md)
+17. [MSS 1.3.7 generation qualification notes](tooling/mss-1.3.7-generation-notes.md)
 
 After changing an invariant, migration contract, acceptance claim, Skill or
 tool connection, run `tools/check-project-memory.sh` before committing.
+
+The original `r1shop-dev` environment is immutable. Remote development writes
+only to the isolated `mss-shop-dev` namespace with dedicated datastores,
+storage, TLS and credentials; see DEC-0010 before any cluster operation.
 
 The root application remains an MSS 1.3.7 Thin Host proof of concept. The two
 delivery Hosts live under `apps/tenant-platform` and `apps/mall-platform`, with

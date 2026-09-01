@@ -30,6 +30,10 @@ const MenuLocalizationMigrationID migration.MigrationID = "66966149766801"
 // were fully inventoried.
 const CapabilityLockdownMigrationID migration.MigrationID = "66966149766802"
 
+// OwnershipTransferMigrationID is the forward-only DEC-0009 projection that
+// adds the seven tenant-owned catalogue/logistics snapshots to mall Admin.
+const OwnershipTransferMigrationID migration.MigrationID = "66966149766803"
+
 const authorizationRevisionResource = "authorization"
 
 func RegisterMigration(runner *migration.Migration) error {
@@ -42,7 +46,10 @@ func RegisterMigration(runner *migration.Migration) error {
 	if err := runner.Register(MenuLocalizationMigrationID, migrateMenuLocalization); err != nil {
 		return err
 	}
-	return runner.Register(CapabilityLockdownMigrationID, migrateCapabilityLockdown)
+	if err := runner.Register(CapabilityLockdownMigrationID, migrateCapabilityLockdown); err != nil {
+		return err
+	}
+	return runner.Register(OwnershipTransferMigrationID, migrateOwnershipTransfer)
 }
 
 func migrateAuthorization(db *gorm.DB, version string) error {
@@ -52,8 +59,8 @@ func migrateAuthorization(db *gorm.DB, version string) error {
 	if version != AuthorizationMigrationID.String() {
 		return errors.New("legacy compatibility migration version mismatch")
 	}
-	registry := legacydb.DefaultRegistry()
-	if len(registry.All()) != legacydb.ExpectedMallResourceCount {
+	registry := legacydb.PublishedRegistry()
+	if len(registry.All()) != legacydb.PublishedMallResourceCount {
 		return errors.New("legacy compatibility migration manifest is incomplete")
 	}
 
@@ -104,7 +111,7 @@ func migrateAuthorization(db *gorm.DB, version string) error {
 			menu, err := upsertMenu(tx, menuSeed{
 				name: "legacy." + definition.Resource.Domain + "." + resource, path: menuPath(definition), method: "GET",
 				parentID: domainMenu.ID, accessType: adminpkg.MenuAccessType,
-				permission: Permission(resource, OperationList), sort: legacydb.ExpectedMallResourceCount - index,
+				permission: Permission(resource, OperationList), sort: legacydb.PublishedMallResourceCount - index,
 			})
 			if err != nil {
 				return err

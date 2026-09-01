@@ -37,27 +37,27 @@ func VerifyReadiness(ctx context.Context, db *gorm.DB, binding fixedbinding.Bind
 }
 
 func verifyPostgresReadiness(ctx context.Context, db *gorm.DB, binding fixedbinding.Binding, definitions []Definition) error {
-	if binding.BusinessSchema == binding.SharedSchema {
-		return fmt.Errorf("%w: business and shared schemas must be distinct", ErrSchemaNotReady)
-	}
 	var schemaCount int64
 	if err := db.WithContext(ctx).Raw(
-		"SELECT COUNT(*) FROM pg_namespace WHERE nspname IN ?",
-		[]string{binding.BusinessSchema, binding.SharedSchema},
+		"SELECT COUNT(*) FROM pg_namespace WHERE nspname = ?",
+		binding.BusinessSchema,
 	).Scan(&schemaCount).Error; err != nil {
 		return fmt.Errorf("%w: inspect schemas", ErrSchemaNotReady)
 	}
-	if schemaCount != 2 {
-		return fmt.Errorf("%w: fixed business/shared schemas are unavailable", ErrSchemaNotReady)
+	if schemaCount != 1 {
+		return fmt.Errorf("%w: fixed business schema is unavailable", ErrSchemaNotReady)
 	}
 	var currentSchema string
 	if err := db.WithContext(ctx).Raw("SELECT current_schema()").Scan(&currentSchema).Error; err != nil {
 		return fmt.Errorf("%w: inspect current schema", ErrSchemaNotReady)
 	}
-	if currentSchema == binding.BusinessSchema || currentSchema == binding.SharedSchema {
-		return fmt.Errorf("%w: MSS core schema must be separate from legacy schemas", ErrSchemaNotReady)
+	if currentSchema == binding.BusinessSchema {
+		return fmt.Errorf("%w: MSS core schema must be separate from the business schema", ErrSchemaNotReady)
 	}
 	for _, definition := range definitions {
+		if err := validateDefinitionScope(definition); err != nil {
+			return fmt.Errorf("%w: %v", ErrSchemaNotReady, err)
+		}
 		var rows []struct {
 			ColumnName string `gorm:"column:column_name"`
 		}
@@ -87,15 +87,16 @@ func verifySQLiteReadiness(ctx context.Context, db *gorm.DB, binding fixedbindin
 	for _, database := range databases {
 		availableSchemas[database.Name] = struct{}{}
 	}
-	// The mall compatibility repository reads only the business schema. The
-	// distinct shared schema remains mandatory in the immutable binding, but a
-	// SQLite attachment would be connection-local and therefore cannot model
-	// deployment isolation. PostgreSQL readiness above still proves that core,
-	// business and shared schemas are distinct and available.
+	// A SQLite attachment is connection-local and cannot model deployment
+	// isolation. PostgreSQL readiness above still proves that MSS core and the
+	// fixed per-tenant business schema are separate.
 	if _, ok := availableSchemas[binding.BusinessSchema]; !ok {
 		return fmt.Errorf("%w: SQLite business schema %q is unavailable", ErrSchemaNotReady, binding.BusinessSchema)
 	}
 	for _, definition := range definitions {
+		if err := validateDefinitionScope(definition); err != nil {
+			return fmt.Errorf("%w: %v", ErrSchemaNotReady, err)
+		}
 		query := "PRAGMA " + quoteIdentifier(binding.BusinessSchema) + ".table_info(" + quoteIdentifier(definition.Resource.Name) + ")"
 		var rows []struct {
 			ColumnName string `gorm:"column:name"`

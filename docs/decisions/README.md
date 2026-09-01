@@ -17,3 +17,7 @@ in the same change.
   tenant reconciliation
 - [DEC-0007](DEC-0007-qualified-legacy-business-contract.md): qualified
   legacy business schemas and compatibility views
+- [DEC-0009](DEC-0009-tenant-owned-catalog-and-logistics.md): per-tenant
+  product catalogs and logistics rules
+- [DEC-0010](DEC-0010-remote-development-and-dev-reconciliation.md): remote
+  development and isolated `mss-shop-dev` stage resources

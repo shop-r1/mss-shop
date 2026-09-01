@@ -6,6 +6,8 @@
   retirement in `docs/migration/legacy-admin-acceptance-matrix.md`.
 - Identify manifest tables, primary/composite keys, tenant scope, soft delete,
   sensitive fields, states, money columns and model-hook side effects.
+- For product/logistics changes, identify the affected CL-01 through CL-12
+  review decisions and keep unapproved recommendations read-only.
 - For unsupported MSS generator behavior, add or update a Feature contract
   before handwritten implementation.
 
@@ -27,11 +29,14 @@
   must not be reused as UI permissions.
 - Readiness verifies the authorization migration and exact required business
   schema fingerprint without mutating legacy tables.
-- Keep all 43 mall and eight tenant shared-catalog compatibility resources
-  read-only by default. Re-enable a write only for one reviewed resource and
-  operation after its Feature restores legacy validation, relationship/tenant
-  constraints, hooks, authorization, conflict/idempotency and deletion
-  semantics. A successful local generic editor operation is not qualification.
+- Keep all 50 mall resources and the one tenant `payments` resource read-only
+  by default. Moving the seven product/logistics resources requires forward
+  route, permission and data migration, plus explicit evidence that each target
+  environment applied them. Re-enable a write only for one reviewed resource
+  and operation after its Feature restores legacy
+  validation, relationship/tenant constraints, hooks, authorization,
+  conflict/idempotency and deletion semantics. A successful local generic
+  editor operation is not qualification.
 - Redact sensitive fields from success, error, audit and log output.
 - Exclude any JSON column with `NestedSecrets`, including
   `system_configs.metadata`, from free-text search, exact/contains/icontains

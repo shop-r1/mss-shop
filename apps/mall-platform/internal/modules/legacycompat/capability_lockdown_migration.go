@@ -96,7 +96,7 @@ func migrateCapabilityLockdown(db *gorm.DB, version string) error {
 			return err
 		}
 		affectedRoles := map[string]struct{}{adminRole.ID: {}}
-		for _, target := range capabilityLockdownTargets(legacydb.DefaultRegistry()) {
+		for _, target := range capabilityLockdownTargets(legacydb.PublishedRegistry()) {
 			roles, err := authorizationRolesForTarget(tx, target)
 			if err != nil {
 				return err

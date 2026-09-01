@@ -74,13 +74,16 @@ func (legacy *module) verifyReadiness(ctx context.Context, db *gorm.DB) error {
 	if err != nil {
 		return fmt.Errorf("legacy compatibility readiness: %w", err)
 	}
-	if err := business.RequireAppliedMigrations(ctx, db, AuthorizationMigrationID, MenuLocalizationMigrationID, CapabilityLockdownMigrationID); err != nil {
+	if err := business.RequireAppliedMigrations(ctx, db, AuthorizationMigrationID, MenuLocalizationMigrationID, CapabilityLockdownMigrationID, OwnershipTransferMigrationID); err != nil {
 		return fmt.Errorf("legacy compatibility readiness: %w", err)
 	}
 	if err := verifyMenuLocalizationReadiness(ctx, db); err != nil {
 		return fmt.Errorf("legacy compatibility readiness: %w", err)
 	}
 	if err := verifyCapabilityLockdownReadiness(ctx, db); err != nil {
+		return fmt.Errorf("legacy compatibility readiness: %w", err)
+	}
+	if err := verifyOwnershipTransferReadiness(ctx, db, legacy.registry); err != nil {
 		return fmt.Errorf("legacy compatibility readiness: %w", err)
 	}
 	if !db.WithContext(ctx).Migrator().HasTable(new(models.CasbinRule)) {

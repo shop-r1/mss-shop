@@ -1,5 +1,5 @@
-// Package legacydb provides the schema-qualified access boundary for the eight
-// source-global R1Shop catalogue tables owned by tenant-platform.
+// Package legacydb provides the schema-qualified access boundary for the one
+// source-global payment catalogue retained by tenant-platform.
 package legacydb
 
 import (
@@ -7,7 +7,10 @@ import (
 	"strings"
 )
 
-const ExpectedSharedResourceCount = 8
+const (
+	ExpectedSharedResourceCount  = 1
+	PublishedSharedResourceCount = 8
+)
 
 type ColumnType string
 
@@ -65,11 +68,21 @@ type resourceSeed struct {
 	softDelete bool
 }
 
-// DefaultRegistry is a compiled allow-list, never database discovery. All
-// eight shared resources are read-only until audited domain workflows own
-// their legacy hooks, cache invalidation, and cross-tenant side effects.
+// DefaultRegistry is the current compiled allow-list, never database
+// discovery. Payment metadata remains read-only while DEC-0008 is under
+// review; product and logistics resources now belong to mall-platform.
 func DefaultRegistry() Registry {
-	seeds := []resourceSeed{
+	return registryFromSeeds([]resourceSeed{paymentResourceSeed()})
+}
+
+// PublishedRegistry reproduces the immutable eight-resource authorization
+// migrations released before DEC-0009. Runtime code must use DefaultRegistry.
+func PublishedRegistry() Registry {
+	return registryFromSeeds(publishedResourceSeeds())
+}
+
+func publishedResourceSeeds() []resourceSeed {
+	return []resourceSeed{
 		{name: "brands", domain: "shared-catalog", softDelete: true, required: "name_zh name_en status", columns: "id created_at updated_at deleted_at name_zh name_en logo site_url index_img bg_img description sort status"},
 		{name: "categories", domain: "shared-catalog", softDelete: true, required: "name", jsonFields: "pack_rule", columns: "id created_at updated_at deleted_at parent_id name alias description sort img tag pack_rule"},
 		{name: "classes", domain: "shared-catalog", softDelete: true, required: "name", jsonFields: "attributes", columns: "id created_at updated_at deleted_at category_id name attributes status"},
@@ -77,9 +90,15 @@ func DefaultRegistry() Registry {
 		{name: "couriers", domain: "shared-catalog", softDelete: true, required: "name region method", columns: "id created_at updated_at deleted_at name logo status site_url region method"},
 		{name: "courier_pack_rules", domain: "shared-catalog", softDelete: true, required: "courier_id name", columns: "id created_at updated_at deleted_at courier_id name simple mixed mixed_sum price_unit price_total"},
 		{name: "courier_links", domain: "shared-catalog", columns: "id link_id left_rule_id object_ids_data created_at"},
-		{name: "payments", domain: "shared-catalog", softDelete: true, required: "name method status", columns: "id created_at updated_at deleted_at logo name method status site_url type description terminals"},
+		paymentResourceSeed(),
 	}
+}
 
+func paymentResourceSeed() resourceSeed {
+	return resourceSeed{name: "payments", domain: "shared-catalog", softDelete: true, required: "name method status", columns: "id created_at updated_at deleted_at logo name method status site_url type description terminals"}
+}
+
+func registryFromSeeds(seeds []resourceSeed) Registry {
 	definitions := make(map[string]Definition, len(seeds))
 	names := make([]string, 0, len(seeds))
 	for _, seed := range seeds {

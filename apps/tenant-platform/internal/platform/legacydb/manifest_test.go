@@ -2,21 +2,33 @@ package legacydb
 
 import "testing"
 
-func TestDefaultRegistryOwnsExactlyEightSharedResources(t *testing.T) {
+func TestDefaultRegistryOwnsOnlyThePlatformPaymentResource(t *testing.T) {
 	t.Parallel()
 
 	registry := DefaultRegistry()
 	if got := len(registry.All()); got != ExpectedSharedResourceCount {
 		t.Fatalf("resource count = %d, want %d", got, ExpectedSharedResourceCount)
 	}
-	for _, name := range []string{"brands", "categories", "classes", "goods_infos", "couriers", "courier_pack_rules", "courier_links", "payments"} {
-		if _, ok := registry.Lookup(name); !ok {
-			t.Errorf("missing shared resource %s", name)
-		}
+	if definitions := registry.All(); len(definitions) != 1 || definitions[0].Resource.Name != "payments" {
+		t.Fatalf("runtime resources = %#v", definitions)
 	}
-	for _, name := range []string{"tenants", "roles", "users", "orders", "shipping_warehouses"} {
+	for _, name := range []string{"brands", "categories", "classes", "goods_infos", "couriers", "courier_pack_rules", "courier_links", "tenants", "roles", "users", "orders", "shipping_warehouses"} {
 		if _, ok := registry.Lookup(name); ok {
 			t.Errorf("out-of-scope resource %s is visible", name)
+		}
+	}
+}
+
+func TestPublishedRegistryFreezesTheEightResourceMigrationInput(t *testing.T) {
+	t.Parallel()
+	want := []string{"brands", "categories", "classes", "courier_links", "courier_pack_rules", "couriers", "goods_infos", "payments"}
+	definitions := PublishedRegistry().All()
+	if len(definitions) != PublishedSharedResourceCount {
+		t.Fatalf("published resource count = %d", len(definitions))
+	}
+	for index, definition := range definitions {
+		if definition.Resource.Name != want[index] {
+			t.Fatalf("published resource %d = %q, want %q", index, definition.Resource.Name, want[index])
 		}
 	}
 }
@@ -42,10 +54,10 @@ func TestRegistryReturnsDefensiveCopies(t *testing.T) {
 	t.Parallel()
 
 	registry := DefaultRegistry()
-	definition, _ := registry.Lookup("courier_links")
+	definition, _ := registry.Lookup("payments")
 	definition.Resource.Columns[0].Name = "changed"
 	definition.Resource.PrimaryKey[0] = "changed"
-	again, _ := registry.Lookup("courier_links")
+	again, _ := registry.Lookup("payments")
 	if again.Resource.Columns[0].Name != "id" || again.Resource.PrimaryKey[0] != "id" {
 		t.Fatal("registry data was mutable through Lookup")
 	}

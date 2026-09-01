@@ -11,11 +11,11 @@ import {
 } from './catalog';
 
 describe('mall legacy resource catalog', () => {
-  it('contains exactly the 43 mall-owned resources', () => {
-    expect(LEGACY_RESOURCES).toHaveLength(43);
-    expect(new Set(LEGACY_RESOURCES.map((entry) => entry.resource)).size).toBe(43);
-    expect(new Set(LEGACY_RESOURCES.map((entry) => entry.path)).size).toBe(43);
-    expect(findLegacyResourceByName('courier_links')).toBeUndefined();
+  it('contains exactly the 50 mall-owned resources', () => {
+    expect(LEGACY_RESOURCES).toHaveLength(50);
+    expect(new Set(LEGACY_RESOURCES.map((entry) => entry.resource)).size).toBe(50);
+    expect(new Set(LEGACY_RESOURCES.map((entry) => entry.path)).size).toBe(50);
+    expect(findLegacyResourceByName('courier_links')?.domain).toBe('fulfillment');
   });
 
   it('only resolves allowlisted routes and normalizes trailing slashes', () => {

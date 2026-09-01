@@ -46,7 +46,7 @@ func applyCapabilityLockdownMigration(
 	if version != CapabilityLockdownMigrationID.String() {
 		return errors.New("shared catalogue capability lockdown version mismatch")
 	}
-	if len(registry.All()) != legacydb.ExpectedSharedResourceCount {
+	if len(registry.All()) != legacydb.PublishedSharedResourceCount {
 		return errors.New("shared catalogue capability lockdown registry is incomplete")
 	}
 
@@ -143,7 +143,7 @@ func applyCapabilityLockdownMigration(
 }
 
 func capabilityLockdownTargets(registry legacydb.Registry) []lockdownAuthorizationTarget {
-	targets := make([]lockdownAuthorizationTarget, 0, legacydb.ExpectedSharedResourceCount*3+3)
+	targets := make([]lockdownAuthorizationTarget, 0, legacydb.PublishedSharedResourceCount*3+3)
 	for _, definition := range registry.All() {
 		for _, operation := range []string{"create", "update", "delete"} {
 			targets = append(targets, lockdownAuthorizationTarget{

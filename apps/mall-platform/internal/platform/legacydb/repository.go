@@ -10,6 +10,7 @@ import (
 
 	"github.com/shop-r1/mss-shop/apps/mall-platform/internal/platform/fixedbinding"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const (
@@ -54,7 +55,16 @@ func NewRepository(db *gorm.DB, binding fixedbinding.Binding, registry Registry)
 	if len(registry.All()) != ExpectedMallResourceCount {
 		return nil, fmt.Errorf("legacy registry must contain %d reviewed resources", ExpectedMallResourceCount)
 	}
-	return &Repository{db: db, binding: binding, registry: registry}, nil
+	for _, definition := range registry.All() {
+		if err := validateDefinitionScope(definition); err != nil {
+			return nil, fmt.Errorf("legacy registry scope: %w", err)
+		}
+	}
+	// Legacy rows can contain credentials and historical customer data. Keep
+	// query parameters out of application logs even when GORM reports a slow or
+	// failed statement. The scoped session does not change the MSS host logger.
+	legacySession := db.Session(&gorm.Session{Logger: logger.Discard})
+	return &Repository{db: legacySession, binding: binding, registry: registry}, nil
 }
 
 func (repository *Repository) Resource(name string) (Resource, error) {
@@ -176,7 +186,8 @@ func (repository *Repository) scopedQuery(ctx context.Context, definition Defini
 func (repository *Repository) scopedQueryWithDB(database *gorm.DB, definition Definition) *gorm.DB {
 	qualified := qualifiedTable(repository.binding.BusinessSchema, definition.Resource.Name)
 	database = database.Table(qualified + " AS " + quoteIdentifier("legacy"))
-	if definition.Inherited != nil {
+	switch definition.Scope {
+	case ScopeInherited:
 		parent := definition.Inherited
 		parentTable := qualifiedTable(repository.binding.BusinessSchema, parent.ParentTable)
 		join := "JOIN " + parentTable + " AS " + quoteIdentifier("scope_parent") + " ON " +
@@ -186,8 +197,15 @@ func (repository *Repository) scopedQueryWithDB(database *gorm.DB, definition De
 		if parent.ParentSoftDelete {
 			database = database.Where(qualifiedColumn("scope_parent", "deleted_at") + " IS NULL")
 		}
-	} else {
+	case ScopeTenantColumn:
 		database = database.Where(qualifiedColumn("legacy", definition.TenantColumn)+" = ?", repository.binding.LegacyTenantID)
+	case ScopeSchema:
+		// The reconciler materializes one immutable snapshot per tenant business
+		// schema. The fixed schema is the complete boundary for these relations.
+	default:
+		// NewRepository rejects this state; keep fail-closed behavior if a
+		// repository is ever constructed internally without its constructor.
+		database = database.Where("1 = 0")
 	}
 	if definition.SoftDelete {
 		database = database.Where(qualifiedColumn("legacy", "deleted_at") + " IS NULL")

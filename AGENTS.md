@@ -10,9 +10,11 @@
   plane bound to exactly one tenant and one fixed core/business schema pair;
   do not add request-time schema switching or allow a client to select a
   schema.
-- The reconciler is the only component allowed to create or mutate tenant
-  schemas, roles, credentials, and runtime resources. HTTP handlers only record
-  desired state.
+- The in-cluster reconciler is the only component allowed to create or mutate
+  tenant database roles, schemas, snapshots, compatibility views and grants.
+  It has no Kubernetes API identity. Fixed trusted operator commands own stage
+  application Secrets and workload objects after fail-closed collision checks;
+  HTTP handlers only record desired state.
 - Storefront clients use the dedicated `/app/v1` contract. They do not call the
   MSS Admin API and must never receive database or schema identifiers.
 - User-visible behavior is internationalized from the first change. Keep
@@ -24,15 +26,31 @@
   baseline. Follow `.agents/skills/r1shop-legacy-module/SKILL.md`; never use a
   generic editor as a substitute for order, inventory, payment, wallet,
   promotion or import workflows.
-- The current legacy compatibility surface is read-only for all 43 mall and
-  eight shared-catalog resources. Do not enable generic mutation until one
-  resource and operation has restored and proved its legacy semantics. Never
-  search, filter or sort a JSON column with declared nested secrets, including
-  `system_configs.metadata`.
+- Legacy compatibility ownership is 50 mall resources plus the one
+  tenant-platform `payments` resource. All 51 are read-only. The checked-in
+  source includes forward-only ownership migrations, but they are not evidence
+  that any environment has applied or deployed them. Do not enable generic
+  mutation until one resource and operation has restored and proved its legacy
+  semantics. Never search, filter or sort a JSON column with declared nested
+  secrets, including `system_configs.metadata`.
 - `r1shop-prod` and its TimescaleDB/Redis are live. Production writes require
   explicit approval for the exact action in the current conversation. System
   verification runs in disposable Kubernetes Pods; never migrate production
   data while developing this repository.
+- The original `r1shop-dev` environment is immutable from this repository's
+  point of view. Never create, update or delete its application resources,
+  PostgreSQL objects or ACLs, Redis data/configuration, Secrets, Services,
+  Ingresses, roles or storage. The MSS stage uses the separate
+  `mss-shop-dev` namespace with its own PostgreSQL instance/PVC, Redis
+  instance/PVC, credentials, workloads and hosts as recorded by DEC-0010.
+  Legacy development data may enter that environment only through a bounded
+  read-only snapshot operation that makes no source-side change and copies no
+  `orders` or `order_goods` rows. The importer is the only one-time exception
+  to the reconciler's target-database mutation ownership: it may initialize
+  only an empty, exact-marker `mss_shop_dev` target, emits a receipt, and has
+  no Kubernetes API identity. A deployment command must fail closed if it targets
+  `r1shop-dev`, `database/timescaledb-r1shop-dev`, or
+  `database/redis-r1shop-dev` for mutation.
 - Work on `codex/...` branches. Do not push, deploy, merge to a production
   branch, or trigger a frontend release unless the user explicitly requests it.
 - Do not commit credentials, DSNs, tokens, private keys, database files, logs,

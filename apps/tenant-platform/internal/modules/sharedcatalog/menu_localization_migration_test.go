@@ -23,7 +23,7 @@ func TestMenuLocalizationMigrationDoesNotCreateSharedBusinessTables(t *testing.T
 	t.Parallel()
 
 	db, binding := openSharedCatalogTestDatabase(t)
-	if err := applyAuthorizationMigration(db, binding, legacydb.DefaultRegistry(), AuthorizationMigrationID.String(), nil); err != nil {
+	if err := applyAuthorizationMigration(db, binding, legacydb.PublishedRegistry(), AuthorizationMigrationID.String(), nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := applyMenuLocalizationMigration(db, binding, MenuLocalizationMigrationID.String()); err != nil {
@@ -38,7 +38,7 @@ func TestMenuLocalizationMigrationDoesNotCreateSharedBusinessTables(t *testing.T
 	if root.Name != "sharedCatalog" {
 		t.Fatalf("localized root name = %q, want %q", root.Name, sharedCatalogMenuNameToken)
 	}
-	for _, definition := range legacydb.DefaultRegistry().All() {
+	for _, definition := range legacydb.PublishedRegistry().All() {
 		var rows []struct{ Name string }
 		query := `SELECT name FROM "shared".sqlite_master WHERE type = 'table' AND name = ?`
 		if err := db.Raw(query, definition.Resource.Name).Scan(&rows).Error; err != nil || len(rows) != 0 {

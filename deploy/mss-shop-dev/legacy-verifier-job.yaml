@@ -1,0 +1,129 @@
+# Fixed, create-only post-import verifier for mss-shop-dev.
+# Never apply or substitute this template manually. stage-jobs verifies the
+# complete committed receipt, delivers its exact bytes through the fixed
+# immutable mss-shop-legacy-import-receipt ConfigMap, and creates this Job only
+# after the isolated Namespace, PostgreSQL StatefulSet/PVC and all collisions
+# pass. The ConfigMap is non-secret evidence and is not a reconciliation input.
+#
+# The legacy-verifier network role can reach only the new PostgreSQL Pod. It is
+# excluded from the legacy source policy, receives no old-source Secret and has
+# no Kubernetes API token. The binary runs one repeatable-read, read-only target
+# snapshot and writes exactly one safe verification JSON document to stdout.
+# Capture that complete output as verification.json before the Job TTL expires.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mss-shop-legacy-verify-0000000000000000000000000000000000000000
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-legacy-verifier
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Job:mss-shop-legacy-verify-0000000000000000000000000000000000000000
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/image-digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    r1shop.io/import-receipt-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 0
+  activeDeadlineSeconds: 3600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-legacy-verifier
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: legacy-verifier
+      annotations:
+        r1shop.io/import-receipt-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: verifier
+          image: ghcr.io/shop-r1/mss-shop-legacy-importer:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/mss-shop-legacy-verifier"]
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: MSS_VERIFY_POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: username
+            - name: MSS_VERIFY_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: password
+            - name: MSS_VERIFY_POSTGRES_TLS_CA_FILE
+              value: /etc/mss-shop/postgres-tls/ca.crt
+            - name: MSS_VERIFY_POSTGRES_TLS_SERVER_NAME
+              value: mss-shop-postgres.mss-shop-dev.svc
+            - name: MSS_VERIFY_RECEIPT_FILE
+              value: /evidence/receipt.json
+            - name: MSS_VERIFY_RECEIPT_SHA256
+              value: "0000000000000000000000000000000000000000000000000000000000000000"
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MSS_IMAGE_REVISION
+              value: "0000000000000000000000000000000000000000"
+            - name: MSS_IMAGE_DIGEST
+              value: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          volumeMounts:
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: receipt
+              mountPath: /evidence
+              readOnly: true
+      volumes:
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: receipt
+          configMap:
+            name: mss-shop-legacy-import-receipt
+            defaultMode: 0444
+            items:
+              - key: receipt.json
+                path: receipt.json

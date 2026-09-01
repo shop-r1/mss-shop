@@ -18,12 +18,12 @@ func TestAuthorizationMigrationIsForwardOnlyCoreProjection(t *testing.T) {
 	if err := migrateAuthorization(db, AuthorizationMigrationID.String()); err != nil {
 		t.Fatal(err)
 	}
-	registry := legacydb.DefaultRegistry()
+	registry := legacydb.PublishedRegistry()
 	wantOperations := 0
 	for _, definition := range registry.All() {
 		wantOperations += len(authorizationMigrationOperationsFor(definition))
 	}
-	wantMenus := int64(1 + len(legacydb.FrontendDomains()) + legacydb.ExpectedMallResourceCount + wantOperations + 5)
+	wantMenus := int64(1 + len(legacydb.FrontendDomains()) + legacydb.PublishedMallResourceCount + wantOperations + 5)
 	for name, modelAndCount := range map[string]struct {
 		model any
 		want  int64

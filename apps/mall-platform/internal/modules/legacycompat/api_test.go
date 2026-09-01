@@ -101,7 +101,7 @@ func TestLegacyHTTPRejectsEveryMutationUntilDomainWorkflowsExist(t *testing.T) {
 	complexResponse := httptest.NewRecorder()
 	router.ServeHTTP(complexResponse, complex)
 	assertErrorContract(t, complexResponse, http.StatusMethodNotAllowed, "OPERATION_NOT_SUPPORTED")
-	unknown := httptest.NewRequest(http.MethodGet, "/admin/api/legacy/resources/courier_links", nil)
+	unknown := httptest.NewRequest(http.MethodGet, "/admin/api/legacy/resources/area", nil)
 	unknownResponse := httptest.NewRecorder()
 	router.ServeHTTP(unknownResponse, unknown)
 	assertErrorContract(t, unknownResponse, http.StatusNotFound, "RESOURCE_NOT_FOUND")

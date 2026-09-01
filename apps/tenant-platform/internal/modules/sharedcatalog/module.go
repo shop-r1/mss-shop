@@ -49,15 +49,15 @@ func (current *module) Register(registry *business.Registry) error {
 	return registry.Register(business.Registration{
 		Descriptor: business.Descriptor{
 			Name:        ModuleName,
-			DisplayName: "Shared catalogue compatibility",
-			Description: "Schema-qualified compatibility access to eight global R1Shop catalogue tables",
+			DisplayName: "Platform payment catalogue compatibility",
+			Description: "Schema-qualified read-only compatibility access to the platform payment catalogue",
 			Version:     "1.0.0",
 			Model:       new(descriptorModel),
 			Permissions: businessPermissions(current.registry),
 			Menu: business.Menu{
 				Path:          "/business/shared-catalog",
-				DisplayName:   "Shared catalogue",
-				DisplayNameEn: "Shared catalogue",
+				DisplayName:   "平台支付目录",
+				DisplayNameEn: "Platform payment catalogue",
 				Icon:          "shop",
 				Order:         100,
 				Hidden:        true,
@@ -78,7 +78,7 @@ func (current *module) registerMigration(runner *migration.Migration) error {
 		if err != nil {
 			return fmt.Errorf("shared catalogue fixed binding: %w", err)
 		}
-		return applyAuthorizationMigration(db, binding, current.registry, version, nil)
+		return applyAuthorizationMigration(db, binding, legacydb.PublishedRegistry(), version, nil)
 	}); err != nil {
 		return err
 	}
@@ -91,12 +91,21 @@ func (current *module) registerMigration(runner *migration.Migration) error {
 	}); err != nil {
 		return err
 	}
-	return runner.Register(CapabilityLockdownMigrationID, func(db *gorm.DB, version string) error {
+	if err := runner.Register(CapabilityLockdownMigrationID, func(db *gorm.DB, version string) error {
 		binding, err := current.resolver.Resolve()
 		if err != nil {
 			return fmt.Errorf("shared catalogue fixed binding: %w", err)
 		}
-		return applyCapabilityLockdownMigration(db, binding, current.registry, version, nil)
+		return applyCapabilityLockdownMigration(db, binding, legacydb.PublishedRegistry(), version, nil)
+	}); err != nil {
+		return err
+	}
+	return runner.Register(OwnershipTransferMigrationID, func(db *gorm.DB, version string) error {
+		binding, err := current.resolver.Resolve()
+		if err != nil {
+			return fmt.Errorf("shared catalogue fixed binding: %w", err)
+		}
+		return applyOwnershipTransferMigration(db, binding, legacydb.PublishedRegistry(), current.registry, version, nil)
 	})
 }
 

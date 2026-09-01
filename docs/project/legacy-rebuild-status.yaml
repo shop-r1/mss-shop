@@ -13,10 +13,38 @@ spec:
     shopGo: 82b970fa675a21e75ebec2926e62614131c65319
     shopAdminUI: ccf1c668bc044eeebec9fd8ba83e9287fd422e62
     shopMCli: a12b605057b82c61ffd9f592f674ebf52c2eec70
+  developmentIsolation:
+    originalEnvironment: r1shop-dev
+    originalEnvironmentMutable: false
+    writeNamespace: mss-shop-dev
+    targetPostgreSQL: "17.6"
+    targetDatabase: mss_shop_dev
+    targetRedis: "8.6.3"
+    sharedLegacyRedis: false
+    dedicatedPVCs: true
+    dedicatedTLSAndCredentials: true
+    infrastructureObjects: 24
+    infrastructureMutationMode: create-only
+    networkPoliciesBeforeStatefulSets: true
+    foundationSecrets: 6
+    foundationSecretsImmutable: true
+    legacySource:
+      endpoint: timescaledb-r1shop-dev.database.svc:5432/r1shop_dev
+      access: read-only-repeatable-read
+      sslMode: disabled-fixed-source-exception
+      fallbackEndpoints: forbidden
+    oldEnvironmentSecretReads:
+      mode: exact-get-only
+      resources:
+        - database/timescaledb-r1shop-dev-auth
+        - r1shop-dev/ghcr-r1shop-token
   verifiedInventory:
     legacyTables: 54
-    tenantPlatformTables: 11
-    mallPlatformTables: 43
+    tenantPlatformTables: 4
+    mallPlatformTables: 50
+    compatibilityResources: 51
+    tenantPlatformCompatibilityResources: 1
+    mallPlatformCompatibilityResources: 50
     adminBusinessViews: 54
     legacyHTTPRequests: 185
     legacyButtonPermissions: 171
@@ -24,75 +52,96 @@ spec:
   evidenceState:
     modelTableInventory: verified
     developmentColumnsAndPrimaryKeys: verified-read-only
-    indexesConstraintsAndRowCounts: pending-disposable-pod
+    developmentSnapshotCatalogInventory: verified-read-only-seven-tables-columns-primary-keys-indexes-and-counts
+    indexesConstraintsAndRowCounts: pending-isolated-import-and-disposable-pod-acceptance
     genericCompatibilityAPI: verified-local-read-only
-    mallCompatibilityBackend: verified-local-read-only
-    tenantSharedCatalogBackend: verified-local-read-only
-    mallAdminBusinessUI: verified-local-browser-compatibility-surface
-    tenantSharedCatalogUI: verified-local-build
-    localMallBrowserFixture: verified-local
+    mallCompatibilityBackend: pending-post-ownership-move-validation
+    tenantSharedCatalogBackend: pending-post-ownership-move-validation
+    mallAdminBusinessUI: pending-post-ownership-move-browser-review
+    tenantSharedCatalogUI: pending-post-ownership-move-browser-review
+    catalogAndLogisticsOwnershipContract: verified-target-mall-platform
+    compatibilityOwnershipReassignment: implemented-source-not-deployed
+    catalogAndLogisticsDesignReview: awaiting-project-owner-review
+    localMallBrowserFixture: pending-post-ownership-move-validation
     domainWorkflows: pending
     inAppBrowserAcceptance:
-      mallPlatform: verified-local-compatibility-surface
+      mallPlatform: historical-pre-dec-0009-compatibility-surface
       tenantPlatform: pending
-    kubernetesSystemAcceptance: pending
+    kubernetesSystemAcceptance: pending-not-deployed
     productionMigration: forbidden-without-explicit-approval
-    deliveryCI: verified-branch-push
+    deliveryCI: four-image-workflow-implemented-not-yet-published-together
+    remoteDevelopmentPlan: isolated-contract-implemented-not-deployed
+    isolatedInfrastructure: source-implemented-not-created
+    foundationSecrets: source-implemented-not-created
+    originalDevelopmentFingerprint: implemented-fixed-get-list-only-not-yet-run-from-committed-revision
+    datastoreReadinessJob: implemented-not-executed
+    legacyImport:
+      compiledTables: 51
+      dataCopyEligibleTables: 49
+      structureOnlyTables: [orders, order_goods]
+      identityTablesNotCopied: [roles, tenants, users]
+      receipt: implemented-not-executed
+      marker: "mss-shop-isolated-dev:legacy-import:v1:<receipt-sha256>"
+      logsPersisted: false
+    postImportVerifierJob: implemented-not-executed
+    reconciliationSecretsOperator: implemented-not-executed
+    reconcilerJob: source-implemented-not-executed
+    isolatedInAppBrowserAcceptance: pending-not-deployed
   acceptance:
     closedScenarios: 0
     rule: A local build or generic read-only record viewer cannot close a business scenario.
   localEvidence:
     mallAdminWeb:
-      resourceRoutes: 43
-      testFilesPassed: 9
-      testsPassed: 33
-      lint: passed-with-one-generated-warning
-      productionBuild: passed
+      resourceRoutes: 50
+      ownershipDeployment: pending-forward-migrations-not-applied
+      validation: pending-post-ownership-move
     tenantAdminWeb:
-      resourceRoutes: 8
-      testFilesPassed: 7
-      testsPassed: 26
-      lint: passed-with-one-generated-warning
-      productionBuild: passed
+      resourceRoutes: 1
+      targetResource: payments
+      ownershipDeployment: pending-forward-migrations-not-applied
+      validation: pending-post-ownership-move
     mallCompatibilityBackend:
-      manifestResources: 43
-      readOnlyResources: 43
+      manifestResources: 50
+      readOnlyResources: 50
       writableResources: 0
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
-      fullTests: passed
-      vet: passed
-      focusedRace: passed
+      ownershipDeployment: pending-forward-migrations-not-applied
+      fullTests: passed-current-source-tree
+      vet: passed-current-source-tree
+      focusedRace: pending-post-ownership-move
     tenantSharedCatalogBackend:
-      manifestResources: 8
-      readOnlyResources: 8
+      manifestResources: 1
+      targetResource: payments
+      readOnlyResources: 1
       writableResources: 0
       mutationMode: fail-closed-authorization-and-repository
       writeQualification: pending-per-resource-legacy-semantics
-      fullTests: passed
-      vet: passed
-      focusedRace: passed
+      ownershipDeployment: pending-forward-migrations-not-applied
+      fullTests: passed-current-source-tree
+      vet: passed-current-source-tree
+      focusedRace: pending-post-ownership-move
     compatibilityErrorContract:
       envelope: flat-errorCode-errorMessage-messageKey-params
       bilingualCatalogs: passed
       malformedResponseStringSafety: passed
     mssContracts:
+      ownershipAndMemoryContract: passed-remote-temporary-checkout
       generatedModuleDryRun: unchanged
       featurePlan: passed
       strictDoctorMall: passed
       strictDoctorTenant: passed
-      fullVerifyMall: passed
-      fullVerifyTenant: passed
+      fullVerifyMall: historical-pre-dec-0009
+      fullVerifyTenant: historical-pre-dec-0009
     localMallBrowserFixture:
-      reviewedTables: 43
+      reviewedTables: 50
       nonSensitiveRows: 10
-      idempotency: passed
-      dangerousTargetRejection: passed
+      validation: pending-post-ownership-move
       systemAcceptanceClaim: false
     mallBrowserCompatibility:
       report: docs/acceptance/mall-local-browser-acceptance.md
       pagesSampled: [goods, show_categories, inventories, function_circles, message_events, message_templates]
-      currentOperations: [login, list, detail, empty-search, locale-switch]
+      reviewTimeOperations: [login, list, detail, empty-search, locale-switch]
       supersededExploration: [create, update]
       supersededExplorationIsCurrentWriteEvidence: false
       currentSourceMutationCapability: read-only
@@ -111,30 +160,50 @@ spec:
       tenantForwardMigration: "20260901120001"
       mallCapabilityLockdownMigration: "66966149766802"
       tenantCapabilityLockdownMigration: "20260901120002"
+      mallOwnershipTransferMigration: "66966149766803"
+      tenantOwnershipTransferMigration: "20260901120003"
+      ownershipTransferDeployment: pending-not-applied
       hostFacadeContractTests: passed
     memoryContracts:
       command: tools/check-project-memory.sh
-      result: passed
+      result: passed-remote-temporary-checkout
+    currentSourceValidation:
+      rootGoTest: passed
+      rootGoVet: passed
+      tenantGoTestAndVet: passed
+      mallGoTestAndVet: passed
+      tenantAdminWebTests: 26-passed
+      mallAdminWebTests: 33-passed
+      platformBoundaries: passed
+      kubernetesWrites: 0
+      originalDevelopmentReady: true
+      isolatedNamespaceExists: false
     deliveryImages:
       workflow: .github/workflows/ci.yml
       pullRequestMode: build-without-push
       pushBranches: [main, "codex/**"]
       platform: linux/amd64
       immutableTag: full-git-sha
+      immutableReceiptPerImage: true
+      currentFourImagePublication: pending
       verifiedRun:
         id: 33451906040
         revision: ac74347cbbd6cd24f731dadd239c1044ff132e38
         conclusion: success
+        scope: historical-two-admin-images-only
         tenantDigest: sha256:c4d0e651553263f8cf8127351ee3d14d13076c0b23052f64ecb017d8cd2dbef0
         mallDigest: sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e
       packages:
         - ghcr.io/shop-r1/mss-shop-tenant-platform
         - ghcr.io/shop-r1/mss-shop-mall-platform
+        - ghcr.io/shop-r1/mss-shop-reconciler
+        - ghcr.io/shop-r1/mss-shop-legacy-importer
       autoDeploy: false
   sourcesOfTruth:
     architecture: docs/architecture/overall-solution.md
     invariants: docs/architecture/invariants.yaml
-    decision: docs/decisions/DEC-0007-qualified-legacy-business-contract.md
+    decision: docs/decisions/DEC-0009-tenant-owned-catalog-and-logistics.md
+    qualificationDecision: docs/decisions/DEC-0007-qualified-legacy-business-contract.md
     dataContract: docs/migration/legacy-data-contract.md
     tableManifest: docs/migration/legacy-tables.yaml
     acceptanceMatrix: docs/migration/legacy-admin-acceptance-matrix.md
@@ -149,7 +218,20 @@ spec:
     localDevelopmentRunbook: docs/runbooks/local-development.md
     ciImageRunbook: docs/runbooks/ci-images.md
     legacyRestorationGap: docs/project/legacy-restoration-gap.md
+    remoteDevelopmentDecision: docs/decisions/DEC-0010-remote-development-and-dev-reconciliation.md
+    remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
+    catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
   safety:
     productionReadOnly: true
+    originalDevelopmentEnvironmentImmutable: true
+    isolatedDevelopmentWriteNamespace: mss-shop-dev
+    oldDevelopmentWritesForbidden: true
+    oldDevelopmentRedisShared: false
+    sourcePlaintextExceptionFixedToLegacyImporter: true
     productionOrderRowsToDevelopment: false
+    targetOrderRowsImported: false
+    targetOrderGoodsRowsImported: false
     systemTestsUseDisposableKubernetesPods: true
+    kubernetesDeploymentExecuted: false
+    legacyImportExecuted: false
+    isolatedBrowserAcceptanceExecuted: false

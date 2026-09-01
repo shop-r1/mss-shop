@@ -14,7 +14,6 @@ func TestBindingValidation(t *testing.T) {
 		AdminTenantID:  "default",
 		LegacyTenantID: "158815467563520321",
 		BusinessSchema: "r1_m_2f6433e3_biz",
-		SharedSchema:   "r1_shared",
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid binding: %v", err)
@@ -22,14 +21,12 @@ func TestBindingValidation(t *testing.T) {
 
 	cases := []Binding{
 		{},
-		{TenantID: " tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "biz", SharedSchema: "shared"},
-		{TenantID: "tenant", LegacyTenantID: "legacy", BusinessSchema: "biz", SharedSchema: "shared"},
-		{TenantID: "tenant", AdminTenantID: "another", LegacyTenantID: "legacy", BusinessSchema: "biz", SharedSchema: "shared"},
-		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: `biz;drop schema public`, SharedSchema: "shared"},
-		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "Biz", SharedSchema: "shared"},
-		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "same", SharedSchema: "same"},
-		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "compression_test_mall", SharedSchema: "shared"},
-		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "biz", SharedSchema: "compression_test_shared"},
+		{TenantID: " tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "biz"},
+		{TenantID: "tenant", LegacyTenantID: "legacy", BusinessSchema: "biz"},
+		{TenantID: "tenant", AdminTenantID: "another", LegacyTenantID: "legacy", BusinessSchema: "biz"},
+		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: `biz;drop schema public`},
+		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "Biz"},
+		{TenantID: "tenant", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "compression_test_mall"},
 	}
 	for index, candidate := range cases {
 		if err := candidate.Validate(); !errors.Is(err, ErrInvalidBinding) {
@@ -49,7 +46,6 @@ func TestResolverFreezesFirstResult(t *testing.T) {
 			AdminTenantID:  "default",
 			LegacyTenantID: "legacy-one",
 			BusinessSchema: "mall_biz",
-			SharedSchema:   "mall_shared",
 		}, nil
 	})
 	first, err := resolver.Resolve()
@@ -70,7 +66,6 @@ func TestEnvironmentSourceKeepsThreeTenantIdentitiesSeparate(t *testing.T) {
 	t.Setenv(AdminTenantIDEnvironment, "default")
 	t.Setenv(LegacyTenantIDEnvironment, "158815467563520321")
 	t.Setenv(BusinessSchemaEnvironment, "mall_biz")
-	t.Setenv(SharedSchemaEnvironment, "shared_catalog")
 
 	binding, err := EnvironmentSource()
 	if err != nil {

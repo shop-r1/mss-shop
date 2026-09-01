@@ -2,17 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { createSharedCatalogClient, type SharedCatalogRequester } from './api';
 import { findSharedCatalogResourceByName, SHARED_CATALOG_RESOURCES } from './catalog';
 
-function brands() {
-  const entry = findSharedCatalogResourceByName('brands');
-  if (!entry) throw new Error('brands must be in the shared catalog');
+function payments() {
+  const entry = findSharedCatalogResourceByName('payments');
+  if (!entry) throw new Error('payments must be in the platform catalog');
   return entry;
 }
 
 function descriptor() {
   return {
-    name: 'brands',
+    name: 'payments',
     domain: 'shared-catalog',
-    titleKey: 'legacy.resources.brands',
+    titleKey: 'legacy.resources.payments',
     columns: [],
     capabilities: { detail: true, create: false, update: false, delete: false },
   };
@@ -29,12 +29,12 @@ describe('shared catalog API client', () => {
     };
     const requester = vi.fn<SharedCatalogRequester>().mockResolvedValue(response);
     const client = createSharedCatalogClient(requester);
-    await expect(client.list(brands(), { page: 2, pageSize: 50, q: 'tea' })).resolves.toEqual(
+    await expect(client.list(payments(), { page: 2, pageSize: 50, q: 'online' })).resolves.toEqual(
       response,
     );
-    expect(requester).toHaveBeenCalledWith('/legacy/resources/brands', {
+    expect(requester).toHaveBeenCalledWith('/legacy/resources/payments', {
       method: 'GET',
-      params: { page: 2, pageSize: 50, q: 'tea' },
+      params: { page: 2, pageSize: 50, q: 'online' },
       skipErrorHandler: true,
     });
   });
@@ -43,12 +43,12 @@ describe('shared catalog API client', () => {
     const wrapped = { data: { id: 'A/B 1' }, resource: descriptor() };
     const requester = vi.fn<SharedCatalogRequester>().mockResolvedValue(wrapped);
     const client = createSharedCatalogClient(requester);
-    const entry = brands();
+    const entry = payments();
 
     await expect(client.detail(entry, 'A/B 1')).resolves.toEqual({
       id: 'A/B 1',
     });
-    expect(requester).toHaveBeenCalledExactlyOnceWith('/legacy/resources/brands/A%2FB%201', {
+    expect(requester).toHaveBeenCalledExactlyOnceWith('/legacy/resources/payments/A%2FB%201', {
       method: 'GET',
       skipErrorHandler: true,
     });

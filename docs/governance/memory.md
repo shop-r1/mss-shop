@@ -10,25 +10,38 @@ or agent can verify and maintain.
 - `docs/architecture/`: current design and machine-readable invariants.
 - `docs/decisions/`: immutable decisions and their consequences.
 - `docs/migration/` and `docs/runbooks/`: staged or verified operations.
+- `docs/reviews/`: bounded proposals awaiting an explicit owner decision; a
+  recommendation is not an accepted ADR or implementation authorization.
 - `docs/migration/legacy-tables.yaml`: machine-readable source of truth for
   the 54 legacy tables, ownership, keys, tenant scope and sensitive fields.
 - `docs/migration/legacy-admin-acceptance-matrix.md`: page, operation and
   business-acceptance coverage; an unchecked row is not an implemented claim.
 - `docs/acceptance/`: executed, bounded acceptance evidence. Every report must
   state its environment, untested scope and whether it closes matrix rows.
+- `docs/evidence/legacy-import/<receipt-sha256>/`: the byte-exact deterministic
+  `receipt.json` and later `verification.json` for one executed isolated
+  import. The content-addressed directory avoids self-referential Git evidence;
+  both artifacts must contain no DSN, credential, certificate material or row
+  value.
 - `.mss/features/`: executable contracts for handwritten cross-table or
   workflow behavior that the AdminModule generator does not support.
 - `.agents/skills/`: non-obvious repeatable workflows triggered by a task.
 - `.codex/config.toml`: portable, reviewed tool connections only.
 
-Do not commit chat transcripts, hidden reasoning, temporary plans, local logs,
-database snapshots, runtime locks, generated caches, credentials or machine
-paths as memory.
+Do not commit chat transcripts, hidden reasoning, temporary plans, unrelated
+local logs, database snapshots, runtime locks, generated caches, credentials
+or machine paths as memory. The reviewed importer receipt/log evidence above
+is the narrow exception: it is durable provenance, must be complete and
+redacted by construction, and is reviewed before commit.
 
 ## Change protocol
 
 - A service-boundary or invariant change adds/supersedes an ADR and updates the
   registry, architecture, invariants and status together.
+- A development-topology change updates DEC-0010, the remote runbook,
+  architecture invariants and both status documents together. The original
+  `r1shop-dev` environment remains immutable; only `mss-shop-dev` may be a
+  development write target.
 - An API change starts in the authoritative contract, then updates downstream
   snapshots and generated clients with compatibility evidence.
 - A new locale updates catalogs, negotiation, formatting tests and capability
@@ -45,6 +58,9 @@ paths as memory.
   writes remain labelled as superseded evidence rather than current capability.
 - Documentation/code disagreement is a defect. Resolve it in the same change;
   do not silently choose whichever version is convenient.
+- A planned operator or verification command remains labelled as a gate until
+  its implementation and tests exist. A manifest or local build is not
+  evidence that infrastructure, import, reconciliation or UI acceptance ran.
 - Accepted ADRs and prior migration evidence are superseded, not deleted.
 
 ## Review cadence
@@ -72,11 +88,20 @@ Before a milestone is committed, review these artifacts as one change set:
 4. Executed checks are recorded with stable commands and results; local
    absolute paths, credentials, transient logs and copied terminal output are
    not evidence artifacts.
-5. `tools/check-project-memory.sh` passes. It checks required project memory,
+   An isolated import additionally persists its safe full output, deterministic
+   receipt, receipt-marker match and independent zero counts for `orders` and
+   `order_goods` before reconciliation evidence can be recorded.
+5. The topology record proves that the 24 infrastructure objects are
+   create-only, with NetworkPolicies before two inert storage binders and a
+   stable, cluster-wide node/local-path exclusivity gate before StatefulSets;
+   the six foundation Secrets are immutable and namespace-local; old Redis is
+   not shared; and CI produces four images without deploying them.
+6. `tools/check-project-memory.sh` passes. It checks required project memory,
    runs the executable contracts, validates all repository Skills with the
    exact MSS tool and rejects whitespace errors. The contracts prove that the
-   documented source paths, 54-table ownership split, acceptance counts,
-   safety flags and implemented frontend projections have not drifted.
+   documented source paths, 54-table four/50 ownership split, 51-resource
+   one/50 compatibility allocation, acceptance counts, safety flags and
+   implemented frontend projections have not drifted.
 
 If implementation and memory cannot be synchronized in the same commit, the
 implementation remains incomplete and its acceptance status stays open.

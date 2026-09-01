@@ -5,11 +5,15 @@
 package legacydb
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 )
 
-const ExpectedMallResourceCount = 43
+const (
+	ExpectedMallResourceCount  = 50
+	PublishedMallResourceCount = 43
+)
 
 var frontendDomains = []string{
 	"catalog", "customers", "orders", "fulfillment", "marketing", "finance",
@@ -69,11 +73,23 @@ type InheritedScope struct {
 
 type Definition struct {
 	Resource      Resource
+	Scope         ScopeMode
 	TenantColumn  string
 	Inherited     *InheritedScope
 	SoftDelete    bool
 	NestedSecrets []string
 }
+
+// ScopeMode makes the tenant boundary explicit. Schema-scoped resources are
+// immutable per-tenant snapshots in the fixed business schema and therefore
+// must never fall through to a fabricated empty tenant-column predicate.
+type ScopeMode string
+
+const (
+	ScopeTenantColumn ScopeMode = "tenant-column"
+	ScopeInherited    ScopeMode = "inherited"
+	ScopeSchema       ScopeMode = "schema"
+)
 
 type Registry struct {
 	definitions map[string]Definition
@@ -87,20 +103,18 @@ type resourceSeed struct {
 	columns       string
 	secrets       string
 	required      string
+	jsonFields    string
 	softDelete    bool
 	tenantColumn  string
 	inherited     *InheritedScope
 	nestedSecrets string
+	schemaScoped  bool
 }
 
-// DefaultRegistry is the reviewed mall-platform projection of the 54-table
-// legacy inventory. It is deliberately read-only until each legacy mutation
-// workflow has restored its original validation, relation, tenant, and delete
-// semantics. courier_links intentionally does not appear here: it has no
-// tenant_id and belongs to the shared courier catalogue owned by the tenant
-// platform.
-func DefaultRegistry() Registry {
-	seeds := []resourceSeed{
+// publishedResourceSeeds is the frozen source for the immutable 43-resource
+// authorization migrations released before DEC-0009.
+func publishedResourceSeeds() []resourceSeed {
+	return []resourceSeed{
 		{name: "activities", domain: "marketing", primaryKey: "id tenant_id", softDelete: true, columns: "id created_at updated_at deleted_at tenant_id name description index_img bg_img status show start_at end_at expiration sort activity_type metadata extend_multi extend_data member_ids_data member_level_ids_data warehouse_ids_data"},
 		{name: "activity_links", domain: "marketing", primaryKey: "id tenant_id", columns: "id created_at tenant_id activity_id link_type activity_type link_id name image"},
 		{name: "collections", domain: "customers", primaryKey: "tenant_id member_id consumer_id goods_id", columns: "tenant_id member_id consumer_id goods_id created_at"},
@@ -145,7 +159,36 @@ func DefaultRegistry() Registry {
 		{name: "show_categories", domain: "catalog", primaryKey: "id", softDelete: true, required: "name", columns: "id created_at updated_at deleted_at tenant_id name image parent_id status description sort"},
 		{name: "system_configs", domain: "settings", primaryKey: "id", softDelete: true, nestedSecrets: "appSecret app_secret", columns: "id created_at updated_at deleted_at tenant_id name metadata"},
 	}
+}
 
+// DefaultRegistry is the reviewed mall-platform projection of the 54-table
+// legacy inventory. It is deliberately read-only until each legacy mutation
+// workflow has restored its original validation, relation, tenant, and delete
+// semantics. The seven schema-scoped resources are per-tenant snapshots in
+// the fixed business schema; their source-global rows are migration input only.
+func DefaultRegistry() Registry {
+	seeds := publishedResourceSeeds()
+	seeds = append(seeds,
+		resourceSeed{name: "brands", domain: "catalog", primaryKey: "id", schemaScoped: true, softDelete: true, required: "name_zh name_en status", columns: "id created_at updated_at deleted_at name_zh name_en logo site_url index_img bg_img description sort status"},
+		resourceSeed{name: "categories", domain: "catalog", primaryKey: "id", schemaScoped: true, softDelete: true, required: "name", jsonFields: "pack_rule", columns: "id created_at updated_at deleted_at parent_id name alias description sort img tag pack_rule"},
+		resourceSeed{name: "classes", domain: "catalog", primaryKey: "id", schemaScoped: true, softDelete: true, required: "name", jsonFields: "attributes", columns: "id created_at updated_at deleted_at category_id name attributes status"},
+		resourceSeed{name: "goods_infos", domain: "catalog", primaryKey: "id", schemaScoped: true, softDelete: true, required: "name weight", jsonFields: "pack_rule", columns: "id created_at updated_at deleted_at category_id parent_category_id brand_id name album description image video keywords bar_code content weight has_pack_rule pack_rule unit goods_type"},
+		resourceSeed{name: "couriers", domain: "fulfillment", primaryKey: "id", schemaScoped: true, softDelete: true, required: "name region method", columns: "id created_at updated_at deleted_at name logo status site_url region method"},
+		resourceSeed{name: "courier_pack_rules", domain: "fulfillment", primaryKey: "id", schemaScoped: true, softDelete: true, required: "courier_id name", columns: "id created_at updated_at deleted_at courier_id name simple mixed mixed_sum price_unit price_total"},
+		resourceSeed{name: "courier_links", domain: "fulfillment", primaryKey: "id link_id left_rule_id", schemaScoped: true, columns: "id link_id left_rule_id object_ids_data created_at"},
+	)
+
+	return registryFromSeeds(seeds)
+}
+
+// PublishedRegistry reproduces the immutable 43-resource authorization
+// migrations exactly as they were released before DEC-0009. Runtime code must
+// use DefaultRegistry instead.
+func PublishedRegistry() Registry {
+	return registryFromSeeds(publishedResourceSeeds())
+}
+
+func registryFromSeeds(seeds []resourceSeed) Registry {
 	definitions := make(map[string]Definition, len(seeds))
 	names := make([]string, 0, len(seeds))
 	for _, seed := range seeds {
@@ -161,9 +204,16 @@ func definitionFromSeed(seed resourceSeed) Definition {
 	primaryKey := strings.Fields(seed.primaryKey)
 	secretSet := stringSet(seed.secrets)
 	requiredSet := stringSet(seed.required)
+	jsonSet := stringSet(seed.jsonFields)
 	capabilities := Capabilities{}
+	scope := ScopeTenantColumn
 	tenantColumn := seed.tenantColumn
-	if tenantColumn == "" && seed.inherited == nil {
+	if seed.schemaScoped {
+		scope = ScopeSchema
+		tenantColumn = ""
+	} else if seed.inherited != nil {
+		scope = ScopeInherited
+	} else if tenantColumn == "" {
 		tenantColumn = "tenant_id"
 	}
 	columns := make([]Column, 0, len(strings.Fields(seed.columns)))
@@ -171,6 +221,9 @@ func definitionFromSeed(seed resourceSeed) Definition {
 		_, secret := secretSet[name]
 		_, required := requiredSet[name]
 		columnType := inferColumnType(name)
+		if _, isJSON := jsonSet[name]; isJSON {
+			columnType = ColumnJSON
+		}
 		if secret {
 			columnType = ColumnSecret
 		}
@@ -184,7 +237,7 @@ func definitionFromSeed(seed resourceSeed) Definition {
 		})
 	}
 	for _, column := range columns {
-		if column.Name == "id" {
+		if column.Name == "id" && (len(primaryKey) == 1 || scope == ScopeTenantColumn) {
 			capabilities.Detail = true
 			break
 		}
@@ -198,6 +251,7 @@ func definitionFromSeed(seed resourceSeed) Definition {
 			Columns:      columns,
 			Capabilities: capabilities,
 		},
+		Scope:         scope,
 		TenantColumn:  tenantColumn,
 		Inherited:     cloneInheritedScope(seed.inherited),
 		SoftDelete:    seed.softDelete,
@@ -239,6 +293,35 @@ func cloneInheritedScope(scope *InheritedScope) *InheritedScope {
 	return &clone
 }
 
+func validateDefinitionScope(definition Definition) error {
+	hasTenantColumn := false
+	for _, column := range definition.Resource.Columns {
+		if column.Name == definition.TenantColumn && definition.TenantColumn != "" {
+			hasTenantColumn = true
+		}
+		if definition.Scope == ScopeSchema && column.Name == "tenant_id" {
+			return fmt.Errorf("schema-scoped resource %s unexpectedly exposes tenant_id", definition.Resource.Name)
+		}
+	}
+	switch definition.Scope {
+	case ScopeTenantColumn:
+		if definition.TenantColumn == "" || !hasTenantColumn || definition.Inherited != nil {
+			return fmt.Errorf("tenant-column scope for %s is incomplete", definition.Resource.Name)
+		}
+	case ScopeInherited:
+		if definition.TenantColumn != "" || definition.Inherited == nil {
+			return fmt.Errorf("inherited scope for %s is incomplete", definition.Resource.Name)
+		}
+	case ScopeSchema:
+		if definition.TenantColumn != "" || definition.Inherited != nil {
+			return fmt.Errorf("schema scope for %s cannot include a row predicate", definition.Resource.Name)
+		}
+	default:
+		return fmt.Errorf("resource %s has unsupported scope %q", definition.Resource.Name, definition.Scope)
+	}
+	return nil
+}
+
 func stringSet(value string) map[string]struct{} {
 	result := make(map[string]struct{}, len(strings.Fields(value)))
 	for _, item := range strings.Fields(value) {
@@ -272,7 +355,7 @@ func inferColumnType(name string) ColumnType {
 var booleanColumns = map[string]struct{}{
 	"custom_pay": {}, "custom_price": {}, "default": {}, "default_select": {},
 	"financial_audit": {}, "free_shipping": {}, "get_self": {}, "has_market": {},
-	"has_specification": {}, "init": {}, "need_id_card": {}, "need_inventory": {},
+	"has_pack_rule": {}, "has_specification": {}, "init": {}, "need_id_card": {}, "need_inventory": {},
 	"need_update_weight": {}, "paid": {}, "print": {}, "read": {}, "selected": {},
 	"show": {}, "top": {}, "use": {}, "use_self_aud_to_cny": {}, "used": {}, "video": {},
 }
@@ -287,6 +370,6 @@ var numberColumns = map[string]struct{}{
 	"order_fee": {}, "overage": {}, "overage_aud": {}, "percent_level0": {},
 	"percent_level1": {}, "price": {}, "price_total": {}, "price_unit": {},
 	"quantity": {}, "quantity_change": {}, "ratio": {}, "real_fee": {}, "reduce": {},
-	"reduce_fee": {}, "sent": {}, "sex": {}, "sort": {}, "stage": {}, "status": {},
+	"reduce_fee": {}, "sent": {}, "sex": {}, "simple": {}, "mixed": {}, "mixed_sum": {}, "sort": {}, "stage": {}, "status": {},
 	"unit_price": {}, "weight": {},
 }

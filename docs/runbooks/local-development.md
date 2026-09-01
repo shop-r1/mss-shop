@@ -76,7 +76,7 @@ separate network namespaces.
 
 ## Mall Admin local legacy UI fixture
 
-This fixture exists only to make the 43 reviewed mall Admin resource pages
+This fixture exists only to make the 50 reviewed mall Admin resource pages
 visible during local browser acceptance. It is not a legacy data migration,
 does not copy production data, does not prove tenant/schema isolation and does
 not close a system or business acceptance scenario. It never contacts
@@ -108,7 +108,7 @@ nor deletes existing rows.
 The fixture inserts non-sensitive examples for `function_circles`,
 `message_events`, `message_templates` and `show_categories`, plus examples
 covering goods, members, warehouses, orders and inventory. These seeded rows
-exist only to exercise lists, details and empty states: all 43 compatibility
+exist only to exercise lists, details and empty states: all 50 compatibility
 resources are read-only in the current Host. The other reviewed tables remain
 empty but structurally available for empty-state UI checks.
 
@@ -119,18 +119,16 @@ export R1SHOP_TENANT_ID=local-ui-control
 export R1SHOP_ADMIN_TENANT_ID=default
 export R1SHOP_LEGACY_TENANT_ID=local-demo
 export R1SHOP_BIZ_SCHEMA=main
-export R1SHOP_SHARED_SCHEMA=shared_demo
 GOWORK=off GOTOOLCHAIN=go1.26.6 mss dev
 ```
 
-`shared_demo` is deliberately distinct in the immutable binding, but it is not
-an attached SQLite database. The mall compatibility repository reads only the
-business schema, so local SQLite readiness validates `main` and makes no claim
-about shared-schema isolation. Deployed PostgreSQL readiness still requires
-the MSS core, mall business and shared catalogue schemas to be distinct and
-available. Use disposable in-cluster tests against development PostgreSQL for
-system verification; never point this local command at a migration source or
-any production database.
+Under DEC-0009 the seven product/logistics resources use the tenant business
+schema, so the mall runtime no longer accepts or depends on a shared product/
+logistics schema. Local SQLite readiness validates `main`; it does not prove
+the forward authorization migrations or tenant data conversion in PostgreSQL.
+Use disposable in-cluster tests against development PostgreSQL for system
+verification; never point this local command at a migration source or any
+production database.
 
 ## Storefront bootstrap and mobile H5
 

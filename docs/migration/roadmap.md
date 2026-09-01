@@ -29,8 +29,10 @@ official 1.3.7 tool installation.
 
 Exit: both hosts validate independently; contract compatibility tests exist;
 no copied MSS source is present; the table-level migration inventory is
-reviewed and committed. The 54-table manifest, 11/43 owner split, backend route
-inventory and Admin acceptance matrix now satisfy this exit. Indexes,
+reviewed and committed. The 54-table manifest now records the DEC-0009 target
+owner split of four tenant-platform migration/payment tables and 50 mall
+tables; the backend route inventory and Admin acceptance matrix satisfy this
+contract exit. Indexes,
 constraints and row-count evidence intentionally remain a Phase 5 development
 migration rehearsal gate rather than a Phase 1 source-contract blocker.
 
@@ -47,8 +49,13 @@ Exit: create, retry, suspend and resume work in the development environment;
 failure injection converges without duplicate resources or leaked credentials.
 
 The in-memory domain/controller, fault injection and tenant-scoped worker inbox
-are implemented. Persistent state, real drivers, least-privilege database roles
-and development-cluster rehearsal remain before the exit criteria are met.
+are implemented. A real, fixed `mss-shop-dev` PostgreSQL driver,
+least-privilege role/schema plan, DB-only Job and trusted operator resource path
+now exist in source. The original `r1shop-dev` database is only the importer's
+exact read-only source. Immutable-image cluster rehearsal,
+idempotency/isolation evidence and persistent desired/observed control-plane
+integration remain before the exit criteria are met; this is not a generalized
+or production driver.
 
 ## Phase 3 — first mall runtime
 
@@ -61,15 +68,15 @@ and development-cluster rehearsal remain before the exit criteria are met.
 Exit: one development tenant operates end-to-end with fixed connections and
 passes isolation tests in disposable Kubernetes Pods.
 
-The fixed-binding 43-resource mall compatibility backend and Admin UI are
-implemented and pass local backend tests/vet/race plus frontend tests/lint/
-production build. The eight-resource tenant shared catalog has the same local
-verification level. All 51 compatibility resources are read-only. Generic
-create, update and delete fail closed until each resource independently restores
-and proves its legacy validation, relationship/tenant constraints, model hooks,
-authorization and deletion semantics. Dedicated business workflows,
-development database evidence and disposable-Pod system acceptance remain
-open, so Phase 3 is not complete.
+The source compatibility backends and Admin UIs allocate 50 mall resources and
+one tenant payment resource. The seven moved product/logistics resources use
+the fixed mall business schema and forward-only authorization migrations. All
+51 resources are read-only. Local source verification does not mean those
+migrations were applied or deployed to an environment; tenant data conversion,
+development evidence and disposable-Pod acceptance remain open. Generic create,
+update and delete fail closed until each resource independently restores and
+proves its legacy validation, relationship/tenant constraints, model hooks,
+authorization and deletion semantics, so Phase 3 is not complete.
 
 ## Phase 4 — storefront and mobile (bootstrap slice complete)
 

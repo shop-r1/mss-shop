@@ -66,7 +66,6 @@ func Apply(ctx context.Context, options Options) (Result, error) {
 		AdminTenantID:  fixedbinding.MSS137AdminTenantID,
 		LegacyTenantID: options.LegacyTenantID,
 		BusinessSchema: "main",
-		SharedSchema:   "shared_demo",
 	}
 	if err := binding.Validate(); err != nil {
 		return Result{}, fmt.Errorf("local legacy fixture: invalid legacy tenant ID: %w", err)

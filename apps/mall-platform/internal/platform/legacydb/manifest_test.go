@@ -1,6 +1,9 @@
 package legacydb
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDefaultRegistryIsReviewedMallAllowlist(t *testing.T) {
 	t.Parallel()
@@ -10,8 +13,9 @@ func TestDefaultRegistryIsReviewedMallAllowlist(t *testing.T) {
 	if got := len(definitions); got != ExpectedMallResourceCount {
 		t.Fatalf("resource count = %d, want %d", got, ExpectedMallResourceCount)
 	}
-	if _, ok := registry.Lookup("courier_links"); ok {
-		t.Fatal("courier_links belongs to the shared tenant-platform catalogue")
+	courierLinks, ok := registry.Lookup("courier_links")
+	if !ok || courierLinks.Scope != ScopeSchema || courierLinks.TenantColumn != "" || courierLinks.Inherited != nil {
+		t.Fatalf("courier_links must be an explicit schema-scoped mall snapshot: %#v", courierLinks)
 	}
 	if _, ok := registry.Lookup("area"); ok {
 		t.Fatal("area is not part of the formal 54-table manifest")
@@ -19,6 +23,26 @@ func TestDefaultRegistryIsReviewedMallAllowlist(t *testing.T) {
 	shipping, ok := registry.Lookup("shipping_warehouses")
 	if !ok || len(shipping.Resource.Columns) != 16 {
 		t.Fatalf("shipping_warehouses evidence = %#v", shipping.Resource.Columns)
+	}
+}
+
+func TestPublishedRegistryPreservesTheImmutable43ResourceMigrationInput(t *testing.T) {
+	t.Parallel()
+
+	published := PublishedRegistry()
+	if got := len(published.All()); got != PublishedMallResourceCount {
+		t.Fatalf("published resource count = %d, want %d", got, PublishedMallResourceCount)
+	}
+	for _, name := range []string{"brands", "categories", "classes", "goods_infos", "couriers", "courier_pack_rules", "courier_links"} {
+		if _, ok := published.Lookup(name); ok {
+			t.Errorf("published 43-resource registry unexpectedly contains %s", name)
+		}
+	}
+	wantNames := strings.Fields("activities activity_links collections consignees consumers coupon_links coupon_parents coupons courier_installs courier_templates finance_logs finances function_circles gold_withdraws goods goods_assembles goods_shipping_warehouses goods_specifications inventories inventory_checks inventory_tracks member_goods member_levels members message_events message_templates message_users messages order_goods order_unit_packs orders payment_installs payment_orders real_warehouses receipt_goods receipts sell_goods sells senders shipping_warehouses shopping_carts show_categories system_configs")
+	for index, definition := range published.All() {
+		if definition.Resource.Name != wantNames[index] {
+			t.Fatalf("published resource %d = %q, want %q", index, definition.Resource.Name, wantNames[index])
+		}
 	}
 }
 
@@ -79,10 +103,10 @@ func TestRegistryReturnsDefensiveCopies(t *testing.T) {
 func TestEveryResourceMatchesFrontendDomainCatalog(t *testing.T) {
 	t.Parallel()
 	expectedGroups := map[string][]string{
-		"catalog":     {"goods", "goods_assembles", "goods_shipping_warehouses", "goods_specifications", "member_goods", "show_categories"},
+		"catalog":     {"brands", "categories", "classes", "goods_infos", "goods", "goods_assembles", "goods_shipping_warehouses", "goods_specifications", "member_goods", "show_categories"},
 		"customers":   {"members", "consumers", "consignees", "senders", "member_levels", "collections"},
 		"orders":      {"orders", "payment_orders", "order_unit_packs", "order_goods"},
-		"fulfillment": {"shipping_warehouses", "courier_installs", "courier_templates", "payment_installs"},
+		"fulfillment": {"shipping_warehouses", "couriers", "courier_pack_rules", "courier_links", "courier_installs", "courier_templates", "payment_installs"},
 		"marketing":   {"activities", "activity_links", "coupons", "coupon_links", "coupon_parents", "function_circles"},
 		"finance":     {"finances", "finance_logs", "gold_withdraws"},
 		"sales":       {"sells", "sell_goods"},

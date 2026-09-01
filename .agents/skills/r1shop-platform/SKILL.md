@@ -12,10 +12,16 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
 2. Identify the affected invariant and accepted decision. If the requested
    design contradicts one, add a superseding ADR and update the registry,
    architecture, invariants, migration plan and status in the same change.
-3. Keep the tenant platform as desired-state control plane and the reconciler
-   as the sole tenant-resource writer. Bind every mall runtime to one immutable
-   tenant and fixed core/business schema pair at startup; never accept a schema
-   selector from a client.
+3. Keep the tenant platform as desired-state control plane. The in-cluster
+   reconciler is the sole writer of tenant database roles, schemas, snapshots,
+   views and grants; it has no Kubernetes API identity. Fixed trusted operator
+   commands own the independent trigger-disabled database preflight, stage
+   Secrets and workload objects after fail-closed service/object/host collision
+   checks. The fixed development bootstrap may replay only before MSS migrates
+   either exact-empty core schema; it fails closed afterwards. Bind every mall
+   runtime to one immutable tenant and fixed
+   core/business schema pair at startup; never accept a schema selector from a
+   client.
 4. Keep MSS core unchanged. For a Thin Host business change also follow the
    narrower `mss-thin-host` Skill, edit specifications/business-owned files,
    and run the MSS validations it requires. If the change reads, writes,
@@ -36,5 +42,8 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
    and the generated Admin hosts in their nested modules. Validate services
    with `GOWORK=off`, validate each host from its own root with the official
    MSS 1.3.7 binary, and run `scripts/check-platform-boundaries.sh`. The
-   phase-one reconciler/worker are local simulations; do not present them as
-   production drivers.
+   reconciler has a real, fixed `mss-shop-dev` PostgreSQL driver. The original
+   `r1shop-dev` environment is immutable except for the importer's exact
+   read-only source connection, and production reconciliation remains
+   deliberately unavailable; the storefront worker is still a local
+   simulation.

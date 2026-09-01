@@ -10,7 +10,16 @@ import (
 	"github.com/glebarez/sqlite"
 	"github.com/shop-r1/mss-shop/apps/mall-platform/internal/platform/fixedbinding"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
+
+func TestRepositoryDiscardsLegacySQLLogs(t *testing.T) {
+	t.Parallel()
+	_, repository := newLegacyTestRepository(t)
+	if repository.db.Logger != logger.Discard {
+		t.Fatal("legacy repository did not install its isolated discard logger")
+	}
+}
 
 func TestListAppliesFixedTenantSearchFiltersAndPaging(t *testing.T) {
 	t.Parallel()
@@ -83,6 +92,59 @@ func TestInheritedScopeUsesQualifiedOwningTable(t *testing.T) {
 	}
 	if page.Total != 1 || len(page.Data) != 1 || page.Data[0]["id"] != "line-one" {
 		t.Fatalf("inherited tenant page = %#v", page)
+	}
+}
+
+func TestSchemaScopedSnapshotUsesOnlyTheFixedBusinessSchema(t *testing.T) {
+	t.Parallel()
+	directory := t.TempDir()
+	db, err := gorm.Open(sqlite.Open(filepath.Join(directory, "core.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`ATTACH DATABASE ? AS "mall_biz"`, filepath.Join(directory, "mall-biz.db")).Error; err != nil {
+		t.Fatal(err)
+	}
+	binding := fixedbinding.Binding{
+		TenantID: "control-one", AdminTenantID: "default",
+		LegacyTenantID: "legacy-one", BusinessSchema: "mall_biz",
+	}
+	repository, err := NewRepository(db, binding, DefaultRegistry())
+	if err != nil {
+		t.Fatal(err)
+	}
+	brands := mustDefinition(t, repository.registry, "brands")
+	if brands.Scope != ScopeSchema || brands.TenantColumn != "" || brands.Inherited != nil {
+		t.Fatalf("brands scope = %#v", brands)
+	}
+	createFixtureTableInSchema(t, db, "main", brands)
+	createFixtureTableInSchema(t, db, binding.BusinessSchema, brands)
+	insertFixture(t, db, `INSERT INTO "main"."brands" (id, name_en) VALUES (?, ?)`, "forged", "Wrong schema")
+	insertFixture(t, db, `INSERT INTO "mall_biz"."brands" (id, name_en) VALUES (?, ?)`, "local", "Tenant snapshot")
+
+	page, err := repository.List(context.Background(), "brands", Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || len(page.Data) != 1 || page.Data[0]["id"] != "local" {
+		t.Fatalf("schema-scoped page = %#v", page)
+	}
+	if _, err := repository.List(context.Background(), "brands", Query{Exact: map[string]string{"tenant_id": "foreign"}}); !errors.Is(err, ErrInvalidRequest) {
+		t.Fatalf("schema-scoped tenant predicate override error = %v", err)
+	}
+}
+
+func TestRepositoryRejectsImplicitOrIncompleteScope(t *testing.T) {
+	t.Parallel()
+	db, _ := newLegacyTestRepository(t)
+	registry := DefaultRegistry()
+	brands := registry.definitions["brands"]
+	brands.Scope = ""
+	registry.definitions["brands"] = brands
+	if _, err := NewRepository(db, fixedbinding.Binding{
+		TenantID: "control", AdminTenantID: "default", LegacyTenantID: "legacy", BusinessSchema: "main",
+	}, registry); err == nil || !strings.Contains(err.Error(), "unsupported scope") {
+		t.Fatalf("implicit scope error = %v", err)
 	}
 }
 
@@ -207,7 +269,6 @@ func TestReadOnlyBoundaryLeavesEverySchemaUnchanged(t *testing.T) {
 		AdminTenantID:  "default",
 		LegacyTenantID: "legacy-one",
 		BusinessSchema: "mall_biz",
-		SharedSchema:   "shared_catalog",
 	}
 	repository, err := NewRepository(db, binding, DefaultRegistry())
 	if err != nil {
@@ -286,15 +347,11 @@ func newLegacyTestRepository(t *testing.T) (*gorm.DB, *Repository) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec(`ATTACH DATABASE ? AS "shared"`, filepath.Join(temporary, "shared.db")).Error; err != nil {
-		t.Fatal(err)
-	}
 	binding := fixedbinding.Binding{
 		TenantID:       "default",
 		AdminTenantID:  "default",
 		LegacyTenantID: "legacy-one",
 		BusinessSchema: "main",
-		SharedSchema:   "shared",
 	}
 	repository, err := NewRepository(db, binding, DefaultRegistry())
 	if err != nil {

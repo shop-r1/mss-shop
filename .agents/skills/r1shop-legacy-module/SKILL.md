@@ -6,22 +6,29 @@ description: Implement or review R1Shop Admin business capabilities that must pr
 # R1Shop legacy business module
 
 1. Read the scoped Host `AGENTS.md`, its `mss-thin-host` Skill, DEC-0007,
+   DEC-0009,
    `docs/migration/legacy-tables.yaml`, and the affected rows in
    `docs/migration/legacy-admin-acceptance-matrix.md`. Treat the 54-table
    manifest as the source of truth; `shipping_warehouses` is required and
-   `area` is not a business table.
+   `area` is not a business table. For product, SKU, inventory, courier or
+   packing-rule work, also read
+   `docs/reviews/legacy-catalog-logistics-redesign.md`; CL-01 through CL-12 are
+   awaiting project-owner review and are not implementation authorization.
 2. Confirm the domain owner before coding. Tenant lifecycle, legacy identity
-   conversion and the eight shared catalog/logistics tables belong to
-   tenant-platform. The 43 tenant business tables belong to mall-platform.
-   `courier_links` is a global category/packing-rule association, not a mall
-   table. MSS owns runtime login, users, roles, menus, policies and logs;
-   legacy identity tables are conversion inputs only.
+   conversion and the `payments` catalog belong to tenant-platform. The other
+   50 non-identity business tables belong to mall-platform, including
+   `brands`, `categories`, `classes`, `goods_infos`, `couriers`,
+   `courier_pack_rules` and `courier_links`. Those seven source-global tables
+   are seeded with preserved IDs into each tenant business schema; they are not
+   a permanent platform shared catalog. MSS owns runtime login, users, roles,
+   menus, policies and logs; legacy identity tables are conversion inputs only.
 3. Bind the immutable control-plane tenant identity, MSS Admin tenant scope,
-   legacy tenant ID, core schema, business schema and shared-catalog schema at
-   startup. Validate identifiers and freeze the binding. MSS 1.3.7 currently
-   reports the Admin tenant scope as `default`; do not confuse that scope with
-   the control-plane tenant identity. A request must never provide or override
-   any identity, schema or tenant scope.
+   legacy tenant ID, core schema and business schema at startup. Validate
+   identifiers and freeze the binding. Product/logistics access uses the mall
+   business schema; do not add a platform shared-catalog dependency. MSS 1.3.7
+   currently reports the Admin tenant scope as `default`; do not confuse that
+   scope with the control-plane tenant identity. A request must never provide
+   or override any identity, schema or tenant scope.
 4. Use the MSS request database lease only within its callback/request. Keep
    the core schema as the connection's current schema and fully qualify every
    legacy table through the approved repository boundary. Inject the fixed
@@ -48,9 +55,11 @@ description: Implement or review R1Shop Admin business capabilities that must pr
 7. Preserve legacy primary keys, soft deletes, decimal precision, historical
    status values, JSON/CSV bytes and documented model-hook side effects.
    New compatible IDs use the legacy 18-digit decimal format, not UUID or hex.
-   The current 43-resource mall catalog and eight-resource tenant shared catalog
-   are entirely read-only. Do not enable generic create, update or delete from
-   table shape, a local editor smoke test or another resource's qualification.
+   The target compatibility allocation is 50 mall resources plus the one
+   tenant `payments` resource, and all 51 are entirely read-only. Checked-in
+   forward migrations are not proof that an environment applied the ownership
+   change. Do not enable generic create, update or delete from table shape, a
+   local editor smoke test or another resource's qualification.
    Restore old validation, relationships/tenant constraints, hooks,
    authorization and deletion semantics in a dedicated Feature/workflow before
    enabling each operation. Use transactions, state preconditions and

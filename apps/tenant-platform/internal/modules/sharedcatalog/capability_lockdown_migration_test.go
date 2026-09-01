@@ -17,7 +17,7 @@ func TestCapabilityLockdownMigrationRequiresBothPublishedPrerequisites(t *testin
 	t.Parallel()
 
 	db, binding := openSharedCatalogTestDatabase(t)
-	registry := legacydb.DefaultRegistry()
+	registry := legacydb.PublishedRegistry()
 	if err := applyCapabilityLockdownMigration(db, binding, registry, CapabilityLockdownMigrationID.String(), nil); err == nil {
 		t.Fatal("capability lockdown accepted missing prerequisites")
 	}
@@ -34,7 +34,7 @@ func TestCapabilityLockdownMigrationIsIdempotentAndNeverTouchesSharedTables(t *t
 	t.Parallel()
 
 	db, binding := openSharedCatalogTestDatabase(t)
-	registry := legacydb.DefaultRegistry()
+	registry := legacydb.PublishedRegistry()
 	applyCapabilityLockdownPrerequisites(t, db, binding, registry)
 
 	component, err := upsertAuthorizationMenu(db, binding, authorizationMenuSeed{
@@ -64,14 +64,14 @@ func TestCapabilityLockdownMigrationIsIdempotentAndNeverTouchesSharedTables(t *t
 	assertCoreCount(t, db, binding, (&models.CasbinRule{}).TableName(), "ptype = ? AND v0 = ? AND v1 = ? AND v2 = ?", []any{
 		"p", "rogue-role", adminpkg.ComponentAccessType.String(), componentPath("categories", "create"),
 	}, 0)
-	if err := verifyAuthorizationReadiness(context.Background(), db, binding, registry); err != nil {
-		t.Fatalf("authorization readiness: %v", err)
+	if err := verifyCapabilityLockdownReadiness(context.Background(), db, binding, registry); err != nil {
+		t.Fatalf("capability lockdown readiness: %v", err)
 	}
 	if err := seedAuthorizationRule(db, binding, "rogue-role", adminpkg.APIAccessType, collectionRoute, "POST"); err != nil {
 		t.Fatal(err)
 	}
-	if err := verifyAuthorizationReadiness(context.Background(), db, binding, registry); err == nil {
-		t.Fatal("authorization readiness accepted a restored write policy")
+	if err := verifyCapabilityLockdownReadiness(context.Background(), db, binding, registry); err == nil {
+		t.Fatal("capability lockdown readiness accepted a restored write policy")
 	}
 
 	for _, definition := range registry.All() {
@@ -87,7 +87,7 @@ func TestCapabilityLockdownMigrationRollsBackCleanup(t *testing.T) {
 	t.Parallel()
 
 	db, binding := openSharedCatalogTestDatabase(t)
-	registry := legacydb.DefaultRegistry()
+	registry := legacydb.PublishedRegistry()
 	applyCapabilityLockdownPrerequisites(t, db, binding, registry)
 	injected := errors.New("injected")
 	if err := applyCapabilityLockdownMigration(

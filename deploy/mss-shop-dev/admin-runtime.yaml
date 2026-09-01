@@ -1,0 +1,929 @@
+# Operator-owned additive Admin workloads for mss-shop-dev.
+#
+# Replace every 40-zero revision with one complete lowercase Git SHA whose
+# three delivery images passed CI. Before applying, the trusted operator must
+# verify that all eight object names and both hosts are either absent or carry
+# the exact r1shop.io/operator-binding annotation below. This manifest never
+# selects, updates, or routes to the existing `shop` resources.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mss-shop-tenant-admin-config
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-tenant-admin
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:ConfigMap:mss-shop-tenant-admin-config
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+data:
+  runtime.yml: |
+    server:
+      addr: 0.0.0.0:8080
+      metrics: false
+      healthz: true
+      readyz: true
+      pprof: false
+    monitor:
+      sampleInterval: 5s
+      sampleTimeout: 3s
+      historySize: 120
+    presentation:
+      recoveryMode: false
+      adoptionMode: disabled
+      activePages: []
+    application:
+      name: mss-shop-tenant-admin
+      mode: dev
+      origin: http://tenant-admin.167.17.68.242.nip.io
+      trustedProxies: []
+      ui:
+        enabled: true
+        addr: 0.0.0.0:8001
+        path: /app/public
+      labels:
+        app: mss-shop-tenant-admin
+        namespace: mss-shop-dev
+        cluster: mss-shop-dev
+    cors:
+      allowOrigins:
+        - http://tenant-admin.167.17.68.242.nip.io
+      allowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+      allowHeaders: [Authorization, Content-Type, If-Match, Idempotency-Key, X-CSRF-Token]
+      exposeHeaders: [ETag]
+      maxAge: 12h
+    logger:
+      stdout: default
+      level: warn
+      json: true
+      addSource: false
+    database:
+      driver: postgres
+      source: '{{.Env.DB_DSN}}'
+      maxIdleConns: 2
+      maxOpenConns: 10
+      connMaxIdleTime: 300
+      connMaxLifeTime: 1800
+      config:
+        disableForeignKeyConstraintWhenMigrating: true
+      casbinModel: |
+        [request_definition]
+        r = sub, tp, obj, act
+
+        [policy_definition]
+        p = sub, tp, obj, act
+
+        [policy_effect]
+        e = some(where (p.eft == allow))
+
+        [matchers]
+        m = r.sub == p.sub && r.tp == p.tp && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
+    auth:
+      realm: r1shop tenant admin
+      key: '{{.Env.MSS_ADMIN_AUTH_KEY}}'
+      timeout: 12h
+      maxRefresh: 2160h
+      identityKey: '{{.Env.MSS_ADMIN_IDENTITY_KEY}}'
+      browserSession:
+        secure: false
+        sameSite: lax
+        webSocketTicketTTL: 30s
+    challenge:
+      enabled: false
+      required: false
+    cache:
+      queryCache: false
+      redis:
+        addr: mss-shop-redis.mss-shop-dev.svc:6379
+        password: '{{.Env.MSS_RUNTIME_REDIS_PASSWORD}}'
+        db: 1
+        poolSize: 5
+        maxRetries: 2
+        tls:
+          ca: /etc/mss-shop/redis-tls/ca.crt
+    queue: null
+    locker: null
+    task:
+      enable: false
+  migration.yml: |
+    application:
+      name: mss-shop-tenant-admin-migration
+      mode: dev
+      origin: http://tenant-admin.167.17.68.242.nip.io
+      trustedProxies: []
+    cors:
+      allowOrigins:
+        - http://tenant-admin.167.17.68.242.nip.io
+      allowHeaders: [Content-Type, Idempotency-Key, X-CSRF-Token]
+    logger:
+      stdout: default
+      level: warn
+      json: true
+      addSource: false
+    database:
+      driver: postgres
+      source: '{{.Env.DB_DSN}}'
+      maxIdleConns: 1
+      maxOpenConns: 2
+      config:
+        disableForeignKeyConstraintWhenMigrating: true
+      casbinModel: |
+        [request_definition]
+        r = sub, tp, obj, act
+
+        [policy_definition]
+        p = sub, tp, obj, act
+
+        [policy_effect]
+        e = some(where (p.eft == allow))
+
+        [matchers]
+        m = r.sub == p.sub && r.tp == p.tp && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
+    auth:
+      realm: r1shop migration only
+      key: tenant-migration-only-key-not-used-by-a-server
+      timeout: 1h
+      maxRefresh: 1h
+      identityKey: tenant-migration-only-identity-not-used-by-a-server
+      browserSession:
+        secure: false
+        sameSite: strict
+        webSocketTicketTTL: 30s
+    challenge:
+      enabled: false
+      required: false
+    cache: null
+    queue: null
+    locker: null
+    task:
+      enable: false
+    presentation:
+      recoveryMode: false
+      adoptionMode: disabled
+      activePages: []
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mss-shop-tenant-admin
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-tenant-admin
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Deployment:mss-shop-tenant-admin
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-tenant-admin
+      app.kubernetes.io/instance: tenant-admin-mss-shop-dev
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-tenant-admin
+        app.kubernetes.io/instance: tenant-admin-mss-shop-dev
+        app.kubernetes.io/component: admin
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: admin
+      annotations:
+        r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: ghcr.io/shop-r1/mss-shop-tenant-platform:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: [/app/admin]
+          args:
+            - migrate
+            - --username
+            - admin
+            - --domain
+            - tenant-admin.167.17.68.242.nip.io
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: CONFIG_PROVIDER
+              value: local
+            - name: DB_DRIVER
+              value: postgres
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-tenant-admin-runtime
+                  key: database-migrator-dsn
+            - name: MSS_ADMIN_INITIAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-tenant-admin-runtime
+                  key: initial-admin-password
+                  optional: true
+            - name: R1SHOP_CORE_SCHEMA
+              value: mss_t_dev_core
+            - name: R1SHOP_SHARED_SCHEMA
+              value: mss_t_dev_shared
+          volumeMounts:
+            - name: migration-config
+              mountPath: /app/config
+              readOnly: true
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: migration-tmp
+              mountPath: /tmp
+      containers:
+        - name: admin
+          image: ghcr.io/shop-r1/mss-shop-tenant-platform:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: [/app/admin]
+          args: [server]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 96Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          ports:
+            - name: api
+              containerPort: 8080
+              protocol: TCP
+            - name: ui
+              containerPort: 8001
+              protocol: TCP
+          env:
+            - name: CONFIG_PROVIDER
+              value: local
+            - name: DB_DRIVER
+              value: postgres
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-tenant-admin-runtime
+                  key: database-runtime-dsn
+            - name: MSS_ADMIN_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-tenant-admin-runtime
+                  key: auth-key
+            - name: MSS_ADMIN_IDENTITY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-tenant-admin-runtime
+                  key: identity-key
+            - name: MSS_RUNTIME_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-tenant-admin-runtime
+                  key: redis-password
+            - name: R1SHOP_CORE_SCHEMA
+              value: mss_t_dev_core
+            - name: R1SHOP_SHARED_SCHEMA
+              value: mss_t_dev_shared
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /app/config
+              readOnly: true
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: redis-ca
+              mountPath: /etc/mss-shop/redis-tls
+              readOnly: true
+            - name: runtime-tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: api
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: mss-shop-tenant-admin-config
+            items:
+              - key: runtime.yml
+                path: application.yml
+        - name: migration-config
+          configMap:
+            name: mss-shop-tenant-admin-config
+            items:
+              - key: migration.yml
+                path: application.yml
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: redis-ca
+          secret:
+            secretName: mss-shop-redis-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: migration-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: runtime-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mss-shop-tenant-admin
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-tenant-admin
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Service:mss-shop-tenant-admin
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mss-shop-tenant-admin
+    app.kubernetes.io/instance: tenant-admin-mss-shop-dev
+  ports:
+    - name: api
+      port: 8080
+      targetPort: api
+      protocol: TCP
+    - name: ui
+      port: 8001
+      targetPort: ui
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mss-shop-tenant-admin
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-tenant-admin
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Ingress:mss-shop-tenant-admin
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    nginx.ingress.kubernetes.io/proxy-body-size: 2m
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: tenant-admin.167.17.68.242.nip.io
+      http:
+        paths:
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: mss-shop-tenant-admin
+                port:
+                  name: api
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: mss-shop-tenant-admin
+                port:
+                  name: api
+          - path: /readyz
+            pathType: Exact
+            backend:
+              service:
+                name: mss-shop-tenant-admin
+                port:
+                  name: api
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mss-shop-tenant-admin
+                port:
+                  name: ui
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mss-shop-mall-admin-aussibuy-config
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-mall-admin
+    app.kubernetes.io/instance: aussibuy
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:ConfigMap:mss-shop-mall-admin-aussibuy-config
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+data:
+  runtime.yml: |
+    server:
+      addr: 0.0.0.0:8080
+      metrics: false
+      healthz: true
+      readyz: true
+      pprof: false
+    monitor:
+      sampleInterval: 5s
+      sampleTimeout: 3s
+      historySize: 120
+    presentation:
+      recoveryMode: false
+      adoptionMode: disabled
+      activePages: []
+    application:
+      name: mss-shop-mall-admin-aussibuy
+      mode: dev
+      origin: http://mall-admin.167.17.68.242.nip.io
+      trustedProxies: []
+      ui:
+        enabled: true
+        addr: 0.0.0.0:8001
+        path: /app/public
+      labels:
+        app: mss-shop-mall-admin
+        tenant: aussibuy
+        namespace: mss-shop-dev
+        cluster: mss-shop-dev
+    cors:
+      allowOrigins:
+        - http://mall-admin.167.17.68.242.nip.io
+      allowMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+      allowHeaders: [Authorization, Content-Type, If-Match, Idempotency-Key, X-CSRF-Token]
+      exposeHeaders: [ETag]
+      maxAge: 12h
+    logger:
+      stdout: default
+      level: warn
+      json: true
+      addSource: false
+    database:
+      driver: postgres
+      source: '{{.Env.DB_DSN}}'
+      maxIdleConns: 2
+      maxOpenConns: 10
+      connMaxIdleTime: 300
+      connMaxLifeTime: 1800
+      config:
+        disableForeignKeyConstraintWhenMigrating: true
+      casbinModel: |
+        [request_definition]
+        r = sub, tp, obj, act
+
+        [policy_definition]
+        p = sub, tp, obj, act
+
+        [policy_effect]
+        e = some(where (p.eft == allow))
+
+        [matchers]
+        m = r.sub == p.sub && r.tp == p.tp && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
+    auth:
+      realm: r1shop mall admin
+      key: '{{.Env.MSS_ADMIN_AUTH_KEY}}'
+      timeout: 12h
+      maxRefresh: 2160h
+      identityKey: '{{.Env.MSS_ADMIN_IDENTITY_KEY}}'
+      browserSession:
+        secure: false
+        sameSite: lax
+        webSocketTicketTTL: 30s
+    challenge:
+      enabled: false
+      required: false
+    cache:
+      queryCache: false
+      redis:
+        addr: mss-shop-redis.mss-shop-dev.svc:6379
+        password: '{{.Env.MSS_RUNTIME_REDIS_PASSWORD}}'
+        db: 2
+        poolSize: 5
+        maxRetries: 2
+        tls:
+          ca: /etc/mss-shop/redis-tls/ca.crt
+    queue: null
+    locker: null
+    task:
+      enable: false
+  migration.yml: |
+    application:
+      name: mss-shop-mall-admin-aussibuy-migration
+      mode: dev
+      origin: http://mall-admin.167.17.68.242.nip.io
+      trustedProxies: []
+    cors:
+      allowOrigins:
+        - http://mall-admin.167.17.68.242.nip.io
+      allowHeaders: [Content-Type, Idempotency-Key, X-CSRF-Token]
+    logger:
+      stdout: default
+      level: warn
+      json: true
+      addSource: false
+    database:
+      driver: postgres
+      source: '{{.Env.DB_DSN}}'
+      maxIdleConns: 1
+      maxOpenConns: 2
+      config:
+        disableForeignKeyConstraintWhenMigrating: true
+      casbinModel: |
+        [request_definition]
+        r = sub, tp, obj, act
+
+        [policy_definition]
+        p = sub, tp, obj, act
+
+        [policy_effect]
+        e = some(where (p.eft == allow))
+
+        [matchers]
+        m = r.sub == p.sub && r.tp == p.tp && keyMatch(r.obj, p.obj) && regexMatch(r.act, p.act)
+    auth:
+      realm: r1shop migration only
+      key: mall-migration-only-key-not-used-by-a-server
+      timeout: 1h
+      maxRefresh: 1h
+      identityKey: mall-migration-only-identity-not-used-by-a-server
+      browserSession:
+        secure: false
+        sameSite: strict
+        webSocketTicketTTL: 30s
+    challenge:
+      enabled: false
+      required: false
+    cache: null
+    queue: null
+    locker: null
+    task:
+      enable: false
+    presentation:
+      recoveryMode: false
+      adoptionMode: disabled
+      activePages: []
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mss-shop-mall-admin-aussibuy
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-mall-admin
+    app.kubernetes.io/instance: aussibuy
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Deployment:mss-shop-mall-admin-aussibuy
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-mall-admin
+      app.kubernetes.io/instance: aussibuy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-mall-admin
+        app.kubernetes.io/instance: aussibuy
+        app.kubernetes.io/component: admin
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: admin
+      annotations:
+        r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: ghcr.io/shop-r1/mss-shop-mall-platform:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: [/app/admin]
+          args:
+            - migrate
+            - --username
+            - admin
+            - --domain
+            - mall-admin.167.17.68.242.nip.io
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: CONFIG_PROVIDER
+              value: local
+            - name: DB_DRIVER
+              value: postgres
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: database-migrator-dsn
+            - name: MSS_ADMIN_INITIAL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: initial-admin-password
+                  optional: true
+            - name: R1SHOP_TENANT_ID
+              value: tenant-aussibuy-dev
+            - name: R1SHOP_ADMIN_TENANT_ID
+              value: default
+            - name: R1SHOP_LEGACY_TENANT_ID
+              value: "518729051064631297"
+            - name: R1SHOP_BIZ_SCHEMA
+              value: mss_m_aussibuy_biz
+          volumeMounts:
+            - name: migration-config
+              mountPath: /app/config
+              readOnly: true
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: migration-tmp
+              mountPath: /tmp
+      containers:
+        - name: admin
+          image: ghcr.io/shop-r1/mss-shop-mall-platform:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: [/app/admin]
+          args: [server]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 96Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          ports:
+            - name: api
+              containerPort: 8080
+              protocol: TCP
+            - name: ui
+              containerPort: 8001
+              protocol: TCP
+          env:
+            - name: CONFIG_PROVIDER
+              value: local
+            - name: DB_DRIVER
+              value: postgres
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: database-runtime-dsn
+            - name: MSS_ADMIN_AUTH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: auth-key
+            - name: MSS_ADMIN_IDENTITY_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: identity-key
+            - name: MSS_RUNTIME_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-mall-admin-aussibuy-runtime
+                  key: redis-password
+            - name: R1SHOP_TENANT_ID
+              value: tenant-aussibuy-dev
+            - name: R1SHOP_ADMIN_TENANT_ID
+              value: default
+            - name: R1SHOP_LEGACY_TENANT_ID
+              value: "518729051064631297"
+            - name: R1SHOP_BIZ_SCHEMA
+              value: mss_m_aussibuy_biz
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /app/config
+              readOnly: true
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: redis-ca
+              mountPath: /etc/mss-shop/redis-tls
+              readOnly: true
+            - name: runtime-tmp
+              mountPath: /tmp
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: api
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            periodSeconds: 15
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: mss-shop-mall-admin-aussibuy-config
+            items:
+              - key: runtime.yml
+                path: application.yml
+        - name: migration-config
+          configMap:
+            name: mss-shop-mall-admin-aussibuy-config
+            items:
+              - key: migration.yml
+                path: application.yml
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: redis-ca
+          secret:
+            secretName: mss-shop-redis-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: migration-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: runtime-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mss-shop-mall-admin-aussibuy
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-mall-admin
+    app.kubernetes.io/instance: aussibuy
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Service:mss-shop-mall-admin-aussibuy
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mss-shop-mall-admin
+    app.kubernetes.io/instance: aussibuy
+  ports:
+    - name: api
+      port: 8080
+      targetPort: api
+      protocol: TCP
+    - name: ui
+      port: 8001
+      targetPort: ui
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mss-shop-mall-admin-aussibuy
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-mall-admin
+    app.kubernetes.io/instance: aussibuy
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Ingress:mss-shop-mall-admin-aussibuy
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    nginx.ingress.kubernetes.io/proxy-body-size: 2m
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: mall-admin.167.17.68.242.nip.io
+      http:
+        paths:
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: mss-shop-mall-admin-aussibuy
+                port:
+                  name: api
+          - path: /healthz
+            pathType: Exact
+            backend:
+              service:
+                name: mss-shop-mall-admin-aussibuy
+                port:
+                  name: api
+          - path: /readyz
+            pathType: Exact
+            backend:
+              service:
+                name: mss-shop-mall-admin-aussibuy
+                port:
+                  name: api
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mss-shop-mall-admin-aussibuy
+                port:
+                  name: ui

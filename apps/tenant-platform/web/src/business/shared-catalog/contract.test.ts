@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { findSharedCatalogResourceByName } from './catalog';
 import { parseSharedCatalogListResponse, parseSharedCatalogRecordResponse } from './contract';
 
-function resource(name: 'brands' | 'categories') {
+function resource(name: 'payments') {
   const entry = findSharedCatalogResourceByName(name);
   if (!entry) throw new Error(`${name} must be in the shared catalog`);
   return entry;
 }
 
-function descriptor(name: 'brands' | 'categories', writable = false) {
+function descriptor(name: string, writable = false) {
   return {
     name,
     domain: 'shared-catalog',
@@ -44,16 +44,16 @@ describe('shared catalog transport contract', () => {
   it('accepts the exact list response and normalizes column types', () => {
     const parsed = parseSharedCatalogListResponse(
       {
-        data: [{ id: 'brand-1', name: 'R1' }],
+        data: [{ id: 'payment-1', name: 'WeChat' }],
         total: 1,
         page: 1,
         pageSize: 20,
-        resource: descriptor('brands'),
+        resource: descriptor('payments'),
       },
-      resource('brands'),
+      resource('payments'),
     );
     expect(parsed.resource.columns[0]?.type).toBe('string');
-    expect(parsed.data).toEqual([{ id: 'brand-1', name: 'R1' }]);
+    expect(parsed.data).toEqual([{ id: 'payment-1', name: 'WeChat' }]);
   });
 
   it('rejects resource, domain, title, unsafe field, and paging drift', () => {
@@ -62,75 +62,75 @@ describe('shared catalog transport contract', () => {
       total: 0,
       page: 1,
       pageSize: 20,
-      resource: descriptor('brands'),
+      resource: descriptor('payments'),
     };
     expect(() =>
       parseSharedCatalogListResponse(
         { ...base, resource: { ...base.resource, domain: 'catalog' } },
-        resource('brands'),
+        resource('payments'),
       ),
     ).toThrow('resource identity mismatch');
     expect(() =>
       parseSharedCatalogListResponse(
         { ...base, resource: { ...base.resource, titleKey: 'wrong.key' } },
-        resource('brands'),
+        resource('payments'),
       ),
     ).toThrow('resource identity mismatch');
 
-    const unsafe = descriptor('brands');
+    const unsafe = descriptor('payments');
     const firstColumn = unsafe.columns[0];
     if (!firstColumn) throw new Error('fixture must contain a column');
-    firstColumn.name = 'id;drop table brands';
+    firstColumn.name = 'id;drop table payments';
     expect(() =>
-      parseSharedCatalogListResponse({ ...base, resource: unsafe }, resource('brands')),
+      parseSharedCatalogListResponse({ ...base, resource: unsafe }, resource('payments')),
     ).toThrow('not a safe field name');
-    expect(() => parseSharedCatalogListResponse({ ...base, page: 0 }, resource('brands'))).toThrow(
+    expect(() => parseSharedCatalogListResponse({ ...base, page: 0 }, resource('payments'))).toThrow(
       'page must be an integer greater than or equal to 1',
     );
   });
 
   it('rejects write capabilities advertised for any shared resource', () => {
-    const categories = descriptor('categories', false);
-    categories.capabilities.update = true;
+    const payments = descriptor('payments', false);
+    payments.capabilities.update = true;
     expect(() =>
       parseSharedCatalogListResponse(
-        { data: [], total: 0, page: 1, pageSize: 20, resource: categories },
-        resource('categories'),
+        { data: [], total: 0, page: 1, pageSize: 20, resource: payments },
+        resource('payments'),
       ),
-    ).toThrow('read-only resource categories advertised write capabilities');
+    ).toThrow('read-only resource payments advertised write capabilities');
 
-    const brands = descriptor('brands', false);
-    brands.capabilities.create = true;
+    payments.capabilities.update = false;
+    payments.capabilities.create = true;
     expect(() =>
       parseSharedCatalogListResponse(
-        { data: [], total: 0, page: 1, pageSize: 20, resource: brands },
-        resource('brands'),
+        { data: [], total: 0, page: 1, pageSize: 20, resource: payments },
+        resource('payments'),
       ),
-    ).toThrow('read-only resource brands advertised write capabilities');
+    ).toThrow('read-only resource payments advertised write capabilities');
   });
 
   it('requires explicit detail capability for every single-ID shared resource', () => {
-    const brands = descriptor('brands');
-    brands.capabilities.detail = false;
+    const payments = descriptor('payments');
+    payments.capabilities.detail = false;
     expect(() =>
       parseSharedCatalogListResponse(
-        { data: [], total: 0, page: 1, pageSize: 20, resource: brands },
-        resource('brands'),
+        { data: [], total: 0, page: 1, pageSize: 20, resource: payments },
+        resource('payments'),
       ),
-    ).toThrow('shared catalog resource brands must support detail');
+    ).toThrow('shared catalog resource payments must support detail');
   });
 
   it('accepts data-wrapped detail and verifies its resource descriptor', () => {
     expect(
       parseSharedCatalogRecordResponse(
-        { data: { id: 'brand-1' }, resource: descriptor('brands') },
-        resource('brands'),
+        { data: { id: 'payment-1' }, resource: descriptor('payments') },
+        resource('payments'),
       ),
-    ).toEqual({ id: 'brand-1' });
+    ).toEqual({ id: 'payment-1' });
     expect(() =>
       parseSharedCatalogRecordResponse(
-        { data: { id: 'brand-1' }, resource: descriptor('categories') },
-        resource('brands'),
+        { data: { id: 'payment-1' }, resource: descriptor('brands') },
+        resource('payments'),
       ),
     ).toThrow('resource identity mismatch');
   });

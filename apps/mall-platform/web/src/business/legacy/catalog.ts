@@ -53,12 +53,16 @@ function resource<const Domain extends LegacyDomain, const Resource extends stri
 }
 
 /**
- * The 43 mall-owned tables from the qualified legacy compatibility inventory.
- * courier_links belongs to the tenant platform shared courier catalog and is
- * deliberately excluded from this mall-side navigation and mutation allowlist.
+ * The 50 mall-owned tables from the qualified legacy compatibility inventory.
+ * Seven product/logistics resources are per-tenant snapshots in the fixed
+ * business schema. Every resource remains read-only at this checkpoint.
  * This is a navigation and API allowlist, never a client-selected SQL table list.
  */
 export const LEGACY_RESOURCES = [
+  resource('catalog', 'brands'),
+  resource('catalog', 'categories'),
+  resource('catalog', 'classes'),
+  resource('catalog', 'goods_infos'),
   resource('catalog', 'goods'),
   resource('catalog', 'goods_assembles'),
   resource('catalog', 'goods_shipping_warehouses'),
@@ -79,6 +83,9 @@ export const LEGACY_RESOURCES = [
   resource('orders', 'order_goods'),
 
   resource('fulfillment', 'shipping_warehouses'),
+  resource('fulfillment', 'couriers'),
+  resource('fulfillment', 'courier_pack_rules'),
+  resource('fulfillment', 'courier_links'),
   resource('fulfillment', 'courier_installs'),
   resource('fulfillment', 'courier_templates'),
   resource('fulfillment', 'payment_installs'),
@@ -133,6 +140,7 @@ export const LEGACY_FIELDS = [
   'alias',
   'amount',
   'app',
+  'attributes',
   'aud_to_cny',
   'aud_to_cny_copy',
   'bank_location',
@@ -222,20 +230,25 @@ export const LEGACY_FIELDS = [
   'goods_specification_id',
   'goods_type',
   'has_market',
+  'has_pack_rule',
   'has_specification',
   'head_image',
   'head_image_url',
   'hits',
   'id',
   'image',
+  'img',
   'index_img',
   'init',
   'inventory',
+  'keywords',
+  'left_rule_id',
   'level',
   'level_id',
   'link_id',
   'link_type',
   'links_data',
+  'logo',
   'max_amount',
   'max_weight',
   'media',
@@ -247,15 +260,20 @@ export const LEGACY_FIELDS = [
   'message_id',
   'metadata',
   'method',
+  'mixed',
+  'mixed_sum',
   'money',
   'money_copy',
   'name',
+  'name_en',
+  'name_zh',
   'need_id_card',
   'need_inventory',
   'need_update_weight',
   'net_weight',
   'nickname',
   'object',
+  'object_ids_data',
   'old',
   'old_aud',
   'open_id',
@@ -268,6 +286,7 @@ export const LEGACY_FIELDS = [
   'overage',
   'overage_aud',
   'pack_data',
+  'pack_rule',
   'pack_specification',
   'paid',
   'parent_category_id',
@@ -326,6 +345,8 @@ export const LEGACY_FIELDS = [
   'shop_name',
   'show',
   'show_category_id',
+  'simple',
+  'site_url',
   'sort',
   'specification',
   'specification_info',

@@ -1,0 +1,150 @@
+# Operator-reviewed one-time import into the isolated mss-shop-dev database.
+# This manifest must never be applied to r1shop-dev or r1shop-prod.
+#
+# Do not substitute or apply this template manually. Run the trusted
+# `stage-jobs` command first without and then with `--create`, supplying the
+# exact full Git SHA and importer digest from that revision's immutable CI
+# receipt. The command renders every zero placeholder, validates the isolated
+# database/PVC and all cluster-wide Job collisions, and its only persistent
+# operation is Job Create. Do not deploy a tag-only image.
+#
+#   go run ./services/reconciler/cmd/stage-jobs \
+#     --mode importer \
+#     --environment mss-shop-dev \
+#     --kubeconfig /absolute/operator/kubeconfig \
+#     --revision <complete-lowercase-git-sha> \
+#     --image-digest <exact-nonzero-ci-sha256-digest> [--create]
+#
+# Receipt gate (must finish before the Job's TTL expires):
+# 1. Capture the complete, untruncated successful Pod logs into
+#    docs/evidence/legacy-import/<receipt-sha256>/receipt.json in this repository.
+# 2. Verify the receipt's sha256 against its canonical payload and confirm that
+#    the database marker is exactly mss-shop-isolated-dev:legacy-import:v1:<sha256>.
+# 3. Commit the verified evidence. Only then may the reconciler Job run.
+#
+# The importer writes the complete JSON receipt to stdout. /dev/termination-log
+# is deliberately File-only and contains just a short status; it is not an
+# evidence sink and cannot hold the complete receipt.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # 23-character prefix + 40-character SHA = the 63-character DNS-label limit.
+  name: mss-shop-legacy-import-0000000000000000000000000000000000000000
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-legacy-importer
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Job:mss-shop-legacy-import-0000000000000000000000000000000000000000
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-legacy-importer
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: legacy-import
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: legacy-importer
+          image: ghcr.io/shop-r1/mss-shop-legacy-importer:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              urlencode() {
+                value=$1
+                encoded=
+                while [ -n "${value}" ]; do
+                  character=${value%"${value#?}"}
+                  case "${character}" in
+                    [a-zA-Z0-9.~_-]) encoded="${encoded}${character}" ;;
+                    *) encoded="${encoded}$(printf '%%%02X' "'${character}")" ;;
+                  esac
+                  value=${value#?}
+                done
+                printf "%s" "${encoded}"
+              }
+              export LC_ALL=C
+              source_username=$(urlencode "${MSS_LEGACY_SOURCE_USERNAME}")
+              source_password=$(urlencode "${MSS_LEGACY_SOURCE_PASSWORD}")
+              target_username=$(urlencode "${MSS_LEGACY_TARGET_USERNAME}")
+              target_password=$(urlencode "${MSS_LEGACY_TARGET_PASSWORD}")
+              export MSS_LEGACY_SOURCE_DSN="postgres://${source_username}:${source_password}@timescaledb-r1shop-dev.database.svc:5432/r1shop_dev?sslmode=disable"
+              export MSS_LEGACY_TARGET_DSN="postgres://${target_username}:${target_password}@mss-shop-postgres.mss-shop-dev.svc:5432/mss_shop_dev"
+              unset MSS_LEGACY_SOURCE_USERNAME MSS_LEGACY_SOURCE_PASSWORD MSS_LEGACY_TARGET_USERNAME MSS_LEGACY_TARGET_PASSWORD
+              unset source_username source_password target_username target_password value encoded character
+              trap 'status=$?; if [ "${status}" -ne 0 ]; then printf "%s\n" "legacy import failed; inspect Pod logs" > /dev/termination-log || true; fi; exit "${status}"' EXIT
+              /usr/local/bin/mss-shop-legacy-importer
+              printf "%s\n" "legacy import committed; verify the complete stdout receipt" > /dev/termination-log || true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          env:
+            - name: MSS_LEGACY_IMPORT_CONFIRM
+              value: import-read-only-snapshot-without-order-data
+            - name: MSS_LEGACY_SOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-legacy-source-auth
+                  key: username
+            - name: MSS_LEGACY_SOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-legacy-source-auth
+                  key: password
+            - name: MSS_LEGACY_TARGET_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: username
+            - name: MSS_LEGACY_TARGET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: password
+            - name: MSS_LEGACY_TARGET_TLS_CA_FILE
+              value: /etc/mss-shop/postgres-tls/ca.crt
+            - name: MSS_LEGACY_TARGET_TLS_SERVER_NAME
+              value: mss-shop-postgres.mss-shop-dev.svc
+          volumeMounts:
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+      volumes:
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt

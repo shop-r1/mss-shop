@@ -36,7 +36,7 @@ func TestModuleDescriptorPermissionsAndMigrationRegistration(t *testing.T) {
 		t.Fatalf("Compose(): %v", err)
 	}
 	descriptors := registry.Descriptors()
-	if len(descriptors) != 1 || descriptors[0].Name != ModuleName || len(descriptors[0].Permissions) != 8 {
+	if len(descriptors) != 1 || descriptors[0].Name != ModuleName || len(descriptors[0].Permissions) != 1 {
 		t.Fatalf("descriptor = %#v", descriptors)
 	}
 	for _, permission := range descriptors[0].Permissions {
@@ -60,15 +60,19 @@ func TestModuleDescriptorPermissionsAndMigrationRegistration(t *testing.T) {
 	if err := phases.Business.Register(CapabilityLockdownMigrationID, func(*gorm.DB, string) error { return nil }); !errors.Is(err, migration.ErrDuplicateMigrationID) {
 		t.Fatalf("capability lockdown migration was not registered: %v", err)
 	}
+	if err := phases.Business.Register(OwnershipTransferMigrationID, func(*gorm.DB, string) error { return nil }); !errors.Is(err, migration.ErrDuplicateMigrationID) {
+		t.Fatalf("ownership transfer migration was not registered: %v", err)
+	}
 }
 
 func TestAuthorizationMigrationIsIdempotentQualifiedAndComplete(t *testing.T) {
 	t.Parallel()
 
 	db, binding := openSharedCatalogTestDatabase(t)
+	published := legacydb.PublishedRegistry()
 	registry := legacydb.DefaultRegistry()
 	for attempt := 1; attempt <= 2; attempt++ {
-		if err := applyAuthorizationMigration(db, binding, registry, AuthorizationMigrationID.String(), nil); err != nil {
+		if err := applyAuthorizationMigration(db, binding, published, AuthorizationMigrationID.String(), nil); err != nil {
 			t.Fatalf("migration attempt %d: %v", attempt, err)
 		}
 	}
@@ -78,22 +82,27 @@ func TestAuthorizationMigrationIsIdempotentQualifiedAndComplete(t *testing.T) {
 		}
 	}
 	for attempt := 1; attempt <= 2; attempt++ {
-		if err := applyCapabilityLockdownMigration(db, binding, registry, CapabilityLockdownMigrationID.String(), nil); err != nil {
+		if err := applyCapabilityLockdownMigration(db, binding, published, CapabilityLockdownMigrationID.String(), nil); err != nil {
 			t.Fatalf("capability lockdown migration attempt %d: %v", attempt, err)
+		}
+	}
+	for attempt := 1; attempt <= 2; attempt++ {
+		if err := applyOwnershipTransferMigration(db, binding, published, registry, OwnershipTransferMigrationID.String(), nil); err != nil {
+			t.Fatalf("ownership transfer migration attempt %d: %v", attempt, err)
 		}
 	}
 
 	assertCoreCount(t, db, binding, "mss_boot_migration", "version IN ?", []any{[]string{
-		AuthorizationMigrationID.String(), MenuLocalizationMigrationID.String(), CapabilityLockdownMigrationID.String(),
-	}}, 3)
+		AuthorizationMigrationID.String(), MenuLocalizationMigrationID.String(), CapabilityLockdownMigrationID.String(), OwnershipTransferMigrationID.String(),
+	}}, 4)
 	assertCoreCount(t, db, binding, "mss_boot_roles", "name = ?", []any{"admin"}, 1)
 	assertCoreCount(t, db, binding, "mss_boot_menus", "1 = 1", nil, 42)
-	assertCoreCount(t, db, binding, "mss_boot_menus", "deleted_at IS NULL AND status = ?", []any{"enabled"}, 27)
-	assertCoreCount(t, db, binding, "mss_boot_casbin_rule", "ptype = ?", []any{"p"}, 27)
+	assertCoreCount(t, db, binding, "mss_boot_menus", "deleted_at IS NULL AND status = ?", []any{"enabled"}, 6)
+	assertCoreCount(t, db, binding, "mss_boot_casbin_rule", "ptype = ?", []any{"p"}, 6)
 	assertCoreCount(t, db, binding, "mss_boot_config_revisions", "resource = ?", []any{authorizationResource}, 2)
-	assertCoreCount(t, db, binding, "mss_boot_config_revisions", "resource = ? AND revision = ?", []any{authorizationResource, 3}, 2)
-	assertCoreCount(t, db, binding, "mss_boot_menus", "type = ? AND path = ? AND name = ?", []any{
-		adminpkg.DirectoryAccessType, sharedCatalogRootPath, sharedCatalogMenuNameToken,
+	assertCoreCount(t, db, binding, "mss_boot_config_revisions", "resource = ? AND revision = ?", []any{authorizationResource, 4}, 2)
+	assertCoreCount(t, db, binding, "mss_boot_menus", "type = ? AND path = ? AND name = ? AND permission = ?", []any{
+		adminpkg.DirectoryAccessType, sharedCatalogRootPath, sharedCatalogMenuNameToken, PermissionCode("payments", "read"),
 	}, 1)
 
 	for _, definition := range registry.All() {
@@ -119,7 +128,7 @@ func TestAuthorizationMigrationIsIdempotentQualifiedAndComplete(t *testing.T) {
 		t.Fatalf("authorization readiness: %v", err)
 	}
 	if err := db.Table(qualifiedCoreTable(binding, "mss_boot_menus")).Where(
-		"type = ? AND path = ?", adminpkg.ComponentAccessType, componentPath("brands", "read"),
+		"type = ? AND path = ?", adminpkg.ComponentAccessType, componentPath("payments", "read"),
 	).Update("deleted_at", gorm.Expr("CURRENT_TIMESTAMP")).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -138,14 +147,14 @@ func TestAuthorizationMigrationRollsBackAndNeverMigratesLegacyTables(t *testing.
 
 	db, binding := openSharedCatalogTestDatabase(t)
 	injected := errors.New("injected")
-	err := applyAuthorizationMigration(db, binding, legacydb.DefaultRegistry(), AuthorizationMigrationID.String(), func() error { return injected })
+	err := applyAuthorizationMigration(db, binding, legacydb.PublishedRegistry(), AuthorizationMigrationID.String(), func() error { return injected })
 	if !errors.Is(err, injected) {
 		t.Fatalf("migration error = %v", err)
 	}
 	for _, table := range []string{"mss_boot_migration", "mss_boot_roles", "mss_boot_menus", "mss_boot_casbin_rule", "mss_boot_config_revisions"} {
 		assertCoreCount(t, db, binding, table, "1 = 1", nil, 0)
 	}
-	for _, definition := range legacydb.DefaultRegistry().All() {
+	for _, definition := range legacydb.PublishedRegistry().All() {
 		var rows []struct{ Name string }
 		query := `SELECT name FROM "shared".sqlite_master WHERE type = 'table' AND name = ?`
 		if err := db.Raw(query, definition.Resource.Name).Scan(&rows).Error; err != nil || len(rows) != 0 {
@@ -159,13 +168,13 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 	db, binding := openSharedCatalogTestDatabase(t)
 	registry := legacydb.DefaultRegistry()
 	createSharedRelations(t, db, binding.SharedSchema, registry)
-	if err := db.Exec(`INSERT INTO "shared"."brands" (id, name_zh, name_en, status, created_at, updated_at) VALUES ('178819869911563900', '共享品牌', 'Shared', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`).Error; err != nil {
+	if err := db.Exec(`INSERT INTO "shared"."payments" (id, name, method, status, created_at, updated_at) VALUES ('178819869911563900', '微信在线', 'wechat_online', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec(`CREATE TABLE brands (id TEXT PRIMARY KEY, name_zh TEXT, name_en TEXT, status NUMERIC)`).Error; err != nil {
+	if err := db.Exec(`CREATE TABLE payments (id TEXT PRIMARY KEY, name TEXT, method TEXT, status NUMERIC)`).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec(`INSERT INTO brands VALUES ('178819869911563901', '伪造', 'Forged', 1)`).Error; err != nil {
+	if err := db.Exec(`INSERT INTO payments VALUES ('178819869911563901', '伪造', 'forged', 1)`).Error; err != nil {
 		t.Fatal(err)
 	}
 	applyCurrentSharedCatalogMigrations(t, db, binding, registry)
@@ -189,7 +198,7 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response := performRequest(router, http.MethodGet, "/admin/api/legacy/resources/brands?page=1&pageSize=20", nil, map[string]string{
+	response := performRequest(router, http.MethodGet, "/admin/api/legacy/resources/payments?page=1&pageSize=20", nil, map[string]string{
 		"X-Test-Role": "admin", "X-Schema": "main",
 	})
 	if response.Code != http.StatusOK {
@@ -205,10 +214,10 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
 		t.Fatal(err)
 	}
-	if page.Total != 1 || len(page.Data) != 1 || page.Data[0]["name_en"] != "Shared" || page.Page != 1 || page.PageSize != 20 {
+	if page.Total != 1 || len(page.Data) != 1 || page.Data[0]["method"] != "wechat_online" || page.Page != 1 || page.PageSize != 20 {
 		t.Fatalf("list contract = %#v", page)
 	}
-	if page.Resource.Name != "brands" || page.Resource.Domain != "shared-catalog" ||
+	if page.Resource.Name != "payments" || page.Resource.Domain != "shared-catalog" ||
 		page.Resource.Capabilities != (legacydb.Capabilities{Detail: true}) {
 		t.Fatalf("resource descriptor = %#v", page.Resource)
 	}
@@ -217,7 +226,7 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 			t.Fatalf("read-only descriptor exposed writable column %s", column.Name)
 		}
 	}
-	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/brands?sortBy=name_en&sortOrder=desc&exact%5Bstatus%5D=1&icontains%5Bname_en%5D=share", nil, map[string]string{"X-Test-Role": "admin"})
+	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/payments?sortBy=method&sortOrder=desc&exact%5Bstatus%5D=1&icontains%5Bmethod%5D=wechat", nil, map[string]string{"X-Test-Role": "admin"})
 	if response.Code != http.StatusOK {
 		t.Fatalf("filtered list status=%d body=%s", response.Code, response.Body.String())
 	}
@@ -231,7 +240,7 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 		"denied":    {status: http.StatusForbidden, code: "FORBIDDEN"},
 		"root":      {status: http.StatusOK},
 	} {
-		response := performRequest(router, http.MethodGet, "/admin/api/legacy/resources/brands", nil, map[string]string{"X-Test-Role": role})
+		response := performRequest(router, http.MethodGet, "/admin/api/legacy/resources/payments", nil, map[string]string{"X-Test-Role": role})
 		if response.Code != want.status {
 			t.Errorf("role %q status=%d want=%d body=%s", role, response.Code, want.status, response.Body.String())
 			continue
@@ -241,11 +250,11 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 		}
 	}
 
-	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/brands?schema=main", nil, map[string]string{"X-Test-Role": "admin"})
+	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/payments?schema=main", nil, map[string]string{"X-Test-Role": "admin"})
 	assertErrorCode(t, response, http.StatusBadRequest, "INVALID_REQUEST")
-	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/brands?exact%5Bschema%5D=main", nil, map[string]string{"X-Test-Role": "admin"})
+	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/payments?exact%5Bschema%5D=main", nil, map[string]string{"X-Test-Role": "admin"})
 	assertErrorCode(t, response, http.StatusBadRequest, "INVALID_REQUEST")
-	response = performRequest(router, http.MethodPost, "/admin/api/legacy/resources/brands", []byte(`{"name_zh":"x","name_en":"y","status":1,"schema":"main"}`), map[string]string{"X-Test-Role": "admin"})
+	response = performRequest(router, http.MethodPost, "/admin/api/legacy/resources/payments", []byte(`{"name":"x","method":"y","status":1,"schema":"main"}`), map[string]string{"X-Test-Role": "admin"})
 	assertErrorCode(t, response, http.StatusMethodNotAllowed, "OPERATION_NOT_SUPPORTED")
 	for _, definition := range registry.All() {
 		resource := definition.Resource.Name
@@ -261,7 +270,7 @@ func TestHTTPContractAuthorizationAndForgedSchemaRejection(t *testing.T) {
 			assertErrorCode(t, response, http.StatusMethodNotAllowed, "OPERATION_NOT_SUPPORTED")
 		}
 	}
-	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/orders", nil, map[string]string{"X-Test-Role": "admin"})
+	response = performRequest(router, http.MethodGet, "/admin/api/legacy/resources/brands", nil, map[string]string{"X-Test-Role": "admin"})
 	assertErrorCode(t, response, http.StatusNotFound, "RESOURCE_NOT_FOUND")
 }
 
@@ -278,13 +287,13 @@ func TestAuthorizerBindsPermissionToResourceAndRouteNotPrincipalTenant(t *testin
 	}
 	router := gin.New()
 	router.GET("/admin/api/legacy/resources/:resource", func(ctx *gin.Context) {
-		if err := authorizer.Authorize(ctx, PermissionCode("brands", "read")); err != nil {
+		if err := authorizer.Authorize(ctx, PermissionCode("payments", "read")); err != nil {
 			ctx.String(http.StatusForbidden, err.Error())
 			return
 		}
 		ctx.Status(http.StatusNoContent)
 	})
-	for resource, want := range map[string]int{"brands": http.StatusNoContent, "categories": http.StatusForbidden} {
+	for resource, want := range map[string]int{"payments": http.StatusNoContent, "brands": http.StatusForbidden} {
 		response := performRequest(router, http.MethodGet, "/admin/api/legacy/resources/"+resource, nil, nil)
 		if response.Code != want {
 			t.Errorf("resource %s status=%d want=%d body=%s", resource, response.Code, want, response.Body.String())
@@ -406,13 +415,17 @@ func applyCurrentSharedCatalogMigrations(
 	registry legacydb.Registry,
 ) {
 	t.Helper()
-	if err := applyAuthorizationMigration(db, binding, registry, AuthorizationMigrationID.String(), nil); err != nil {
+	published := legacydb.PublishedRegistry()
+	if err := applyAuthorizationMigration(db, binding, published, AuthorizationMigrationID.String(), nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := applyMenuLocalizationMigration(db, binding, MenuLocalizationMigrationID.String()); err != nil {
 		t.Fatal(err)
 	}
-	if err := applyCapabilityLockdownMigration(db, binding, registry, CapabilityLockdownMigrationID.String(), nil); err != nil {
+	if err := applyCapabilityLockdownMigration(db, binding, published, CapabilityLockdownMigrationID.String(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyOwnershipTransferMigration(db, binding, published, registry, OwnershipTransferMigrationID.String(), nil); err != nil {
 		t.Fatal(err)
 	}
 }

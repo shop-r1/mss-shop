@@ -11,6 +11,16 @@ Last verified: 2026-09-01
   `77b53d41092741eac62fa6418c0bdbf87413c7cd`.
 - Admin topology: one tenant control plane and one mall management runtime per
   tenant. The current first milestone has one tenant, so it needs one of each.
+- Business ownership: product masters, categories, brands, couriers and packing
+  rules belong to each tenant's mall business schema. Among the 51 non-identity
+  compatibility resources, tenant-platform retains only `payments`; see
+  DEC-0009.
+- Development execution: resource-heavy development uses the versioned remote
+  checkout on `167.17.68.242`, but every original `r1shop-dev` resource is
+  immutable. The only write target is a new `mss-shop-dev` namespace with
+  dedicated PostgreSQL 17.6, Redis 8.6.3, PVCs, TLS, credentials and network
+  policy. The exact old TimescaleDB is a bounded read-only import source; old
+  Redis is not shared. See DEC-0010.
 - Tenant isolation: every mall runtime is configured with one immutable tenant
   identity and one core/business schema pair. There is no request-time schema
   switch.
@@ -41,22 +51,48 @@ Last verified: 2026-09-01
 - In-memory lifecycle/reconciler and worker inbox implementations covering
   idempotent convergence, retry, suspend/resume, CAS and tenant-scoped message
   deduplication. They are simulation/test code, not production drivers.
+- A create-only isolated infrastructure operator and manifest for exactly 24
+  `mss-shop-dev` objects, with nine NetworkPolicies ordered before both
+  StatefulSets; a create-only foundation operator for six immutable
+  namespace-local Secrets; dedicated PostgreSQL 17.6/Redis 8.6.3 PVC/TLS
+  definitions; and exact old-source/production rejection contracts.
+- A one-time legacy importer image and Job template with a compiled 51-table
+  inventory, structure-only `orders`/`order_goods`, source read-only controls,
+  strict target TLS, deterministic per-table receipt evidence and a
+  receipt-bound database marker.
+- Fixed create-only readiness and post-import verifier Jobs in the same fourth
+  delivery image. They use separate minimum network roles, mount only the new
+  datastore credentials they need, emit one strict Pod/revision/digest-bound
+  JSON record, and never receive a legacy-source credential in verifier mode.
+- A metadata-only original-development fingerprint helper. Its typed client
+  exposes only the fixed Namespace/Deployment/StatefulSet/Service/Ingress/Pod/
+  PVC/PV GET/LIST inventory; it has no Secret, Pod exec, database or mutation
+  path and emits only reviewed safe fields plus a canonical SHA-256.
+- A fixed isolated PostgreSQL reconciler, no-ServiceAccount Job template and
+  two Admin runtime manifests. The reconciler is receipt-bound and owns only
+  the reviewed isolated roles, schemas, compatibility owners, snapshots,
+  views and grants. These repository artifacts are not deployment, import or
+  acceptance evidence.
 - MSS-generated project contracts, seven MSS workflow Skills and two R1Shop
   project Skills.
 - Versioned target architecture, migration plan, i18n policy and project Skill.
 - A project-scoped `mss-mcp` connection whose wrapper rejects any version other
   than 1.3.7.
 - A versioned 54-table legacy data contract and 31-scenario business acceptance
-  matrix, with an executable 11-table control/shared and 43-table mall split.
-- A mall Admin compatibility UI for all 43 tenant-owned legacy resources. It
+  matrix, with a target owner split of four tenant-platform migration/payment
+  tables and 50 mall-platform tables. The 51 compatibility resources allocate
+  one (`payments`) to tenant-platform and 50 to mall-platform.
+- A mall Admin compatibility UI for all 50 mall-owned legacy resources. It
   includes list/search/paging, detail, sensitive-field handling, stable error
   states and complete `zh-CN`/`en-US` catalogs. Every resource is currently
   read-only. This is a compatibility surface, not completion of the historical
   order, inventory, payment, wallet, promotion or import workflows.
-- A fixed-binding mall compatibility backend for the same 43 resources. It
+- A fixed-binding mall compatibility backend for the same 50 resources. The
+  seven source-global product/logistics rows are schema-scoped tenant snapshots
+  in the fixed business schema; the runtime has no shared-catalog selector. It
   enforces the immutable MSS/legacy tenant scopes, fully qualified allow-listed
   tables, inherited tenant guards, explicit detail capabilities, sensitive
-  field redaction and both component/API policies. All 43 resources reject
+  field redaction and both component/API policies. All 50 resources reject
   generic create, update and delete at the authorization and repository layers
   until each resource has
   recovered legacy validation, relationship/tenant constraints, model-hook
@@ -64,21 +100,22 @@ Last verified: 2026-09-01
   `system_configs.metadata` is recursively redacted and excluded from search,
   filtering and sorting because its nested secrets must not become a
   result-count oracle.
-- A tenant-platform shared-catalog backend and Admin UI for the eight global
-  legacy resources. All eight are read-only for the same qualification reason;
-  no shared-catalog resource currently advertises generic mutation capability.
+- A tenant-platform payment-catalog backend and Admin UI containing only
+  `payments`. The seven product/logistics resources have forward tenant policy
+  revocations and mall grants. All 51 resources remain read-only, and no
+  environment application or deployment of those migrations is claimed.
 - A flat bilingual compatibility-error contract shared by both platforms. It
   includes stable code/key/fallback fields and reduces old or malformed nested
   responses to React-safe strings.
 - A guarded, forward-only local SQLite UI fixture for mall-platform. It creates
-  the 43 reviewed table shapes and ten non-sensitive demo rows without
+  the 50 reviewed table shapes and non-sensitive demo rows without
   `AutoMigrate`, rejects remote/escaped/incompatible targets, is idempotent and
   is explicitly excluded from migration or system-acceptance evidence.
 - An MSS-generated migration-checkpoint module used only as a review ledger,
   plus a handwritten Feature contract for fixed legacy schema compatibility.
-- A repository Skill and contract tests that keep the table manifest, owner
-  counts, acceptance matrix, implementation status, both frontend catalogs,
-  MCP registration and project-memory source paths in sync with code.
+- A repository Skill and contract tests that keep the target table ownership,
+  50/one source catalogs, acceptance matrix, MCP registration and
+  project-memory source paths in sync with code.
 - Forward-only core migrations and a minimal Host runtime facade that make the
   authorized business menus bilingual without changing MSS core. Stable,
   dot-free root tokens survive MSS 1.3.7 name normalization; source-contract
@@ -92,15 +129,27 @@ Last verified: 2026-09-01
   writable implementation and is not evidence of a current write capability.
 - A single, intentionally small CI workflow covering backend and Admin Web unit
   tests for all three modules, exact MSS/project-memory and architecture
-  contracts, followed by Buildx verification. Push builds publish only the two
-  delivery Host images to GHCR with full-SHA tags; pull requests build without
-  pushing and no workflow deploys them. See
-  `docs/runbooks/ci-images.md`.
+  contracts, followed by Buildx verification. Push builds publish four
+  full-SHA images—tenant-platform, mall-platform, reconciler and
+  legacy-importer—with digest-bound receipts; pull requests build without
+  pushing and no workflow deploys them. No complete four-image publication has
+  yet been recorded as verified. See `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
   work and dependency order in
   `docs/project/legacy-restoration-gap.md`; accepted business scenarios remain
   0/31.
+- An accepted remote-development/stage boundary and runbook. They pin the
+  server checkout/toolchain, immutable original development environment,
+  isolated `mss-shop-dev` write target, four-image flow, create-only operators,
+  receipt-bound A-to-B-to-C import/verification/reconciliation evidence chain,
+  disposable-Pod verification and in-app-browser acceptance requirements. No
+  isolated rollout, import or cluster acceptance is claimed.
+- A catalog/logistics redesign review covering CL-01 through CL-12. Its
+  recommendations for product/SKU identity, inventory, packing rules, courier
+  adapters, credentials, outbox and replay remain **awaiting project-owner
+  review**; DEC-0009 ownership is accepted, but the review does not authorize
+  business writes or those redesigns.
 
 ## Not implemented yet
 
@@ -109,34 +158,55 @@ Last verified: 2026-09-01
 - The authoritative normalized Host/AppID binding repository between raw Admin
   desired state and storefront serving. The current static serving directory
   already normalizes exact bindings and fails closed on duplicates.
-- Real PostgreSQL role/schema drivers, secret storage, Kubernetes resources or
-  a persistent worker queue/inbox.
+- A generalized or production PostgreSQL/Kubernetes reconciler, persistent
+  worker queue/inbox, or persistent desired/observed control-plane integration.
+  The fixed first-tenant development driver and operator resources still need
+  their immutable-image cluster rehearsal and browser acceptance.
+- Executing the implemented post-import reconciliation-secret operator,
+  create-only readiness/importer/verifier/reconciler Jobs and immutable
+  receipt evidence chain against the isolated cluster. These are mandatory
+  gates; they may not be replaced by ad-hoc deployment commands.
 - Dedicated order, inventory, payment, wallet, promotion, import/export and
   other historical side-effect workflows. Generic resource access does not
   satisfy their business acceptance scenarios.
-- Per-resource mutation qualification for the 43 mall and eight shared-catalog
-  compatibility resources. Writes remain disabled until old validation,
-  relationships, tenant scope, hooks, authorization and deletion semantics are
-  restored and accepted for that resource.
+- Applying and verifying the product/logistics ownership migrations in an
+  isolated development environment, including per-tenant data conversion,
+  menu/policy results, row counts, hashes and relationship checks. The source
+  migrations exist but have not been executed or deployed.
+- Per-resource mutation qualification for the 50 mall and one tenant
+  payment compatibility resources. Writes remain disabled until old
+  validation, relationships, tenant scope, hooks, authorization and deletion
+  semantics are restored and accepted for that resource.
+- Project-owner decisions for CL-01 through CL-12 in
+  `docs/reviews/legacy-catalog-logistics-redesign.md`; until then the seven
+  migrated resources remain compatibility reads and unsafe legacy behaviors
+  are not reproduced as generic CRUD.
 - Customer authentication, storefront catalog/cart/checkout and payment
   execution beyond the existing contract-first bootstrap slice.
 - Legacy identity conversion (`tenants`, `users`, `roles`), warehouse data
   scopes, or any legacy business data migration.
-- Any development-cluster rollout, production migration or cutover.
+- Any `mss-shop-dev` namespace creation, datastore startup, legacy import,
+  development-cluster runtime rollout, isolated UI acceptance, production
+  migration or cutover.
 - A storefront API image or production reconciler/worker image. Those
   components do not yet own complete production entrypoints and Dockerfiles.
 
 ## Next milestone and acceptance criteria
 
-Rehearse one tenant in a dedicated development database: persist desired and
-observed state, implement the reconciler's PostgreSQL schema/role steps, and
-bind one mall runtime to its fixed core/business schema pair. Acceptance needs
-idempotent retry and isolation tests in disposable Kubernetes Pods. No
-production write is part of that milestone.
+Use the DEC-0010 remote checkout to publish one clean revision and all four
+image receipts, fingerprint the immutable old environment, create the isolated
+24-object boundary, prove both node-local paths are globally exclusive, create
+six foundation Secrets, prove datastore readiness,
+then import the 51-table snapshot with persisted receipt evidence. Independent
+disposable-Pod checks must prove the receipt marker and zero rows in both
+`orders` and `order_goods` before application/bootstrap Secrets,
+reconciliation or Admin runtime staging. Acceptance then needs isolated
+system tests and in-app-browser review with URLs left for owner verification.
+The original development environment and production remain unchanged.
 
 ## Verification evidence
 
-Verified locally on 2026-09-01:
+Verification evidence recorded on 2026-09-01:
 
 - `GOTOOLCHAIN=go1.26.6 mss doctor --strict` reported ready with exact MSS,
   Go, Node and pnpm versions.
@@ -150,22 +220,37 @@ Verified locally on 2026-09-01:
   boundary checks passed.
 - The tenant module passed deterministic 1.3.7 generation check, including its
   generated presentation registry.
-- The mall compatibility backend passed its full package tests, `go vet` and
-  focused race checks for fixed binding, qualified legacy access and per-action
-  authorization. The tenant shared-catalog backend passed the same three
-  validation levels.
-- The mall Admin Web compatibility surface passed 9 test files / 33 tests,
-  Biome/Umi lint, and a production build containing all 43 mall legacy routes.
-  The tenant Admin Web passed 7 test files / 26 tests, lint and a production
-  build containing all eight shared-catalog routes. Each lint reports one
+- Before DEC-0009, the 43-resource mall compatibility backend and the
+  eight-resource tenant compatibility backend passed their recorded package
+  tests, `go vet` and focused race checks. Those results are historical and do
+  not by themselves verify the new 50/one source allocation.
+- Before DEC-0009, the mall Admin Web compatibility surface passed 9 test files
+  / 33 tests, Biome/Umi lint, and a production build containing 43 mall legacy
+  routes. The tenant Admin Web passed 7 test files / 26 tests, lint and a
+  production build containing eight tenant routes. Each lint reported one
   non-blocking unused-hook warning in an MSS-generated page; the qualified
   specification workarounds and warning are recorded in
   `docs/tooling/mss-1.3.7-generation-notes.md`.
-- `go test ./contracts` proved the 54-table and 11/43 owner counts, the 31-row
-  acceptance baseline, safety flags, required memory/MCP source paths and exact
-  43-resource mall plus eight-resource tenant frontend projections.
-- `tools/check-project-memory.sh` passed the executable memory contracts,
-  repository Skill validation and whitespace check.
+- The updated `go test ./contracts` passed against a one-time source snapshot
+  on the DEC-0010 development host with Go 1.26.6. It proves the 54-table target
+  owner counts of four/50, the 51-resource allocation of one/50, exact source
+  catalogs, the 31-row acceptance baseline, safety flags and required memory
+  paths.
+- The current complete source tree passed `GOWORK=off GOMAXPROCS=2 go test
+  -p=1 ./...` and `go vet ./...` at the platform root and independently in
+  both final Thin Hosts. This includes the isolated infrastructure, Secret,
+  Job, reconciliation-evidence, runtime and original-development fingerprint
+  operators plus the 51-table importer/readiness/verifier packages.
+- The current tenant Admin Web passed 7 files / 26 tests and the mall Admin Web
+  passed 9 files / 33 tests using Node 24.19.0 and pnpm 10.34.5 with the exact
+  1.3.7 package. The root proof Web had no matching test files and exited
+  successfully. Final production bundles remain gated by the four-image CI
+  build for the committed revision.
+- `tools/check-project-memory.sh` passed in the same temporary checkout with the
+  official MSS 1.3.7 tool. It reran the contract suite, validated all nine
+  repository Skills and completed the whitespace checks;
+  `scripts/check-platform-boundaries.sh` also passed. No database or Kubernetes
+  resource was changed by this source validation.
 - GitHub Actions run
   [`33451906040`](https://github.com/shop-r1/mss-shop/actions/runs/33451906040)
   passed the contract, three Go-unit and three Admin-Web-unit jobs, then
@@ -174,10 +259,14 @@ Verified locally on 2026-09-01:
   `sha256:c4d0e651553263f8cf8127351ee3d14d13076c0b23052f64ecb017d8cd2dbef0`;
   the mall image digest is
   `sha256:2fa16ec9cf3854662726f64de978940653b3133a63b2e1951dd189656f34bc1e`.
-- The local mall UI fixture passed full Host backend tests/vet and focused race
-  checks; its tests prove 43-table completeness, ten-row idempotent seeding,
-  readiness and rejection of DSNs, escaped paths, symlinks, non-SQLite files
-  and incompatible existing relations.
+  This run predates the reconciler/importer matrix and per-image receipts; it
+  is historical two-image evidence and does not pass the current four-image
+  deployment gate.
+- Before DEC-0009, the local mall UI fixture passed full Host backend tests/vet
+  and focused race checks; its tests proved 43-table completeness, ten-row
+  idempotent seeding, readiness and rejection of DSNs, escaped paths, symlinks,
+  non-SQLite files and incompatible existing relations. The expanded 50-table
+  fixture requires post-change validation.
 - The mall compatibility UI passed the bounded in-app-browser smoke review in
   `docs/acceptance/mall-local-browser-acceptance.md`. A fresh review-time tab
   rendered the bilingual authorized menu and two-row display-category list
@@ -193,9 +282,11 @@ Verified locally on 2026-09-01:
 - The repository-scoped MCP wrapper completed a stdio EOF smoke test against
   the official `mss-mcp v1.3.7` binary.
 
-No development or production PostgreSQL legacy-data migration, Kubernetes
-operation, deployment or production write was performed. Verification used
-only forward MSS core metadata migrations and an ignored local SQLite fixture;
-neither is system-acceptance or data-migration evidence. Existing shared
-databases remain blocked on the documented `20260830193000`
-permission-collision review.
+No isolated PostgreSQL legacy-data import, `mss-shop-dev` Kubernetes rollout,
+isolated browser acceptance, production migration or production write was
+performed. A final read-only health check found the original `r1shop-dev/shop`
+Deployment ready and the `mss-shop-dev` Namespace absent. Verification used
+only source tests, forward MSS core metadata migrations and an ignored local
+SQLite fixture; none is system-acceptance or data-migration evidence. The new
+target remains gated on the ordered create-only, receipt and disposable-Pod
+controls above. Accepted business scenarios remain 0/31.

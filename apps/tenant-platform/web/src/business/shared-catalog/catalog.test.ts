@@ -11,23 +11,14 @@ import {
 } from './catalog';
 
 describe('tenant shared catalog allowlist', () => {
-  it('contains exactly the eight reviewed resources and keeps all of them read-only', () => {
-    expect(SHARED_CATALOG_RESOURCES).toHaveLength(8);
+  it('retains only the platform payment resource and keeps it read-only', () => {
+    expect(SHARED_CATALOG_RESOURCES).toHaveLength(1);
     expect(
       SHARED_CATALOG_RESOURCES.filter((entry) => entry.writable).map((entry) => entry.resource),
     ).toEqual([]);
     expect(
       SHARED_CATALOG_RESOURCES.filter((entry) => !entry.writable).map((entry) => entry.resource),
-    ).toEqual([
-      'brands',
-      'categories',
-      'classes',
-      'goods_infos',
-      'couriers',
-      'courier_pack_rules',
-      'courier_links',
-      'payments',
-    ]);
+    ).toEqual(['payments']);
   });
 
   it('locks all response domains and UI paths to shared-catalog', () => {
@@ -46,8 +37,8 @@ describe('tenant shared catalog allowlist', () => {
   });
 
   it('registers one route and one route-level permission projection per resource', () => {
-    expect(businessRoutes).toHaveLength(8);
-    expect(routeRegistrations).toHaveLength(8);
+    expect(businessRoutes).toHaveLength(1);
+    expect(routeRegistrations).toHaveLength(1);
     for (const entry of SHARED_CATALOG_RESOURCES) {
       expect(businessRoutes).toContainEqual({
         path: entry.path,

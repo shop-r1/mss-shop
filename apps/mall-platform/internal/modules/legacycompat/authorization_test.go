@@ -153,6 +153,6 @@ func (verifier *testVerifier) SetPersonAccessToken(value string) { verifier.toke
 
 func testBinding() fixedbinding.Binding {
 	return fixedbinding.Binding{
-		TenantID: "control-plane-tenant", AdminTenantID: "default", LegacyTenantID: "legacy-one", BusinessSchema: "main", SharedSchema: "shared",
+		TenantID: "control-plane-tenant", AdminTenantID: "default", LegacyTenantID: "legacy-one", BusinessSchema: "main",
 	}
 }

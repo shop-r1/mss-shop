@@ -46,12 +46,17 @@ Target ownership is:
 - **Control plane**: the tenant platform's MSS core schema plus its separate
   control-business schema. 'tenants' becomes a custom control-plane aggregate.
   Platform identities use MSS, not the legacy identity tables.
-- **Shared commerce catalog**: the eight source-global tables without a tenant
-  key ('brands', 'categories', 'classes', 'goods_infos', 'couriers',
-  'courier_pack_rules', 'courier_links', 'payments') are canonical
-  control-business data. A mall may consume a reconciler-created read-only
-  projection or an idempotently materialized tenant copy; it must not gain
-  write access to the control schema or choose that schema at request time.
+- **Tenant payment catalog**: `payments` remains source-global control-business
+  data. It is the only one of the 51 non-identity compatibility resources owned
+  by tenant-platform; tenant payment installations continue to reference its
+  stable IDs.
+- **Tenant-owned product and logistics data**: `brands`, `categories`,
+  `classes`, `goods_infos`, `couriers`, `courier_pack_rules` and
+  `courier_links` belong in every tenant's fixed mall business schema. Their
+  legacy source rows have no tenant key, so conversion seeds a complete,
+  ID-preserving snapshot into each tenant schema before that tenant maintains
+  its own data. The platform does not provide a permanent shared writer or
+  cross-schema catalog projection.
 - **Mall MSS core**: each tenant's legacy 'roles' and 'users' are transformed
   into that mall's MSS identities, permissions and policies. They are not
   copied as commerce tables merely to keep old authentication alive.
@@ -64,23 +69,27 @@ Target ownership is:
   'order_goods', 'coupon_links') inherit the parent's tenant. Import must prove
   that both sides resolve to the same tenant.
 
-For migration ownership and the 54-table completeness gate, the count is
-**tenant-platform 11 / mall-platform 43**. Tenant-platform owns rows 1–11 in
-the matrix: three control/identity source tables and eight shared-catalog
-tables. Its migration flow transforms legacy 'roles/users' into the appropriate
-control or per-mall MSS identity realm; that transformation does not make the
-legacy source tables mall business data. Mall-platform owns rows 12–54.
+For migration ownership and the 54-table completeness gate, the target count
+is **tenant-platform 4 / mall-platform 50**. Tenant-platform owns the three
+control/identity migration inputs plus `payments`; mall-platform owns the other
+50 tables. Transforming legacy `roles/users` into the appropriate MSS identity
+realm does not make those source rows mall business data.
 
-The shared-catalog projection mechanism is an implementation choice that must
-be made before catalog writes are enabled. Direct cross-schema writes from a
-mall runtime are not allowed.
+DEC-0009 replaces the old shared product/logistics projection choice. The
+seven source-global product and logistics tables are imported into each fixed
+tenant business schema with preserved IDs and relationship checks. Direct
+cross-schema writes from a mall runtime remain forbidden.
 
 ### 2.1 Current Admin compatibility safety boundary
 
-The present compatibility layer is a read surface, not a generic editor. All
-43 mall resources and all eight tenant shared-catalog resources advertise no
-create, update or delete capability, and their generic mutation endpoints fail
-closed. The earlier four-plus-four writable classification is withdrawn.
+The compatibility allocation is 50 mall resources plus the one tenant payment
+resource. All 51 remain read-only: they advertise no create, update or delete
+capability, and their generic mutation endpoints fail closed. Source code
+contains forward-only route and permission migrations for this allocation, but
+they have not been applied or deployed to any environment. The prior published
+43 mall/eight tenant projection remains historical evidence, not an alternate
+ownership contract. The earlier four-plus-four writable classification is
+withdrawn.
 
 Before one resource and operation can become writable, its dedicated
 Feature/workflow must restore and prove the old validation, relationships and
@@ -137,7 +146,7 @@ Static registration in the baseline contains:
 | Surface | Registered routes | Authentication boundary | Target owner |
 | --- | ---: | --- | --- |
 | '/auth' | 2 | tenant resolution; legacy admin token flow | MSS admin authentication |
-| '/tenant/v1' | 58 fixed routes plus one runtime-selected upload route | 'Tenant', 'AuthorizationTenant' | tenant platform plus shared-catalog modules |
+| '/tenant/v1' | 58 fixed routes plus one runtime-selected upload route | 'Tenant', 'AuthorizationTenant' | historical source: tenant lifecycle/identity/payment plus product/logistics routes that move to mall-platform |
 | '/app-admin/v1' | 129 | 'Tenant', 'AuthorizationTenant' | mall platform business modules |
 | '/erp/v1' | 18 (15 ERP router plus three sales routes) | 'Tenant', 'AuthorizationTenant', ERP flag | mall platform ERP modules |
 | '/app/v1' | 69 (64 protected-group registrations plus five public registrations) | optional/required member identity depending on operation | storefront API |
@@ -149,7 +158,7 @@ Commented-out routes are not counted. The dynamic tenant upload route is local
 storage or object storage depending on configuration and must be registered
 exactly once.
 
-### 4.2 Tenant-platform and shared-catalog surface
+### 4.2 Historical tenant routes and target ownership split
 
 Source: 'shop-go/app/shop/router.go', 'shop-go/app/shop/controllers/' and
 'shop-go/app/shop/service/tenant/'.
@@ -159,21 +168,23 @@ Source: 'shop-go/app/shop/router.go', 'shop-go/app/shop/controllers/' and
 - Tenant lifecycle: CRUD '/tenant/v1/tenants[/:id]'.
 - Legacy roles and users: CRUD '/tenant/v1/roles[/:id]' and
   '/tenant/v1/users[/:id]'.
-- Shared logistics: CRUD '/tenant/v1/couriers[/:id]' and
-  '/tenant/v1/courier-pack-rules[/:id]'.
-- Shared catalog: CRUD '/tenant/v1/brands[/:id]', brand import, CRUD
+- Product and logistics routes that move to mall-platform: CRUD
+  '/tenant/v1/couriers[/:id]' and '/tenant/v1/courier-pack-rules[/:id]'; CRUD
+  '/tenant/v1/brands[/:id]', brand import, CRUD
   '/tenant/v1/categories[/:id]', CRUD '/tenant/v1/goods-infos[/:id]', goods
   master import, and CRUD '/tenant/v1/classes[/:id]'.
-- Shared payment definitions: CRUD '/tenant/v1/payments[/:id]'.
+- Tenant payment definitions: CRUD '/tenant/v1/payments[/:id]'.
 - Tenant UI entries: CRUD '/tenant/v1/function-circles[/:id]'; the same
   business entity is also exposed to mall administration.
 - Files: 'POST /tenant/v1/files/upload' backed by either local storage or the
   configured S3-compatible store.
 
-The tenant CRUD, lifecycle, domain bindings, ERP entitlement and shared
-commerce catalog remain custom business capabilities. MSS can replace admin
-identity and system administration, but it is not a tenant-provisioning or
-commerce-catalog product.
+Tenant CRUD, lifecycle, domain bindings, ERP entitlement and payment catalog
+remain custom tenant-platform capabilities. Product and logistics operations
+become mall-platform capabilities under DEC-0009; the old tenant routes are
+migration inventory, not authorization to keep platform-owned writers. MSS can
+replace admin identity and system administration, but it is not a
+tenant-provisioning, commerce-catalog or payment product.
 
 ### 4.3 Mall administration surface
 
@@ -182,6 +193,9 @@ domain services under 'shop-go/app/shop/service/'.
 
 - Display categories: CRUD and import for
   '/app-admin/v1/show-categories'.
+- Product masters and logistics rules: preserve the old brand/category/class/
+  goods-master and courier/packing-rule operations behind mall-owned routes;
+  `courier_links` remains the hidden relationship side effect.
 - Goods: CRUD, batch adoption, enable/disable, shelf/unshelf, topping, compact
   item lookup and price import/export under '/app-admin/v1/goods*'.
 - Shipping warehouses: CRUD '/app-admin/v1/shipping-warehouses[/:id]'.
@@ -258,8 +272,9 @@ APIs to storefront clients.
 | 'roles.privilege', 'roles.privilege_erp' | Replace UI-oriented JSON with MSS permission metadata | Preserve raw source for audit, map every enabled operation, add positive and negative backend tests |
 | 'roles.warehouse_ids', 'roles.real_warehouse_ids' | Custom data scope | Normalize/validate CSV IDs and enforce them in backend queries; UI filtering is not authorization |
 | Tenant record, domains, expiry, ERP entitlement and desired/observed state | Custom tenant-platform module | Transform 'tenants'; the reconciler alone creates schemas, roles, credentials and runtimes |
-| Shared brands, categories, classes, goods masters, courier rules and payment definitions | Custom shared-catalog module | Preserve IDs and global semantics; project/materialize safely into tenant runtime data |
-| All tenant commerce and ERP domains | Custom mall/storefront/worker modules | Preserve the 51 non-identity table contracts until a separately versioned migration changes them |
+| Brands, categories, classes, goods masters and courier rules | Custom mall catalog/logistics modules | Seed each tenant schema from the qualified legacy snapshot; preserve IDs and relationships, then let that tenant maintain its own data |
+| Payment definitions | Custom tenant-platform payment catalog | Preserve stable IDs and migrate only the separately approved payment methods and adapter contract |
+| All other tenant commerce and ERP domains | Custom mall/storefront/worker modules | Preserve the remaining tenant table contracts until a separately versioned migration changes them |
 | 'messages', 'message_users' | Dormant in active admin routing; candidate for archive or MSS notification mapping | Preserve data until retention and user mapping are approved; do not silently drop |
 | 'message_events', 'message_templates' | Business event configuration | Migrate as custom notification rules/templates; keep tenant ownership and status |
 | 'system_configs' | Business configuration, not an MSS dictionary | Keep current Admin compatibility read-only; define typed public/private DTOs; preserve raw JSON only in the private business schema; recursively redact nested secrets and exclude `metadata` from search, filtering and sorting |
@@ -366,25 +381,25 @@ default, index or constraint.
 | 2 | 'roles' — 'common/models/role.go' | transform into each MSS core realm | 'id', 'tenant_id'; 'privilege' and 'privilege_erp' JSON; warehouse ID CSV fields; referenced by 'users.role_id' | soft delete; status history may use 0 despite current 1/2 enum; permissions were UI-oriented and cannot be copied as authoritative policies | N,K,P,R,J,E,B: raw-to-MSS permission mapping reviewed; all warehouse IDs resolve within tenant |
 | 3 | 'users' — 'common/models/user.go' | transform into control or tenant MSS core realm | 'id', 'tenant_id', 'role_id'; 'global_username', 'username'; password hash/salt/reset hash; 'status', 'open_id' | soft delete; legacy scrypt authentication; global username is source-unique and may encode tenant tag | N,K,P,R,E,S,B: duplicate/case profile; role mapping; compatibility-login or reset path proves every enabled account outcome |
 
-### 7.3 Shared commerce catalog (8 tables)
+### 7.3 Source-global product, logistics and payment data (8 tables)
 
 | # | Table and source | Target ownership | Key fields and relations | Lifecycle and historical semantics | Required checks |
 | ---: | --- | --- | --- | --- | --- |
-| 4 | 'brands' — 'app/shop/models/brand.go' | tenant-platform shared catalog | 'id', Chinese/English names, media URLs, sort, status; referenced by goods masters and tenant goods | soft delete; bilingual source fields are business content, not application locale keys | N,K,R,E,B: both names and media preserved; every brand reference resolves |
-| 5 | 'categories' — 'app/shop/models/category.go' | tenant-platform shared catalog | 'id', 'parent_id', name/alias, image/tag/sort, 'pack_rule' JSON; parent of classes and goods masters | soft delete; hierarchy uses logical IDs; pack rules are also expanded into 'courier_links' | N,K,R,J,B: no unexpected cycles; JSON and link-table representations reconcile |
-| 6 | 'classes' — 'app/shop/models/class.go' | tenant-platform shared catalog | 'id', 'category_id', name, 'attributes' JSONB, status | soft delete; attributes contain radio/multiple groups | N,K,R,J,E,B: every class category exists; attribute structure round-trips |
-| 7 | 'goods_infos' — 'app/shop/models/goods_info.go' | tenant-platform shared catalog | 'id', category/parent/brand IDs, name/barcode, album CSV, image/video/content, weight/unit/type, pack-rule JSON; referenced by 'goods' and 'goods_assembles' | soft delete; no separate status column; type 0 normal/1 assembled; CSV album order is presentation-significant | N,K,R,J,E,B: all master references resolve; album and packing rules preserve order/content |
-| 8 | 'couriers' — 'app/shop/models/courier.go' | tenant-platform shared catalog | 'id', name, region, method, status; parent of pack rules and tenant installs | soft delete; 'method' selects hard-coded integration behavior | N,K,R,E,B: distinct methods are supported or explicitly retired; every rule/install resolves |
-| 9 | 'courier_pack_rules' — 'app/shop/models/courier.go' | tenant-platform shared catalog | 'id', 'courier_id', simple/mixed/mixed_sum, 'price_unit', 'price_total' | soft delete; money is 'DECIMAL(10,2)'; quantities drive package composition | N,K,R,M,B: rule arithmetic fixtures match legacy packing results |
-| 10 | 'courier_links' — 'app/shop/models/courier_link.go' | tenant-platform shared catalog | deployed key around 'id', 'link_id', 'left_rule_id'; 'object_ids_data' CSV; links category/goods-master objects to rules | no soft delete; created-at only; GORM tags mark multiple primary fields, so deployed DDL must decide the real key | N,K,R,J,B: unique triples; left rule and all linked/mixable object IDs resolve |
-| 11 | 'payments' — 'app/shop/models/payment.go' | tenant-platform shared catalog | 'id', name, 'method', status, type, 'terminals' CSV; parent of tenant installs | soft delete; type balance/online/voucher; method dispatches a hard-coded payment adapter | N,K,R,J,E,B: every historical method has an explicit migration disposition and supported terminal set |
+| 4 | 'brands' — 'app/shop/models/brand.go' | tenant business schema; seed per tenant | 'id', Chinese/English names, media URLs, sort, status; referenced by goods masters and tenant goods | soft delete; bilingual source fields are business content, not application locale keys | N,K,R,E,B: both names and media preserved; every brand reference resolves in the same tenant schema |
+| 5 | 'categories' — 'app/shop/models/category.go' | tenant business schema; seed per tenant | 'id', 'parent_id', name/alias, image/tag/sort, 'pack_rule' JSON; parent of classes and goods masters | soft delete; hierarchy uses logical IDs; pack rules are also expanded into 'courier_links' | N,K,R,J,B: no unexpected cycles; JSON and link-table representations reconcile per tenant |
+| 6 | 'classes' — 'app/shop/models/class.go' | tenant business schema; seed per tenant | 'id', 'category_id', name, 'attributes' JSONB, status | soft delete; attributes contain radio/multiple groups | N,K,R,J,E,B: every class category exists in the same tenant schema; attribute structure round-trips |
+| 7 | 'goods_infos' — 'app/shop/models/goods_info.go' | tenant business schema; seed per tenant | 'id', category/parent/brand IDs, name/barcode, album CSV, image/video/content, weight/unit/type, pack-rule JSON; referenced by 'goods' and 'goods_assembles' | soft delete; no separate status column; type 0 normal/1 assembled; CSV album order is presentation-significant | N,K,R,J,E,B: all master references resolve in the same tenant schema; album and packing rules preserve order/content |
+| 8 | 'couriers' — 'app/shop/models/courier.go' | tenant business schema; seed per tenant | 'id', name, region, method, status; parent of pack rules and tenant installs | soft delete; 'method' selects application-owned adapter behavior while the tenant owns configuration | N,K,R,E,B: distinct methods are supported or explicitly retired; every rule/install resolves in the same tenant schema |
+| 9 | 'courier_pack_rules' — 'app/shop/models/courier.go' | tenant business schema; seed per tenant | 'id', 'courier_id', simple/mixed/mixed_sum, 'price_unit', 'price_total' | soft delete; money is 'DECIMAL(10,2)'; quantities drive package composition | N,K,R,M,B: rule arithmetic fixtures match legacy packing results per tenant |
+| 10 | 'courier_links' — 'app/shop/models/courier_link.go' | tenant business schema; seed per tenant | deployed key around 'id', 'link_id', 'left_rule_id'; 'object_ids_data' CSV; links category/goods-master objects to rules | no soft delete; created-at only; GORM tags mark multiple primary fields, so deployed DDL must decide the real key | N,K,R,J,B: unique triples; left rule and all linked/mixable object IDs resolve in the same tenant schema |
+| 11 | 'payments' — 'app/shop/models/payment.go' | tenant-platform payment catalog | 'id', name, 'method', status, type, 'terminals' CSV; parent of tenant installs | soft delete; type balance/online/voucher; method dispatches a payment adapter | N,K,R,J,E,B: every historical method has an explicit migration disposition and supported terminal set |
 
 ### 7.4 Tenant product, display and warehouse data (7 tables)
 
 | # | Table and source | Target ownership | Key fields and relations | Lifecycle and historical semantics | Required checks |
 | ---: | --- | --- | --- | --- | --- |
 | 12 | 'show_categories' — 'app/shop/models/show_category.go' | tenant business schema | 'id', 'tenant_id', 'parent_id', name/image/status/sort; referenced by goods parent/display IDs | soft delete; tenant hierarchy; status is display enable/disable | N,K,P,R,E,B: no cross-tenant parent or goods link; no unexpected cycles |
-| 13 | 'goods' — 'app/shop/models/goods.go' | tenant business schema | 'id', 'tenant_id'; shared catalog IDs; show-category IDs; alias/barcode/media; 'commission_rmb'; inventory flags/counts; stage/specification/metadata JSON; album/payment CSV; show/status/type; child specifications, warehouses and assemblies | soft delete; GORM marks both inherited ID and tenant as primary; 'show' and 'status' use 1/2; money is decimal; 'BeforeUpdate' physically deletes and recreates warehouse/spec rows | N,K,P,R,J,E,M,T,B: complete child graph, inventory/sales counters, display state and price fixtures match |
+| 13 | 'goods' — 'app/shop/models/goods.go' | tenant business schema | 'id', 'tenant_id'; tenant product-master IDs; show-category IDs; alias/barcode/media; 'commission_rmb'; inventory flags/counts; stage/specification/metadata JSON; album/payment CSV; show/status/type; child specifications, warehouses and assemblies | soft delete; GORM marks both inherited ID and tenant as primary; 'show' and 'status' use 1/2; money is decimal; 'BeforeUpdate' physically deletes and recreates warehouse/spec rows | N,K,P,R,J,E,M,T,B: complete child graph, inventory/sales counters, display state and price fixtures match |
 | 14 | 'goods_assembles' — 'app/shop/models/goods.go' | tenant business, inherited from parent goods | 'id', 'link_id' parent goods, component 'goods_id', 'goods_info_id', quantity, denormalized name/image | no soft delete; created-at only; replacement update semantics | N,K,P,R,B: parent/component belong to same tenant; positive quantities; cycle profile recorded |
 | 15 | 'goods_shipping_warehouses' — 'app/shop/models/goods.go' | tenant business, inherited from goods and warehouse | 'id', 'goods_id', 'warehouse_id', price, default flag, member-level-price JSON | no soft delete or timestamps in the model; 'price' is decimal | N,K,P,R,J,M,B: goods and warehouse tenants agree; member-level IDs resolve; default-selection profile preserved |
 | 16 | 'goods_specifications' — 'app/shop/models/goods.go' | tenant business schema | 'id', 'tenant_id', 'goods_id', name/barcode, specification CSV, ratio, album, inventory, default flag | soft delete; ratio is decimal and specification item order is significant; goods updates physically purge/recreate rows | N,K,P,R,J,M,B: one-to-many graph and default profile; exact CSV and inventory totals |
@@ -660,9 +675,10 @@ No data-copy task may begin until the following inputs exist:
 - Execute system-verification cases inside the Kubernetes cluster using
   disposable one-time Pods. Do not run migration system tests directly from
   the local host.
-- Import shared catalog before tenant references; import parent records before
-  inherited-tenant children; defer new foreign keys until orphan reports are
-  accepted.
+- For each tenant, seed the seven product/logistics tables from the same
+  immutable qualified snapshot before importing tenant references. Import
+  parent records before inherited-tenant children and defer new foreign keys
+  until orphan reports are accepted.
 - Verify all 54 tables even if a table has zero rows. Zero is evidence, not a
   reason to omit a contract.
 - For development, create 'orders' structure only and do not copy order rows.
