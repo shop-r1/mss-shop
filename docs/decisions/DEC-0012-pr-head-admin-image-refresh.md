@@ -111,12 +111,15 @@ the protected default branch before any broader credential is introduced.
 
 Historical evidence remains bound to the revisions and digests it already
 names. A later automatic image refresh does not rewrite that evidence or close
-any business-acceptance scenario. The GitHub Environment credential is now
-configured outside Git; until a qualifying run succeeds, the repository still
-records this CD path as configured but not executed.
+any business-acceptance scenario. The GitHub Environment credential remains
+configured outside Git. GitHub Actions run `33574863356` is the first verified
+qualifying execution, for PR-head revision
+`bf07098cb8a7c5f2c52993e28c69afc7712c4d98`.
 
 The four access-bootstrap objects have been created in `mss-shop-dev` and an
 authorization check has proved the exact two-Deployment `get`/`patch` grant and
 denial of other Deployments, Secrets and Pods. The Environment and named secret
-have also been configured without committing their value; the first qualifying
-CD success remains pending.
+have also been configured without committing their value. After the first
+successful CD, both Deployments were observed 1/1 updated, ready and available;
+all four updated `migrate`/`admin` container instances had zero restarts. This
+is image-refresh operation evidence only, not system or browser acceptance.

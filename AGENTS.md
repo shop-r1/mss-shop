@@ -71,7 +71,11 @@
   ServiceAccount/Role/RoleBinding/token Secret set; the Role permits only
   `get`/`patch` on those two Deployments. Account these four DEC-0012 access
   objects separately from DEC-0010's 24 infrastructure objects and six
-  foundation Secrets.
+  foundation Secrets. The first verified execution is GitHub Actions run
+  `33574863356` for PR-head revision
+  `bf07098cb8a7c5f2c52993e28c69afc7712c4d98`; both Deployments reached
+  1/1 updated, ready and available with zero container restarts. This is CD
+  operation evidence only, not system or browser acceptance.
 - Work on `codex/...` branches. Do not push, deploy, merge to a production
   branch, or trigger a frontend release unless the user explicitly requests it.
 - The current project-owner sequence is development first, formal validation

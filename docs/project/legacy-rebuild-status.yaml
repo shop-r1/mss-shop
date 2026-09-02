@@ -459,7 +459,19 @@ spec:
       environmentSecret: MSS_SHOP_DEV_KUBECONFIG
       accessBootstrap: mss-shop-dev-image-updater-four-objects-created-and-rbac-verified
       autoDeploy: true
-      configurationStatus: ready-environment-secret-configured-first-success-pending
+      configurationStatus: verified-first-success-run-33574863356
+      routineDevCD:
+        runID: 33574863356
+        revision: bf07098cb8a7c5f2c52993e28c69afc7712c4d98
+        conclusion: success
+        publishedImages: 4
+        deploymentScope: two-admin-deployments-admin-and-migrate-tags-only
+        tenantImageID: sha256:deec51fe4fa4a65729f55b727591635f70a4f9bb27bf2a834ec1b7bd2bf52f17
+        mallImageID: sha256:6ad41feed5f348f2f71fdf4f12b87c1e64a649e0367b8f55a7425c0d696662be
+        tenantUpdatedReadyAvailable: 1-1-1
+        mallUpdatedReadyAvailable: 1-1-1
+        containerRestarts: 0
+        acceptanceEvidence: false
   sourcesOfTruth:
     architecture: docs/architecture/overall-solution.md
     invariants: docs/architecture/invariants.yaml
@@ -517,7 +529,7 @@ spec:
     devCDAccessBootstrapCreated: true
     devCDAccessBoundaryVerified: true
     devCDEnvironmentSecretConfigured: true
-    devCDExecutionSucceeded: false
+    devCDExecutionSucceeded: true
     currentWorkingTreeTested: true
     currentWorkingTreeRemoteLocalPreviewHealthy: true
     currentWorkingTreeProductionBuilt: true

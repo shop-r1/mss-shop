@@ -281,6 +281,17 @@ trusted development collaborators and the kubeconfig must remain restricted
 to the exact two-Deployment Role; it must never contain cluster-admin, SSH or
 production access. No cluster credential is stored in the repository.
 
+The first successful automatic execution is GitHub Actions run
+[`33574863356`](https://github.com/shop-r1/mss-shop/actions/runs/33574863356)
+for PR-head revision `bf07098cb8a7c5f2c52993e28c69afc7712c4d98`.
+All validation jobs and four image publications passed before CD. A read-only
+post-run observation found both Admin Deployments at generation 3 and 1/1
+updated, ready and available; the tenant and mall `migrate`/`admin` pairs used
+the full-SHA tags with zero restarts. The observed tenant and mall image IDs
+were `sha256:deec51fe4fa4a65729f55b727591635f70a4f9bb27bf2a834ec1b7bd2bf52f17`
+and `sha256:6ad41feed5f348f2f71fdf4f12b87c1e64a649e0367b8f55a7425c0d696662be`.
+This proves the bounded CD path, not system or browser acceptance.
+
 The locked MSS Admin Web 1.3.7 packages come from their GitHub Release
 artifacts; remaining public frontend packages come from npm. Lockfiles pin the
 resolved sources and integrity metadata. No long-lived registry credential is

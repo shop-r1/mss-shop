@@ -2,13 +2,16 @@
 
 Last verified: 2026-09-02
 
-Current development release: source revision
-`f202b094fd5b2839a9020ff38db833fec40be704` passed GitHub Actions run
-`33565434916`, published four digest-bound images and cut both Admin runtimes
-over to DNS-only, trusted HTTPS hosts only in `mss-shop-dev`. Both Deployments
-are 1/1 Ready; the in-app-browser sessions logged in as `admin` and reached
-their visible workspaces. The canonical legacy import was not rerun: it remains
-the single 51-table snapshot bound to receipt
+Current tag-only development refresh: PR-head revision
+`bf07098cb8a7c5f2c52993e28c69afc7712c4d98` passed GitHub Actions run
+`33574863356`, published all four images, and completed the first automatic
+DEC-0012 CD. The tenant and mall Admin Deployments are each 1/1 updated, ready
+and available; both `migrate` and `admin` use the matching full-SHA tag, with
+zero restarts. The latest evidence-bearing browser smoke remains revision
+`f202b094fd5b2839a9020ff38db833fec40be704` from run `33565434916`, which cut
+both Admin runtimes over to DNS-only trusted HTTPS hosts and reached their
+visible workspaces after login as `admin`. The canonical legacy import was not
+rerun: it remains the single 51-table snapshot bound to receipt
 `fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`.
 The fixed-tenant Member Levels projection still contains four matching rows and
 both order tables remain empty. This fast smoke cutover does not close any of
@@ -19,19 +22,20 @@ The repository now defines a DEC-0012 development CD contract for a
 same-repository `codex/**` pull request targeting `main`: after the existing CI
 gates publish all four images for the exact PR-head SHA, a local reusable
 workflow may update only the `migrate` and `admin` images in the two existing
-`mss-shop-dev` Admin Deployments. This is currently
-`ready-environment-secret-configured-first-success-pending`. The
-`mss-shop-dev` GitHub Environment now contains `MSS_SHOP_DEV_KUBECONFIG`
-outside Git; no automatic deployment, rollout health or acceptance result is
-claimed until a qualifying execution succeeds.
+`mss-shop-dev` Admin Deployments. This is now
+`verified-first-success-run-33574863356`. The `mss-shop-dev` GitHub
+Environment retains `MSS_SHOP_DEV_KUBECONFIG` outside Git. That run proves the
+bounded image refresh and observed rollout health only; it does not close a
+system, browser or business acceptance scenario.
 
 The namespace-side CD access bootstrap is complete: ServiceAccount, Role,
 RoleBinding and service-account token Secret are all named
 `mss-shop-dev-image-updater` in `mss-shop-dev`. The Role was verified to allow
 only `get`/`patch` on the two named Admin Deployments and to deny other
 Deployments, Secrets and Pods. These four objects are tracked separately from
-the historical 24 infrastructure objects and six foundation Secrets. Their
-presence and the configured GitHub Environment secret do not prove a CD run.
+the historical 24 infrastructure objects and six foundation Secrets. Run
+`33574863356` proves that this bounded identity can perform the intended image
+refresh; it grants no broader authority.
 
 ## Confirmed decisions
 
@@ -192,8 +196,10 @@ presence and the configured GitHub Environment secret do not prove a CD run.
   to `main` may publish the same four-image set after all gates and then call a
   reusable CD that only updates both existing Admin Deployments' `migrate` and
   `admin` image tags in `mss-shop-dev`. Forks and other PR shapes receive no
-  package or deployment credential. The CD source and Environment secret are
-  present, but its first successful run remains pending. Run
+  package or deployment credential. Run `33574863356` is the first successful
+  automatic execution: it deployed PR-head revision `bf07098...` and both
+  Admin Deployments were observed 1/1 updated, ready and available with zero
+  restarts. This tag-only refresh is not acceptance evidence. Run
   `33494258866` supplied the
   successful import revision-A image; run `33497583981` supplied the revision-B
   verifier image; run `33500133380` validates the later stage-annotation
@@ -202,7 +208,8 @@ presence and the configured GitHub Environment secret do not prove a CD run.
   isolated deployment at source revision `3e64a57d...`; run `33565434916`
   published the four images used by the DNS-only HTTPS Admin cutover at
   revision `f202b094...`. Older publications remain historical evidence and
-  were not substituted into either rollout. See `docs/runbooks/ci-images.md`.
+  were not substituted into either evidence-bearing rollout. See
+  `docs/runbooks/ci-images.md`.
 - A versioned gap assessment that keeps “complete legacy restoration” distinct
   from the current read-only compatibility surface. It records the P0/P1/P2
   work and dependency order in
@@ -307,9 +314,21 @@ Verification evidence recorded on 2026-09-02:
   `Secret/mss-shop-dev-image-updater` in `mss-shop-dev`. Authorization checks
   allowed only `get`/`patch` on the tenant and mall Admin Deployments and
   denied other Deployments, Secrets and Pods. No Secret value is recorded in
-  the repository. The GitHub Environment and named secret are now configured;
-  the first CD execution remains pending, so this is access-boundary evidence
-  rather than deployment or acceptance evidence.
+  the repository. The GitHub Environment and named secret remain configured;
+  run `33574863356` subsequently proved the bounded CD execution. The RBAC
+  checks remain access-boundary evidence rather than business acceptance.
+
+- GitHub Actions run
+  [`33574863356`](https://github.com/shop-r1/mss-shop/actions/runs/33574863356)
+  passed for PR-head revision
+  `bf07098cb8a7c5f2c52993e28c69afc7712c4d98`, published all four images and
+  completed the first automatic DEC-0012 CD. The tenant image ID was
+  `sha256:deec51fe4fa4a65729f55b727591635f70a4f9bb27bf2a834ec1b7bd2bf52f17`
+  and the mall image ID was
+  `sha256:6ad41feed5f348f2f71fdf4f12b87c1e64a649e0367b8f55a7425c0d696662be`.
+  Both Deployments were observed generation 3, 1/1 updated, ready and
+  available; both `migrate` and `admin` had zero restarts. No system or browser
+  acceptance was executed by CD.
 
 - GitHub Actions run
   [`33565434916`](https://github.com/shop-r1/mss-shop/actions/runs/33565434916)
