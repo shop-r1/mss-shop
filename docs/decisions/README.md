@@ -15,3 +15,13 @@ in the same change.
   AppID bindings
 - [DEC-0006](DEC-0006-desired-observed-reconciliation.md): desired/observed
   tenant reconciliation
+- [DEC-0007](DEC-0007-qualified-legacy-business-contract.md): qualified
+  legacy business schemas and compatibility views
+- [DEC-0009](DEC-0009-tenant-owned-catalog-and-logistics.md): per-tenant
+  product catalogs and logistics rules
+- [DEC-0010](DEC-0010-remote-development-and-dev-reconciliation.md): remote
+  development and isolated `mss-shop-dev` stage resources
+- [DEC-0011](DEC-0011-dns-only-admin-tls-and-host-cutover.md): DNS-only
+  ingress TLS bootstrap and isolated Admin host cutover
+- [DEC-0012](DEC-0012-pr-head-admin-image-refresh.md): qualifying pull-request
+  Admin image refresh in isolated development

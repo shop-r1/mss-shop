@@ -2,21 +2,23 @@
 
 This is a staged rebuild, not a big-bang rewrite. Production remains read-only
 through design, local development and development-environment rehearsal.
+The current P0/P1/P2 gap and dependency order are maintained in
+[`legacy-restoration-gap.md`](../project/legacy-restoration-gap.md).
 
 ## Phase 0 — foundation proof (complete)
 
-- Keep the generated MSS 1.3.6 Thin Host at the repository root runnable.
+- Keep the generated MSS 1.3.7 Thin Host at the repository root runnable.
 - Verify login, roles, permissions, bilingual catalogs and the exact Go/npm
   dependency chain.
 - Commit no SQLite database, local password, log, build output or package cache.
 
 Exit: the root proof passes `mss doctor --strict` and `mss verify --all` with an
-official 1.3.6 tool installation.
+official 1.3.7 tool installation.
 
-## Phase 1 — clean platform shells and contracts (in progress)
+## Phase 1 — clean platform shells and contracts (complete)
 
 - Generate `apps/tenant-platform` and `apps/mall-platform` independently with
-  MSS 1.3.6. Each directory contains its backend and `web/` frontend.
+  MSS 1.3.7. Each directory contains its backend and `web/` frontend.
 - Establish the authoritative `/app/v1` OpenAPI contract and tenant bootstrap
   JSON schema under `contracts/app-v1`.
 - Complete the code-level boundary audit of `shop-go`, `shop-admin-ui` and
@@ -27,9 +29,12 @@ official 1.3.6 tool installation.
 
 Exit: both hosts validate independently; contract compatibility tests exist;
 no copied MSS source is present; the table-level migration inventory is
-reviewed and committed. The host and contract work is complete. The table-level
-inventory remains open and blocks data migration, but not the isolated
-bootstrap implementation.
+reviewed and committed. The 54-table manifest now records the DEC-0009 target
+owner split of four tenant-platform migration/payment tables and 50 mall
+tables; the backend route inventory and Admin acceptance matrix satisfy this
+contract exit. Indexes,
+constraints and row-count evidence intentionally remain a Phase 5 development
+migration rehearsal gate rather than a Phase 1 source-contract blocker.
 
 ## Phase 2 — control plane and reconciler (in progress)
 
@@ -44,8 +49,14 @@ Exit: create, retry, suspend and resume work in the development environment;
 failure injection converges without duplicate resources or leaked credentials.
 
 The in-memory domain/controller, fault injection and tenant-scoped worker inbox
-are implemented. Persistent state, real drivers, least-privilege database roles
-and development-cluster rehearsal remain before the exit criteria are met.
+are implemented. The real fixed `mss-shop-dev` PostgreSQL driver,
+least-privilege role/schema plan, DB-only Job and trusted operator path passed
+their immutable-image cluster rehearsal and isolation checks at revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`. The original `r1shop-dev`
+database remained only the importer's exact read-only source. Persistent
+desired/observed control-plane integration and generalized multi-tenant
+lifecycle evidence remain before the exit criteria are met; this is not a
+production driver.
 
 ## Phase 3 — first mall runtime
 
@@ -57,6 +68,16 @@ and development-cluster rehearsal remain before the exit criteria are met.
 
 Exit: one development tenant operates end-to-end with fixed connections and
 passes isolation tests in disposable Kubernetes Pods.
+
+The compatibility backends and Admin UIs allocate 50 mall resources and one
+tenant payment resource. The seven moved product/logistics resources use the
+fixed mall business schema and forward-only authorization migrations. All 51
+resources are read-only. The isolated fixed-tenant data projection, runtime
+deployment and disposable-Pod HTTP/data-system checks now pass; confirmed-login
+browser review and every qualified write lifecycle remain open. Generic create,
+update and delete fail closed until each resource independently restores and
+proves its legacy validation, relationship/tenant constraints, model hooks,
+authorization and deletion semantics, so Phase 3 is not complete.
 
 ## Phase 4 — storefront and mobile (bootstrap slice complete)
 
@@ -84,6 +105,14 @@ build targets. Catalog browsing, customer login, cart and checkout remain.
 
 Exit: the user approves the exact production runbook. No production action is
 implied by completing earlier phases.
+
+The first isolated data rehearsal is complete: 49 eligible legacy tables were
+copied once, `orders` and `order_goods` were created structure-only, and the
+51-table receipt, independent verification, fixed-schema reconciliation and
+four-row Member Levels projection all passed. This is a partial migration test,
+not production readiness: complete domain relationship/money checks, writable
+business acceptance, rollback rehearsal and the owner-approved production
+runbook remain open.
 
 ## Non-negotiable migration checks
 

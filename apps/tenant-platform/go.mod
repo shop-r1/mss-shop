@@ -5,8 +5,8 @@ go 1.26.6
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/mss-boot-io/mss-boot-admin/admin v1.3.6
-	github.com/mss-boot-io/mss-boot-admin/mss-boot v1.3.6
+	github.com/mss-boot-io/mss-boot-admin/admin v1.3.7
+	github.com/mss-boot-io/mss-boot-admin/mss-boot v1.3.7
 	gorm.io/gorm v1.31.2
 )
 

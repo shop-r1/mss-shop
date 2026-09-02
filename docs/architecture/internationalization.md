@@ -62,7 +62,7 @@ locale.
 
 ## MSS Admin limitation and upgrade gate
 
-MSS 1.3.6 already composes complete `zh-CN` and `en-US` catalogs for both Thin
+MSS 1.3.7 composes complete `zh-CN` and `en-US` catalogs for both Thin
 Hosts, so those two locales are the supported admin baseline. A third Admin
 locale is not implemented by patching one host. It requires a coordinated MSS
 Distribution upgrade that provides:
@@ -77,11 +77,20 @@ locale independently, but Admin surfaces remain explicitly limited to the two
 complete locales. This limitation must be visible in the capability matrix and
 release notes.
 
+For authorized business menus on 1.3.7, each Host enables dynamic-menu locale
+through its tested runtime facade. Backend root tokens stay stable and
+dot-free; direct MenuSearch keys and hierarchical ProLayout keys are complete
+in both catalogs. See
+[`mss-1.3.7-generation-notes.md`](../tooling/mss-1.3.7-generation-notes.md)
+for the upgrade constraint.
+
 ## Definition of done
 
 - No new user-facing literal is introduced outside a locale catalog, except
   immutable brand names or user-entered content.
 - `zh-CN` and `en-US` keys remain structurally equal.
+- Authorized root, directory and leaf menus switch language without missing
+  message warnings or changing paths and permissions.
 - API error codes and arguments are covered in the client catalog.
 - Date, time, number and money output uses explicit locale/timezone/currency.
 - H5 and `mp-weixin` exercise language switching without a restart where the

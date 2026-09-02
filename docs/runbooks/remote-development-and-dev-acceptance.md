@@ -1,0 +1,904 @@
+# Remote development and isolated mss-shop-dev acceptance
+
+This runbook stages only the isolated `mss-shop-dev` environment. The original
+`r1shop-dev` application, database, Redis, Secrets, storage and networking are
+immutable read-only sources/reference state. Nothing in this runbook
+authorizes a write to them. It never authorizes a write to `r1shop-prod`, the
+production database or production Redis.
+
+The isolated technical run has completed through receipt-bound reconciliation,
+the Member Levels projection verifier, the eight-object Admin runtime and the
+authoritative v3 disposable system checks. Do not skip a gate or replace it
+with an ad-hoc command on a repeat run. The exact 24-object isolated boundary,
+six immutable foundation Secrets, PostgreSQL 17.6 and Redis 8.6.3 are present
+in `mss-shop-dev`. Revision
+`6fed45f354e93efe104045c6dde86ac33c368d6d` passed readiness and completed the
+bounded one-time import; its canonical receipt is committed under
+`docs/evidence/legacy-import/`. Two earlier pre-transaction failures remain
+preserved as historical evidence. Revision B
+`3eb4c72b485066e7b189446fab5b66a1047e66a2` supplied the immutable receipt
+ConfigMap and one successful disposable verifier Job; its exact output is now
+persisted beside the receipt. Final isolated Admin revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` is running and has passed the
+bounded cluster-side health, datastore, TLS and least-privilege checks. The
+in-app-browser review and explicit business workflow acceptance remain
+separate; business acceptance is still 0/31.
+
+## Current authorized release sequence
+
+The project owner has authorized the current release candidate to complete
+formal validation, CI publication, receipt-bound reconciliation, the bounded
+Member Levels projection test and Admin deployment in `mss-shop-dev`. The
+earlier development-first hold is lifted for this sequence only. Every ordered
+gate below remains mandatory, and all workload images must come from one new
+clean full SHA and its four fresh CI receipts.
+
+This authorization does not permit writes to `r1shop-dev`, `r1shop-prod`, the
+legacy source database or either old Redis. It also does not enable Mall
+Settings or Member Levels business mutations: both runtime gates remain
+closed. A local-process preview and prior Revision C receipts remain
+non-deployment evidence and cannot replace any gate below.
+
+## 2026-09-02 isolated execution record
+
+GitHub Actions run
+[`33532383550`](https://github.com/shop-r1/mss-shop/actions/runs/33532383550)
+completed successfully for full revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`. The deployed immutable digests
+are reconciler
+`sha256:fba8a63938eef780e8eeb68e2c391bd91ad01c4214dcfa6a7089cf75cc1ab4fd`,
+tenant Admin
+`sha256:c65f5e8b19033afcdae25e0ec046efc958190a0abf38ab1d2bf379d0475b742d`
+and mall Admin
+`sha256:a58868c78bc3e62f40b6988ec43eb4923f00d15ecc8540eb06b6b863016e1c1a`.
+The verified legacy import receipt remains
+`fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76`.
+
+Two reconciler revisions failed before the final success:
+
+- `43e0fd5f18af903f076ec166efff68365dcb3a55` failed in
+  `copy-and-audit-snapshot-brands` because the reviewed PL/pgSQL audit query
+  had ambiguous column references;
+- `ddb67bef4bf0b4eeae7408eb5706ad63e687dce6` failed in
+  `validate-application-role-realm-mss_t_dev_migrator` because PostgreSQL 17
+  rejected the `collation` query alias.
+
+Both Jobs failed closed. Their transactions did not commit, and the bounded
+post-attempt inventory returned zero managed schemas, roles and relations.
+The failed Jobs and Pods remain in the isolated namespace as immutable failure
+evidence; “rolled back” here means the database transaction was completely
+rolled back, not that those evidence objects were deleted. Neither attempt
+advanced an acceptance gate.
+
+The final reconciler Job UID is
+`bc290833-126f-4e47-8771-207fa733d7df`; its sole successful Pod UID is
+`a47bccc1-eb75-40b0-9537-8944820aa059`. It completed one batch containing 252
+statements, 46 views and seven snapshots with zero restarts. The same-SHA
+projection Job UID is `21519f34-73ce-4783-95b4-6e173a171a2f`, and its Pod UID
+is `485a6170-c916-4571-b247-47029548a5c5`. Its byte-exact sole stdout is
+committed as
+`docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json`.
+It proved four public and four business Member Levels rows, zero differences,
+zero cross-tenant rows, one valid enabled default, no duplicate active names,
+zero orders/order goods and no PUBLIC runtime privileges.
+
+The eight runtime objects then converged to one ready tenant Pod and one ready
+mall Pod, both with zero restarts and exact digest-matching image IDs. The
+authoritative `v3` HTTP Job
+`mss-shop-runtime-http-verify-3e64a57-v3` and datastore Job
+`mss-shop-runtime-data-verify-3e64a57-v3` each completed once with no failure.
+They proved both UI/health/readiness endpoints, unauthenticated API denial,
+role and fixed-schema binding, public/cross-platform/DML/DDL denial,
+PostgreSQL TLS/CA/hostname verification, Redis TLS/authentication/CA checks,
+Member Levels count four and both order tables zero.
+
+The preceding v1 and v2 disposable verifier Jobs are explicitly classified as
+test-harness failures rather than system failures. The v1 containers never
+started because `runAsNonRoot` could not validate the images' configured users;
+the Jobs then reached their active deadline. In v2, the HTTP script incorrectly
+required non-empty bodies from valid 200 health endpoints, while the PostgreSQL
+script used an unsupported libpq URI `search_path` parameter; its Redis check
+passed. The corrected v3 harness is the only authoritative runtime-system
+result. No v1/v2 result closes or invalidates a business scenario.
+
+Structured evidence is stored in:
+
+- `docs/evidence/mss-shop-dev/2026-09-02-reconciliation.yaml`;
+- `docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json`;
+- `docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml`; and
+- `docs/evidence/original-dev/2026-09-02-post-isolated-acceptance.json`.
+
+The final original-development capture retained selected-safe-fields SHA-256
+`7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854`
+and reports no Secret access, database connection or write. Production was not
+read or written by this isolated release. Browser review is still documented
+separately and business acceptance remains 0/31.
+
+## Fixed boundaries
+
+| Item | Fixed value |
+| --- | --- |
+| Remote checkout | `/root/workspace/mss-shop` on `167.17.68.242` |
+| Branch | `codex/r1shop-platform` |
+| Write namespace | `mss-shop-dev` only |
+| Target PostgreSQL | PostgreSQL 17.6, `mss-shop-postgres.mss-shop-dev.svc:5432/mss_shop_dev` |
+| Target Redis | Redis 8.6.3, `mss-shop-redis.mss-shop-dev.svc:6379` |
+| Legacy read-only source | `timescaledb-r1shop-dev.database.svc:5432/r1shop_dev` only |
+| Permitted old Secret reads | exact database credential Secret and `r1shop-dev/ghcr-r1shop-token`, GET only |
+| Routine dev CD source | same-repository `codex/**` pull request targeting `main` |
+| Routine dev CD target | image fields of `mss-shop-dev/mss-shop-tenant-admin` and `mss-shop-dev/mss-shop-mall-admin-aussibuy` only |
+| Routine dev CD identity | four `mss-shop-dev-image-updater` access-bootstrap objects; Role allows only exact two-Deployment `get`/`patch` |
+| GitHub Environment | `mss-shop-dev`; kubeconfig supplied only by `MSS_SHOP_DEV_KUBECONFIG` |
+| Planned tenant Admin entry | `https://tenant-admin.mss.r1shop.net` |
+| Planned mall Admin entry | `https://mall-admin.mss.r1shop.net` |
+| Historical Revision `3e64a57` tenant evidence host | `http://tenant-admin.167.17.68.242.nip.io` |
+| Historical Revision `3e64a57` mall evidence host | `http://mall-admin.167.17.68.242.nip.io` |
+
+The legacy source has SSL disabled. Only the compiled legacy importer may use
+the reviewed `sslmode=disable` exception, without fallback endpoints, from a
+Pod selected by the exact source-egress NetworkPolicy. Its startup packet
+disables event triggers and all source work is repeatable-read and read-only.
+The isolated PostgreSQL and Redis require their generated TLS identities. The
+old Redis is not read or shared.
+
+### Routine qualifying-PR Admin image refresh
+
+DEC-0012 adds a small steady-state image path after the one-time isolated
+bootstrap. A pull request qualifies only when its head is in this repository,
+its branch matches `codex/**`, its base is `main`, and the existing CI gates
+succeed. CI must publish all four delivery images and receipts for the same
+complete PR-head SHA before it calls the repository-local reusable `Dev CD`
+workflow.
+
+The reusable workflow reads its Kubernetes configuration only from the
+`mss-shop-dev` GitHub Environment secret `MSS_SHOP_DEV_KUBECONFIG`. It runs
+only two `kubectl set image` commands: one for
+`Deployment/mss-shop-tenant-admin` and one for
+`Deployment/mss-shop-mall-admin-aussibuy`, both in `mss-shop-dev`. Each command
+sets the workload's `migrate` init container and `admin` container to the
+matching tenant or mall GHCR image tagged by the full PR-head SHA.
+The CI caller uses `secrets: inherit` for the local reusable-workflow boundary;
+the called Environment job still references only this one named secret, and
+the repository and organization currently expose no additional Actions
+secrets.
+
+The namespace-local access bootstrap contains exactly these four objects, all
+named `mss-shop-dev-image-updater`: ServiceAccount, Role, RoleBinding and a
+service-account token Secret. The Role grants only `get` and `patch` on the two
+named Admin Deployments. A cluster authorization check has verified that scope
+and denied other Deployments, Secrets and Pods. The objects are DEC-0012 CD
+access, not application infrastructure: keep them outside the DEC-0010 count
+of 24 infrastructure objects and six foundation Secrets. The reusable workflow
+does not create, update or delete them.
+
+This path does not apply a manifest, update configuration or annotations,
+touch a database, create a Job, wait for rollout, run a verification case or
+perform browser acceptance. The Pod-template change itself causes the matching
+`migrate` init container to run when Kubernetes replaces the Pod. The
+reconciler and importer images are published but not deployed. The original
+`r1shop-dev`, shared `database` namespace and production remain unchanged.
+
+The four access-bootstrap objects are present, their Role boundary is verified,
+and the GitHub Environment credential is configured outside the repository.
+The first qualifying run is still **pending**. Source configuration, image
+publication or a `set image` invocation alone must not be recorded as rollout
+health, system acceptance or business acceptance. The ordered procedure below
+remains authoritative for bootstrap and evidence-bearing releases; routine CD
+does not repeat or close any of its gates.
+
+### Planned Admin host and HTTPS gate
+
+This gate implements DEC-0011 without rewriting the DEC-0010 isolated-stage
+history.
+
+The fixed browser-review targets are now
+`https://tenant-admin.mss.r1shop.net` and
+`https://mall-admin.mss.r1shop.net`. This is a planned host cutover, not a
+claim that either new host has been deployed, routed or accepted. The
+Revision `3e64a57dae8bb3dd4d337a423015baae6c352b32` runtime and disposable HTTP
+evidence above remain historical evidence for the two `nip.io` hosts recorded
+in the table; do not reinterpret or mechanically rewrite that evidence as a
+new-domain result.
+
+A 2026-09-02 read-only check first found the new names behind the Cloudflare
+proxy without edge-certificate coverage for these multi-level subdomains. The
+project owner has since changed both records to **DNS Only**. They now resolve
+directly to `167.17.68.242`; this selects ingress-terminated, publicly trusted
+TLS and removes Cloudflare edge TLS from this development path. DNS-only
+selection is not evidence that an Issuer, Certificate, generated TLS Secret,
+new-host Ingress or trusted HTTPS route has been created. At this point those
+resources and the new-host rollout remain unrecorded.
+
+Provisioning and cutover are deliberately split into two stages so the old
+Ingress does not have to serve a certificate for a host it does not yet own:
+
+1. `stage-admin-tls` defaults to dry-run and owns four create-only bootstrap
+   objects in `mss-shop-dev`:
+   `NetworkPolicy/mss-shop-allow-ingress-nginx-to-acme-http01`,
+   `Issuer/mss-shop-dev-letsencrypt-production`,
+   `Certificate/mss-shop-tenant-admin-tls` and
+   `Certificate/mss-shop-mall-admin-aussibuy-tls`. The NetworkPolicy
+   permits only the ingress-nginx controller to reach cert-manager solver Pods
+   on TCP 8089 inside the namespace's default-deny-ingress boundary. After the
+   server-side dry-run is reviewed, repeat it with `--apply`, then wait until
+   all four objects match the compiled spec and the Issuer plus both
+   Certificates report Ready. cert-manager automatically creates the Issuer's
+   ACME account-key Secret and the two Certificates' referenced TLS Secrets,
+   and may create and remove temporary HTTP-01 solver Pods, Services and
+   Ingresses. Those are expected controller side effects, not additional
+   operator-owned resources; never read or print any generated Secret content.
+2. `stage-runtime` first performs a read-only check of all four TLS bootstrap
+   prerequisites, including the three Ready conditions. Only then
+   may it switch the eight existing Admin runtime objects to the new host
+   contract: both Ingress hosts and `spec.tls`, both HTTPS application/CORS
+   origins, secure browser-session cookies, and the matching migration-domain
+   arguments. Its pre-apply network gate requires DNS Only to resolve directly
+   to the ingress address, TCP/HTTP port 80 to be reachable for ACME operation,
+   and the Issuer plus both Certificates to be Ready. It intentionally does
+   **not** require a successful HTTPS handshake through either main Admin
+   Ingress before apply, because those Ingresses still serve the historical
+   hosts until this stage commits.
+
+After runtime apply, require a trusted HTTPS handshake for each exact host,
+the expected hostname in the certificate SANs, routing to the intended
+isolated Admin, and an HTTP-to-HTTPS redirect. Only after all four checks pass
+may either generated administrator password be retrieved and entered.
+
+Plain HTTP is not an acceptance option. Even though the project owner has
+authorized use of the two generated administrator passwords, do not retrieve,
+transmit or type either password until the selected HTTPS path presents a
+trusted certificate for the exact hostname, routes to the intended isolated
+Admin, and has passed a fresh read-only pre-login check.
+
+Use Go 1.26.6, Node 24.19.0, pnpm 10.34.5 and the official MSS 1.3.7 tools
+recorded by the repository. Keep resource-heavy builds in GitHub Actions; the
+remote host may run bounded source tests with `GOMAXPROCS=2` and `-p=2` while
+node health remains stable.
+
+## Mandatory write declaration
+
+Before every interactive Kubernetes or database write, write this information
+into the active task/evidence record. The DEC-0012 reusable CD is the narrow
+exception: its fixed workflow source, qualifying PR metadata and GitHub job log
+declare the exact two image mutations, but do not create an acceptance record.
+
+1. namespace (`mss-shop-dev` only);
+2. every resource kind/name that may be created or changed;
+3. image full SHA and digest, when a workload is involved;
+4. expected effect and an explicit statement that the original development
+   environment and production are unchanged.
+
+Use an explicit absolute kubeconfig path on every cluster command, for example
+`/absolute/path/to/devops.kubeconfig`. Never rely on the ambient context.
+
+## Ordered procedure
+
+### 1. Clean SHA and four CI receipts
+
+In `/root/workspace/mss-shop`, inspect the branch, `HEAD` and working tree.
+Continue only from a clean checkout whose complete lowercase, nonzero 40-byte
+Git SHA is the revision under review. Do not discard remote work to make it
+clean.
+
+Confirm the workflow for that exact SHA completed unit/contract validation and
+published four immutable image receipts:
+
+- `mss-shop-tenant-platform`;
+- `mss-shop-mall-platform`;
+- `mss-shop-reconciler`;
+- `mss-shop-legacy-importer`.
+
+Each receipt must bind repository, full revision, `linux/amd64` and a nonzero
+`sha256:` digest. A historical run that contains only the two Admin images is
+not sufficient. Outside the exact DEC-0012 qualifying-PR image refresh, CI
+publication is not deployment approval.
+
+### 2. Read-only fingerprint of the original environment
+
+From the exact clean checkout, run the fixed metadata-only helper. Redirect its
+single JSON document to a temporary file outside the Git checkout; shell
+redirection inside the repository would create an untracked file before the
+helper can prove the checkout is clean.
+
+```shell
+fingerprint_output=/tmp/mss-shop-original-dev-before.json
+go run ./services/reconciler/cmd/capture-original-dev-fingerprint \
+  --environment r1shop-dev-read-only \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  > "$fingerprint_output"
+```
+
+Replace the example revision with the reviewed operator HEAD. Only after the
+command exits successfully, copy the complete file to a new, clearly named
+path under `docs/evidence/original-dev/`; do not overwrite or reinterpret the
+existing `2026-09-01-before.json` baseline. The new Kubernetes-only format may
+coexist with it.
+
+The helper performs only fixed Kubernetes GET/LIST operations. It never reads
+a Secret, opens a database connection, execs into a Pod, or writes a resource.
+It captures the exact old `shop` Deployment, Service, Ingress and unique ready
+Pod, the old application's exact `r1shop-dev/public` PVC and bound PV, plus the
+old TimescaleDB and Redis StatefulSet, Service, unique ready Pod, PVC and bound
+PV metadata. The application storage gate requires the reviewed `public` volume
+mounted at `/app/public`, with `local`, `5Gi`, `ReadWriteOnce` and `Filesystem`
+PVC/PV shape and an exact claim UID binding. Its strict, non-secret output
+includes UID, resourceVersion, generation, readiness, restart count,
+image/imageID, Ingress host, requested/capacity storage, access and volume modes,
+PVC/PV claim binding and a canonical SHA-256 over the selected safe fields.
+
+The source database identity, TLS-disabled boundary, exact 54-table inventory
+and catalog fingerprint remain the compiled importer's independent read-only
+preflight responsibility. This host helper must not recreate that check with
+Pod exec or a host database connection.
+
+**Gate:** the command must succeed from the exact clean revision and its JSON
+must be durably captured before staging. Any missing, ambiguous, multiple-Pod,
+non-ready or non-bound resource stops the run; do not improvise a broader
+read-capable or write-capable probe.
+
+### 3. Create the isolated infrastructure boundary
+
+Declare a write to the exact 24 resources compiled into
+`deploy/mss-shop-dev/infrastructure.yaml`: Namespace, ResourceQuota,
+LimitRange, two ConfigMaps, two PVCs, two Services, nine NetworkPolicies, two non-mounting scheduling-only binder Pods, two StatefulSets and two
+PodDisruptionBudgets. Expected impact: new isolated storage/network/datastore
+objects only; old development and production remain unchanged.
+
+Then run the create-only operator from the clean checkout:
+
+```shell
+go run ./services/reconciler/cmd/stage-infrastructure \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567
+```
+
+Replace the example revision with the reviewed full SHA. The operator performs
+full collision and server-side dry-run checks before creating anything. It
+must create every NetworkPolicy before either binder Pod or StatefulSet and
+must never apply, patch, adopt, delete or roll back an object. Storage staging
+is deliberately two-phase: the first phase creates and verifies the two inert,
+non-mounting binder Pods and stops while a PVC is Pending; a later clean retry
+admits either StatefulSet only after both PVCs and two stable cluster-wide PV
+snapshots prove the reviewed node/path ownership. Every object observed on a
+retry must match the complete create-only contract.
+
+### 4. Create six foundation Secrets
+
+At this point datastore Pods may be pending because their Secrets do not yet
+exist. Declare creation of exactly these six immutable Secrets in
+`mss-shop-dev`: `mss-shop-postgres-auth`, `mss-shop-postgres-tls`,
+`mss-shop-redis-auth`, `mss-shop-redis-tls`,
+`mss-shop-legacy-source-auth` and `mss-shop-ghcr-pull`. Expected impact: new
+namespace-local credentials/TLS only.
+
+```shell
+go run ./services/reconciler/cmd/stage-secrets \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567
+```
+
+The operator may GET only the exact old database credential and GHCR pull
+Secret, preflights all six target names before its first create, preserves an
+exact immutable retry and prints metadata rather than values. Any collision or
+partial mismatch stops the run.
+
+### 5. Prove datastore readiness
+
+Wait only on the two isolated StatefulSets:
+
+```shell
+kubectl --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --namespace mss-shop-dev rollout status statefulset/mss-shop-postgres
+kubectl --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --namespace mss-shop-dev rollout status statefulset/mss-shop-redis
+```
+
+Declare creation of only `Job/mss-shop-readiness-<full-sha>` in
+`mss-shop-dev`, bound to the selected full SHA and matching digest of the
+fourth delivery image, `mss-shop-legacy-importer`. Expected impact: one
+disposable read-only readiness transaction against only the new PostgreSQL and
+Redis; the legacy source, old development environment and production are
+unchanged.
+
+From the exact clean checkout, first render and preflight the fixed readiness
+Job without persistence:
+
+```shell
+go run ./services/reconciler/cmd/stage-jobs \
+  --mode readiness \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --image-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+Replace both example image bindings with the exact values from one CI receipt.
+After recording the dry-run and write declaration, repeat the identical command
+with `--create`. The fixed `isolated-readiness` role can reach only the new
+PostgreSQL and Redis. The Job receives only their authentication Secrets and
+CA certificates; it receives no legacy-source Secret, endpoint or Kubernetes
+API token.
+
+Capture the complete, untruncated stdout JSON, Pod UID and image ID before the
+Job TTL expires. A successful document has version
+`mss-shop-disposable-readiness/v1`, `ready=true`, exact PostgreSQL `17.6` and
+Redis `8.6.3` identities, `namespace=mss-shop-dev`, and the Pod name/UID, full
+image revision and digest. It also proves the `mss_shop_dev` isolated-empty
+marker and strict hostname/CA verification. A readiness failure JSON is not
+acceptance evidence.
+
+**Gate:** only that complete success document permits import. If it is missing,
+truncated, reports failure or cannot be bound to the declared Pod and digest,
+stop before import.
+
+### 6. Create the one-time importer Job and persist evidence
+
+The source template is `deploy/mss-shop-dev/legacy-import-job.yaml`. It must be
+rendered with the reviewed full SHA and matching importer digest from the CI
+receipt. The resulting image reference must include both tag and digest. The
+Job is create-only, has no ServiceAccount token, and uses the
+`legacy-import` network role.
+
+Before opening the target transaction, the importer must prove in its fixed
+source repeatable-read snapshot that the extension inventory is exactly
+`plpgsql 1.0`/`pg_catalog` and `timescaledb 2.20.2`/`public`; the 91 `public`
+routines are exact object-level TimescaleDB members with complete ordered
+`pg_proc` SHA-256
+`32c0b88f3178e4a15647eef85da4a718b4e490070bd7fa2c77876101f386d81e`;
+and there are no other `public` routines or standalone types. The fingerprint
+is intentionally tied to this source database instance. A restore, extension
+reinstall, object OID drift or catalog change requires review and a new code
+revision; never weaken or bypass the check at run time.
+
+Declare creation of only
+`Job/mss-shop-legacy-import-<full-sha>` in `mss-shop-dev`. Expected impact: one
+read-only snapshot transaction against the fixed legacy source and one
+all-or-nothing import transaction into the isolated target. `orders` and
+`order_goods` must remain target-empty.
+
+From the exact clean checkout, first run the fixed renderer and complete
+preflight without persistence:
+
+```shell
+go run ./services/reconciler/cmd/stage-jobs \
+  --mode importer \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --image-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+Replace both example bindings with the exact importer values from the same CI
+receipt. After recording the successful dry-run and the write declaration,
+repeat the identical command with `--create`. `stage-jobs` reads only the fixed
+repository template, rejects arbitrary manifests and performs no persistent
+operation other than `Create Job`. An exact already-existing server-defaulted
+Job is a read-only retry; any other collision stops the stage.
+
+Call the importer image revision **revision A**. When its Job succeeds,
+immediately capture the complete, untruncated Pod stdout, Pod UID, image ID and
+Job condition before the Job TTL expires. Validate the sole JSON receipt,
+derive its canonical lowercase receipt SHA-256, and persist its exact bytes at
+this content-addressed path:
+
+```text
+docs/evidence/legacy-import/<receipt-sha256>/receipt.json
+```
+
+The directory name is the receipt SHA-256, never revision A. Evidence must not
+contain DSNs, credentials, certificate material or row values.
+
+Verify the receipt's compiled 51-table schema fingerprint and each table's
+source/target count and streaming hash. For `orders` and `order_goods`, retain
+the source evidence while requiring target count zero. Independently verify
+that the database comment is exactly
+`mss-shop-isolated-dev:legacy-import:v1:<receipt-sha256>`. The importer marker
+transaction commits before the importer writes its stdout receipt. Therefore a
+successful database import followed by missing or truncated log capture leaves
+a committed marker but no admissible receipt; a retry is correctly blocked by
+that marker. No exact repository-owned recovery path for this boundary is
+implemented yet. Complete stdout capture before TTL is consequently a hard
+deployment gate: on loss, stop, preserve the Job and database state, and seek a
+separately reviewed recovery. Do not rerun the importer.
+
+Commit the validated receipt at its SHA-addressed path to create clean
+**revision B**. The receipt must be tracked in revision B before the verifier
+image is built or staged.
+
+### 7. Verify receipt and empty order tables in-cluster
+
+Build the normal four-image CI delivery for revision B and select the
+revision-B digest of `ghcr.io/shop-r1/mss-shop-legacy-importer`; the verifier is
+another binary in that existing fourth image, not a fifth image. From the exact
+clean revision-B checkout, declare creation of immutable
+`ConfigMap/mss-shop-legacy-import-receipt` and only
+`Job/mss-shop-legacy-verify-<revision-B-full-sha>` in `mss-shop-dev`. Expected
+impact: delivery of non-secret, byte-exact committed receipt evidence and one
+read-only verification snapshot against only the new PostgreSQL. The legacy
+source, Redis, old development environment and production are unchanged.
+
+First run the fixed renderer and complete every Namespace, global collision,
+tracked-evidence, StatefulSet/PVC, Secret and server-side dry-run check without
+persistence:
+
+```shell
+go run ./services/reconciler/cmd/stage-jobs \
+  --mode verifier \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 89abcdef0123456789abcdef0123456789abcdef \
+  --image-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  --import-receipt-sha256 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
+  --receipt-file /root/workspace/mss-shop/docs/evidence/legacy-import/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/receipt.json
+```
+
+Replace the revision, digest and receipt SHA with the exact revision-B image
+receipt and tracked import receipt. After recording the successful dry-run and
+write declaration, repeat the identical command with `--create`. The operator
+may persist only the byte-exact immutable
+`ConfigMap/mss-shop-legacy-import-receipt` and verifier Job. An exact
+ConfigMap/Job retry is read-only, while a missing ConfigMap behind an existing
+Job or any mismatch fails closed. Immediately before Job creation it rechecks
+the exact Namespace and ConfigMap bytes.
+
+The fixed `legacy-verifier` role can reach only the new PostgreSQL. It receives
+the new PostgreSQL authentication Secret and CA plus the complete receipt from
+the immutable `ConfigMap/mss-shop-legacy-import-receipt`. It receives no
+legacy-source Secret, Redis Secret, source endpoint or Kubernetes API token. In
+one repeatable-read, read-only target snapshot it must independently assert:
+
+- stored marker suffix equals the verified receipt SHA-256;
+- the target inventory and schema fingerprint match the receipt;
+- `SELECT count(*) FROM public.orders` returns zero;
+- `SELECT count(*) FROM public.order_goods` returns zero.
+
+Capture the complete, untruncated stdout JSON, Pod UID, image ID and Job
+condition before the Job TTL expires. Do not remove the Job or Pod until the
+evidence has been captured and validated.
+
+The verifier success document has version
+`mss-shop-disposable-verification/v1` and exactly these fields:
+`version`, `targetDatabase`, `databaseMarker`, `receiptSHA256`,
+`manifestSHA256`, `schemaSHA256`, `tableCount`, `ordersRows`,
+`orderGoodsRows`, `namespace`, `podName`, `podUID`, `revision`,
+`imageRepository`, `imageDigest` and `imageReference`. It binds
+`mss_shop_dev`, the exact marker/receipt SHA, all 51 tables and reviewed target
+schema, zero rows in both order tables, `mss-shop-dev`, the Pod identity and
+`ghcr.io/shop-r1/mss-shop-legacy-importer:<revision-B>@sha256:<digest>`.
+A different failure version and field set are emitted.
+The resulting failure JSON is not acceptance evidence.
+
+Persist the complete success document beside the already committed receipt:
+
+```text
+docs/evidence/legacy-import/<receipt-sha256>/receipt.json
+docs/evidence/legacy-import/<receipt-sha256>/verification.json
+```
+
+Commit `verification.json` beside the receipt to create clean **revision C**.
+This completes the deliberate A-to-B-to-C chain: revision A imports and emits
+the receipt; revision B tracks that receipt and supplies the digest-bound
+verifier image; revision C tracks both evidence documents and is the clean
+checkout used for the later reconciliation-secret/reconciler stages. The
+receipt digest is the directory key because it exists before either evidence
+commit. A Git revision must never be used as its own evidence directory key:
+adding the file changes the revision and creates an impossible self-reference.
+Keep B reachable as an ancestor of C: the operator proves that B contains the
+unchanged receipt blob and does not yet contain `verification.json`, so a
+depth-one or rewritten checkout is insufficient evidence.
+
+Executed checkpoint on 2026-09-01: revision-B Job
+`mss-shop-legacy-verify-3eb4c72b485066e7b189446fab5b66a1047e66a2`
+completed once with one succeeded Pod and zero restarts. Its stdout file SHA is
+`47878f1f7da8164438604751a89f45775695a1794603296a93d6d5a81499824c`.
+The initial stage process reported failure only after Create because KubeSphere
+v3.1.1 injected its controller-owned `revisions` annotation before the final
+GET. Fix revision `ebefd1c20bf51f3c43e4a2bb90085fb60ea21442` later
+validated the existing B ConfigMap and Job as an exact read-only retry with
+`created=false`; it did not rerun the Pod. A separate B2-targeted preflight
+failed closed because the fixed immutable ConfigMap remains bound to B, and it
+created no second Job or Pod. Do not delete, replace or relabel that ConfigMap
+to manufacture another verifier run.
+
+**Gate:** satisfied by the byte-exact `receipt.json`, `verification.json` and
+safe workload provenance committed in revision C. A manual host-side query is
+not equivalent evidence, and neither evidence file may contain a DSN,
+credential, certificate, token or row value.
+
+### 8. Stage receipt-bound application/bootstrap Secrets
+
+After the preceding evidence passes, run the separately reviewed
+`stage-reconciliation-secrets` operator from the clean evidence-bearing
+checkout. Use absolute paths to the two exact tracked files. The command shown
+below is the default non-persistent mode: it submits the exact two application
+Secret operations and bootstrap Secret operation to the Kubernetes API server
+with `DryRunAll`, but stores no object:
+
+```shell
+go run ./services/reconciler/cmd/stage-reconciliation-secrets \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 89abcdef0123456789abcdef0123456789abcdef \
+  --import-receipt-sha256 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
+  --receipt-evidence /root/workspace/mss-shop/docs/evidence/legacy-import/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/receipt.json \
+  --verification-evidence /root/workspace/mss-shop/docs/evidence/legacy-import/cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/verification.json
+```
+
+Replace the operator revision and receipt SHA with the exact reviewed values;
+the verification document independently binds its actual verifier revision and
+image digest. Before initializing a Kubernetes client, the command requires
+a clean operator checkout, exact fixed paths, regular non-symlink files, Git
+tracking in `HEAD`, byte-for-byte agreement with the committed blobs, strict
+single-document JSON, the canonical importer receipt digest and the complete
+receipt/verifier bindings above. It then reads only the isolated foundation
+credentials, validates every Secret collision and performs the API-server
+dry-run. A successful default invocation proves only that the exact operations
+would be accepted; it creates or updates nothing.
+
+Record the dry-run result and declare the exact write target. Then repeat the
+identical command with `--create`. The create invocation repeats all evidence,
+foundation-credential, collision and object checks, performs the exact
+API-server dry-run again with the same generated material, and only then may
+persist these three Secrets in `mss-shop-dev`:
+
+- `Secret/mss-shop-tenant-admin-runtime`;
+- `Secret/mss-shop-mall-admin-aussibuy-runtime`;
+- `Secret/mss-shop-reconciler-bootstrap`.
+
+It cannot select another namespace. It never reads or writes any
+`r1shop-dev` application, database, Redis, Secret, volume, Service or Ingress.
+
+This host-side operator does **not** connect to PostgreSQL and its committed
+evidence checks are not a replacement for a live database boundary. The later
+in-cluster reconciler independently queries the exact database marker and
+requires `public.orders` and `public.order_goods` to remain empty before any
+DDL.
+
+**Gate:** satisfied for final revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32`; the reviewed dry-run and exact
+three-Secret stage completed before the receipt-bound reconciler was admitted.
+No Secret value, DSN or credential is part of the durable evidence. A repeat
+or later release must still pass the exact clean-checkout dry-run first, and
+dry-run success alone is not write authorization: the explicit three-resource
+declaration remains required before `--create`.
+
+### 9. Create the receipt-bound reconciler Job
+
+Render `deploy/mss-shop-dev/reconciler-job.yaml` with the same full SHA,
+reconciler digest and verified receipt SHA. Declare and create only
+`Job/mss-shop-reconciler-<full-sha>` in `mss-shop-dev`. Expected impact:
+receipt-bound reconciliation of the fixed isolated roles, compatibility
+owners, schemas, snapshots, views and grants; no Kubernetes API access and no
+legacy-source write.
+
+From the same exact clean checkout, first run the fixed renderer and complete
+preflight without persistence:
+
+```shell
+go run ./services/reconciler/cmd/stage-jobs \
+  --mode reconciler \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --image-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  --import-receipt-sha256 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+```
+
+Replace all three example bindings with the reconciler CI receipt and the
+independently verified import receipt. The command requires the immutable
+bootstrap Secret to contain that exact receipt SHA. After recording the
+successful dry-run and the write declaration, repeat the identical command
+with `--create`. It reads only the fixed repository template, creates only the
+receipt-bound Job, and treats only a fully equivalent server-defaulted Job as
+an exact retry. After success, persist complete safe logs, ownership/ACL
+inventory, counts and hashes. Delete the transient bootstrap Secret only
+through its separately reviewed lifecycle operation; never delete either
+application Secret ad hoc.
+
+### 10. Verify the fixed Member Levels projection
+
+The successful reconciler Job must still exist as immutable cluster evidence.
+From that same exact clean full SHA, use the same reconciler image digest and
+the same verified import receipt SHA. Declare creation of only
+`Job/mss-shop-ml-projection-<full-sha>` in `mss-shop-dev`. Expected impact: one
+repeatable-read, read-only verification transaction against the isolated
+PostgreSQL database; no application Deployment, legacy source, old development
+environment or production object is changed.
+
+Run the fixed renderer in its default non-persistent mode first:
+
+```shell
+go run ./services/reconciler/cmd/stage-jobs \
+  --mode projection-verifier \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --image-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+  --import-receipt-sha256 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+```
+
+The command refuses a dirty or different checkout, a tag-only image, a
+different Namespace, receipt or digest, an incomplete reconciler Job, or a
+reconciler Job whose immutable Pod specification is not the exact same-SHA,
+same-digest prerequisite. It also validates the exact active-or-retired mall
+runtime Secret shape without printing any Secret value. Record the successful
+server dry-run and the exact one-Job write declaration, then repeat the
+identical command with `--create`. The only permitted persistent operation is
+`Create Job`; it never applies, patches, updates or deletes a resource.
+
+The Job reuses the PostgreSQL-only `legacy-verifier` network role, has no
+ServiceAccount token, mounts only the PostgreSQL CA, and receives only
+`database-runtime-dsn` from
+`Secret/mss-shop-mall-admin-aussibuy-runtime`. The runtime role has SELECT only
+on the fixed, no-parameter, single-row
+`mss_m_aussibuy_biz.r1_member_levels_projection_audit` view. That view remains
+owned by `mss_m_aussibuy_compat_owner`, uses `security_invoker=false`, revokes
+all PUBLIC privileges and does not expose row values. The verifier must assert:
+
+- fixed-tenant public `member_levels` rows = 4 and business-view rows = 4;
+- the bidirectional `EXCEPT ALL` difference over all 12 reviewed columns = 0;
+- business cross-tenant rows = 0;
+- flagged defaults = 1, active/enabled defaults = 1 and invalid defaults = 0;
+- active (`deleted_at IS NULL`) duplicate name groups = 0;
+- public and business `orders` rows = 0;
+- public and business `order_goods` rows = 0;
+- an independent business-view recount matches the audit view; and
+- catalog-OID checks return false for every table and column privilege of the
+  runtime role on all three public tables (`member_levels`, `orders`,
+  `order_goods`).
+
+Capture the complete, untruncated sole Pod stdout JSON, Pod UID, immutable image
+ID and successful Job condition before the TTL expires. A success document has
+version `mss-shop-member-levels-projection-verification/v1`, `verified=true`,
+all aggregate counts above (including `duplicateNameGroups=0`),
+`runtimePublicPrivileges=false`, and exact `namespace`, `podName`, `podUID`,
+full `revision`, `imageDigest` and `imageReference` bindings. It contains no
+DSN, password, token, certificate or source row value. A failure-version JSON
+is not acceptance evidence.
+
+**Gate:** only the complete success JSON bound to the declared Pod, receipt,
+revision and digest permits the Admin runtime stage. A host-side query, a query
+run as bootstrap/compatibility owner, or a partial log excerpt is not
+equivalent evidence.
+
+### 11. Create the Admin TLS boundary in mss-shop-dev only
+
+After both Admin records are confirmed DNS Only and resolve directly to the
+ingress address, run the trusted TLS operator without `--apply`. Its default
+mode performs read-only collision checks and server-side dry-runs for the
+compiled four-object bootstrap inventory: one exact ACME solver NetworkPolicy,
+one namespaced ACME Issuer and two explicit-host Certificates. The policy
+allows only ingress-nginx controller traffic to cert-manager solver Pods on
+TCP 8089; it does not create a general ingress exception.
+
+The exact inventory is:
+
+- `NetworkPolicy/mss-shop-allow-ingress-nginx-to-acme-http01`;
+- `Issuer/mss-shop-dev-letsencrypt-production`;
+- `Certificate/mss-shop-tenant-admin-tls`; and
+- `Certificate/mss-shop-mall-admin-aussibuy-tls`.
+
+```shell
+go run ./services/reconciler/cmd/stage-admin-tls \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567
+```
+
+Record the complete dry-run result and declare the exact four
+`mss-shop-dev` resources before repeating the same command with `--apply`.
+This operator is create-only: it may create the NetworkPolicy, Issuer and
+Certificates but may not update, adopt, replace or delete a colliding object.
+Wait for all four objects to retain the compiled spec and for the Issuer and
+both Certificates to have a Ready condition before continuing.
+
+cert-manager automatically creates the Issuer's ACME account-key Secret and
+each Certificate's referenced TLS Secret, and may create and remove temporary
+ACME HTTP-01 solver Pods, Services and Ingresses. These generated Secrets and
+solver resources are expected
+cert-manager side effects of the four declared objects. They remain confined
+to `mss-shop-dev`; do not read, decode, log or otherwise inspect TLS Secret
+contents. This workflow grants no write in `r1shop-dev`, `r1shop-prod`, the
+`database` namespace or any other namespace.
+
+### 12. Stage the Admin runtime in mss-shop-dev only
+
+Once every previous gate passes, run the trusted runtime operator without
+`--apply` for collision and server-side dry-run checks. Supply the two Admin
+digests from the same four-image CI run:
+
+```shell
+go run ./services/reconciler/cmd/stage-runtime \
+  --environment mss-shop-dev \
+  --kubeconfig /absolute/path/to/devops.kubeconfig \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --tenant-image-digest sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+  --mall-image-digest sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+```
+
+The runtime dry-run performs a read-only check of all four TLS bootstrap
+prerequisites and must reject a missing or drifted NetworkPolicy, Issuer or
+Certificate, or a non-Ready Issuer/Certificate. Before `--apply`, both records
+must resolve DNS Only directly to the ingress address, port 80 must be
+reachable, all four prerequisite specs must remain exact, and the Issuer plus
+both Certificates must remain Ready. A successful HTTPS handshake through
+either main Admin Ingress is deliberately **not** a precondition: until apply,
+those two existing Ingresses
+still own the historical `nip.io` hosts. Requiring the future HTTPS route here
+would make a safe atomic host cutover impossible.
+
+After recording the dry-run and passing that pre-apply gate, capture the exact
+eight current runtime objects for a resourceVersion-bound recovery review,
+declare those eight objects and the expected two one-replica rolling restarts,
+then repeat the same command with `--apply`. Replace the revision and example
+digests with the verified receipt values. The operator is compiled for
+`mss-shop-dev`, rejects tag-only images, checks Ingress collisions cluster-wide
+and never forces a field conflict. Its desired runtime contract adds the two
+new Ingress hosts and `spec.tls` Secret references, HTTPS origins and CORS
+origins, secure browser-session cookies, and the matching migration-domain
+arguments across the same core eight objects.
+
+Immediately after apply, verify that each exact hostname presents trusted
+HTTPS, appears in the certificate SANs, routes to the intended isolated Admin,
+and redirects plain HTTP to HTTPS. Do not read or enter either administrator
+password before all of these post-apply checks pass.
+
+### 13. Cluster system verification
+
+Run every system-verification case in disposable, one-time Pods in
+`mss-shop-dev`. At minimum record:
+
+- desired/available replicas, zero new restarts and digest-matching image IDs;
+- PostgreSQL/Redis TLS and least-privilege negative cases;
+- `/healthz` and `/readyz` for both Admin hosts;
+- fixed tenant/schema binding and cross-schema/cross-tenant denials;
+- receipt/marker and both zero-order-table assertions;
+- menu, permission, locale, empty/error and read-only compatibility contracts.
+
+Capture Pod logs before removing only the named test Pods. A health check or a
+generic compatibility list does not close any of the 31 business scenarios.
+
+### 14. In-app-browser acceptance and owner handoff
+
+Use the in-app browser against the two planned HTTPS Admin entries only after
+the host-routing and trusted-certificate gate above passes. Verify login,
+authorized navigation, `zh-CN` and `en-US`, list/detail, empty/error states,
+read-only mutation absence and the MSS Admin visual language. Save screenshots
+and console/network findings under `docs/acceptance/`, state the exact image
+digests and untested scope, and leave both URLs running for manual owner review.
+An HTTP response, a certificate warning or a bypassed TLS warning must not be
+used to transmit either administrator password or satisfy this gate.
+
+Finally repeat the original-environment read-only fingerprint from step 2. Its
+UIDs, generations, images, readiness, restarts and named object fingerprints
+must be unchanged. Any difference blocks acceptance and is investigated
+without changing the old environment.
+
+## Failure and rollback
+
+- Stop at the first failed gate and preserve safe evidence. Do not continue
+  because the old application is still available.
+- The eight-object Admin update is ordered but not transactional. If an apply
+  stops after only some objects changed, do not retry: the mixed host-contract
+  inventory intentionally fails closed. Preserve the error and live object
+  snapshots, then prepare a separately reviewed resourceVersion-bound restore
+  of only those named `mss-shop-dev` objects before another stage attempt.
+- Never repair a failed isolated stage by changing the old development or
+  production environment.
+- Infrastructure and foundation credentials are create-only. Their deletion,
+  replacement or rotation requires a separate reviewed lifecycle decision;
+  this runbook grants none.
+- The four Admin TLS bootstrap objects are also create-only. Certificate
+  renewal and cert-manager solver reconciliation are controller-owned, but
+  replacing or deleting the NetworkPolicy, Issuer or either Certificate needs
+  a separate reviewed lifecycle decision.
+- Runtime rollback may select a previously verified digest through the same
+  `stage-runtime` preflight/apply path and changes only the two new Admin
+  Deployments. Never roll back database/import migrations destructively.
+- The marker transaction commits before the importer writes its stdout receipt.
+  There is currently no exact repository-owned recovery if that complete output
+  is lost. Preserve the Job/database state, stop for separate review, and do not
+  rerun the importer.

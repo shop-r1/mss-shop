@@ -1,0 +1,75 @@
+apiVersion: r1shop.io/v1alpha1
+kind: IsolatedLegacyImportSuccessEvidence
+metadata:
+  namespace: mss-shop-dev
+  capturedAt: "2026-09-01"
+spec:
+  sourceRevision: 6fed45f354e93efe104045c6dde86ac33c368d6d
+  targetDatabase: mss_shop_dev
+  image:
+    repository: ghcr.io/shop-r1/mss-shop-legacy-importer
+    digest: sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3
+  originalDevelopmentBoundary:
+    environment: r1shop-dev-read-only
+    evidencePath: docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json
+    beforeFileSHA256: 70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d
+    afterFileSHA256: 70b29137f5c499c8819effb4313838a5fd73f0d229205ed92160dda43663683d
+    byteIdenticalBeforeAndAfter: true
+    selectedSafeFieldsSHA256: 7ddbc7f22749a29a7c019a5fa9f6c5d933cdfdd5fa5cb0e5fb9bc2bab54d8854
+    secretsAccessed: false
+    databaseConnectionsPerformed: false
+    writesPerformed: false
+  readiness:
+    job: mss-shop-readiness-6fed45f354e93efe104045c6dde86ac33c368d6d
+    jobUID: a806992f-5152-40fb-b566-859b6388b737
+    pod: mss-shop-readiness-6fed45f354e93efe104045c6dde86ac33c368d6ws2rz
+    podUID: 85310922-3b41-45d0-8e83-bbbe4efc7f52
+    result: passed
+    restartCount: 0
+    stdoutSHA256: f57f3568a566a9f38c70936c8da6fa15a1ec2b043b6e8d7ea410cf6d9a91f91e
+    podBindingSHA256: ca08a0ec3c66025d1db4aeb78b71667af02373f489af5bb781657190e7a2595b
+    jobBindingSHA256: 79773cc1b2f0a70155da14604d5748d4273865ed5ec69ae46930979bfb122b4b
+  importer:
+    job: mss-shop-legacy-import-6fed45f354e93efe104045c6dde86ac33c368d6d
+    jobUID: 40f0e23d-659f-4bba-a8c9-21d530fbab95
+    pod: mss-shop-legacy-import-6fed45f354e93efe104045c6dde86ac33c3cm9ml
+    podUID: efa711bb-d31c-4762-ad6a-478ea190dd3e
+    result: succeeded
+    restartCount: 0
+    retries: 0
+    stdoutReceiptFileSHA256: 145d4d34e73741d86161aed086dadc990c7f446777dc4a1c3b5152fab35553c4
+    podBindingSHA256: 67737edb16fc83878aa422c82abe5547463a1506aac8ef584260b5f77253446b
+    jobBindingSHA256: d7eb67c182ba82df4fa4e6161c8acd219ad06b2806e3e09749f49b87f274ba99
+  receipt:
+    evidencePath: docs/evidence/legacy-import/fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76/receipt.json
+    fileSHA256: 145d4d34e73741d86161aed086dadc990c7f446777dc4a1c3b5152fab35553c4
+    canonicalPayloadSHA256: fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76
+    manifestSHA256: c108b11543f41bbd8384540b7314909cd8056e3a141cc7447c443cb98c7e6e5b
+    schemaSHA256: afd144a9654602a2452dc20e758b4cc3947a3e0748941ea58da7a53d2874a93a
+    tableCount: 51
+    copiedTableCount: 49
+    structureOnly:
+      orders:
+        sourceRows: 14
+        targetRows: 0
+      order_goods:
+        sourceRows: 1170
+        targetRows: 0
+    databaseMarker: mss-shop-isolated-dev:legacy-import:v1:fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76
+  deliveryCI:
+    runID: 33494258866
+    conclusion: success
+    tenantDigest: sha256:fe8db92bce70c12be7d0f6ad8de60e05d65322c2b3aecf384d212deb35abe3fd
+    mallDigest: sha256:4db62ab4c264714fd0c23a1033935d569edfd9f54c1c37d4f58f6299df50d925
+    reconcilerDigest: sha256:8cb1e54946b442efd5f33fc433b06bd9e663ec85c81091b8518861855b92e781
+    legacyImporterDigest: sha256:881f105ea00dfac3bf4381e0177ad1349998d51059beeb155e1a96c64bbe3ba3
+  currentState:
+    successfulImport: true
+    receiptPersisted: true
+    targetOrderRows: 0
+    targetOrderGoodsRows: 0
+    postImportVerifierExecuted: false
+    reconciliationExecuted: false
+    adminRuntimeDeployed: false
+    originalDevelopmentEnvironmentUnchanged: true
+    productionResourcesAccessed: false

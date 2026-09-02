@@ -1,0 +1,137 @@
+{
+  "version": "mss-shop-original-dev-read-only-fingerprint/v1",
+  "capturedAt": "2026-09-01T06:16:25Z",
+  "accessMode": "kubernetes-get-list-and-read-only-sql-only",
+  "namespace": {
+    "name": "r1shop-dev",
+    "uid": "a8554748-0682-4c00-9bb2-b90c40c14d1e",
+    "phase": "Active"
+  },
+  "application": {
+    "deployment": {
+      "name": "shop",
+      "uid": "f1c65d9b-db13-4450-a571-6dfab677f2a5",
+      "resourceVersion": "119368003",
+      "generation": 30,
+      "observedGeneration": 30,
+      "readyReplicas": 1,
+      "updatedReplicas": 1,
+      "availableReplicas": 1,
+      "image": "ghcr.io/shop-r1/shop-go:82b970fa675a21e75ebec2926e62614131c65319"
+    },
+    "pod": {
+      "name": "shop-59965bdd75-6smbr",
+      "uid": "e94465c5-6337-4074-a27d-3c0ba5c6b452",
+      "ready": true,
+      "restartCount": 0,
+      "image": "ghcr.io/shop-r1/shop-go:82b970fa675a21e75ebec2926e62614131c65319",
+      "imageID": "ghcr.io/shop-r1/shop-go@sha256:286064abf5d8da3427c4cba7230add791aba7a102e90fde7b012701c723e2169"
+    },
+    "service": {
+      "name": "shop",
+      "uid": "2cf59073-7b98-4edd-9b53-0d0cf9f50a68",
+      "resourceVersion": "102394875",
+      "clusterIP": "10.233.53.143",
+      "port": 80
+    },
+    "ingress": {
+      "name": "shop",
+      "uid": "bc2601a5-84b5-4b83-8bec-eee1b63094b6",
+      "resourceVersion": "112782282",
+      "generation": 1,
+      "host": "api-dev.r1shop.net"
+    }
+  },
+  "legacyDatabase": {
+    "namespace": "database",
+    "statefulSet": {
+      "name": "timescaledb-r1shop-dev",
+      "uid": "5c1e919d-99eb-40f3-8180-c67c0bff6e87",
+      "generation": 1,
+      "readyReplicas": 1,
+      "image": "timescale/timescaledb:2.20.2-pg17"
+    },
+    "service": {
+      "name": "timescaledb-r1shop-dev",
+      "uid": "c670721c-2bfc-442b-90df-fb9da826331e"
+    },
+    "pod": {
+      "name": "timescaledb-r1shop-dev-0",
+      "uid": "860ce633-b838-4d55-8121-8c1da24ca7cf",
+      "ready": true,
+      "restartCount": 0,
+      "imageID": "docker.io/timescale/timescaledb@sha256:a6fc1097505260ecfaa056639cf19595f67f64286ff0aa4634e26594defea401"
+    },
+    "storage": {
+      "persistentVolumeClaim": {
+        "name": "data-timescaledb-r1shop-dev-0",
+        "uid": "5f947ada-2bf6-4ae1-865b-a16a3d6357b6",
+        "resourceVersion": "102392525",
+        "phase": "Bound",
+        "volumeName": "pvc-5f947ada-2bf6-4ae1-865b-a16a3d6357b6"
+      },
+      "persistentVolume": {
+        "name": "pvc-5f947ada-2bf6-4ae1-865b-a16a3d6357b6",
+        "uid": "5a50546e-4c0a-4f52-aa19-ed256e8078b5",
+        "resourceVersion": "102392523",
+        "claimNamespace": "database",
+        "claimName": "data-timescaledb-r1shop-dev-0",
+        "claimUID": "5f947ada-2bf6-4ae1-865b-a16a3d6357b6"
+      }
+    },
+    "database": "r1shop_dev",
+    "serverVersionNum": "170005",
+    "transactionReadOnlyObserved": true,
+    "extensions": [
+      "plpgsql:1.0",
+      "timescaledb:2.20.2"
+    ],
+    "publicTableCount": 54,
+    "orderedPublicTableNamesSHA256": "7f77ff59b24f05c421a5434a032d9dab905ab309ed1d39f5ae443c9d0f8e8d2c"
+  },
+  "legacyRedisReference": {
+    "statefulSet": {
+      "name": "redis-r1shop-dev",
+      "uid": "08050154-9b72-4d13-9f4d-092ee87778e6",
+      "resourceVersion": "102394716",
+      "generation": 1,
+      "readyReplicas": 1,
+      "image": "redis:8.6.3"
+    },
+    "service": {
+      "name": "redis-r1shop-dev",
+      "uid": "0d3cd22d-6880-43cf-b65f-c99e83e1d323",
+      "resourceVersion": "102394615"
+    },
+    "pod": {
+      "name": "redis-r1shop-dev-0",
+      "uid": "ceb7c3fe-24de-482b-9f1b-602df245bc94",
+      "resourceVersion": "102394713",
+      "ready": true,
+      "restartCount": 0,
+      "imageID": "docker.io/library/redis@sha256:4d25e2fe601f7ffaeb4437cb6ced3518bc36edf34ebe98863c80836943d94529"
+    },
+    "storage": {
+      "persistentVolumeClaim": {
+        "name": "data-redis-r1shop-dev-0",
+        "uid": "4aa2a36a-9136-4bd9-abea-42081189fe7e",
+        "resourceVersion": "102394662",
+        "phase": "Bound",
+        "volumeName": "pvc-4aa2a36a-9136-4bd9-abea-42081189fe7e"
+      },
+      "persistentVolume": {
+        "name": "pvc-4aa2a36a-9136-4bd9-abea-42081189fe7e",
+        "uid": "a90ef1f4-70aa-4e94-90a9-0681223f186e",
+        "resourceVersion": "102394660",
+        "claimNamespace": "database",
+        "claimName": "data-redis-r1shop-dev-0",
+        "claimUID": "4aa2a36a-9136-4bd9-abea-42081189fe7e"
+      }
+    },
+    "dataRead": false,
+    "sharedWithMSSShopDev": false
+  },
+  "secretsCaptured": false,
+  "businessRowsCaptured": false,
+  "writesPerformed": false
+}

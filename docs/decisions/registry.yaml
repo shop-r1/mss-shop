@@ -36,3 +36,39 @@ decisions:
     date: 2026-08-28
     path: DEC-0006-desired-observed-reconciliation.md
     applies_to: [mss-shop]
+  - id: DEC-0007
+    title: Access legacy business data through a qualified schema contract
+    status: accepted
+    date: 2026-09-01
+    path: DEC-0007-qualified-legacy-business-contract.md
+    applies_to: [mss-shop]
+  - id: DEC-0008
+    title: Rebuild payments as tenant-owned pluggable workflows
+    status: proposed
+    date: 2026-09-01
+    path: DEC-0008-tenant-owned-pluggable-payments.md
+    applies_to: [mss-shop, mss-shop-mobile]
+  - id: DEC-0009
+    title: Let each tenant own its product catalog and logistics rules
+    status: accepted
+    date: 2026-09-01
+    path: DEC-0009-tenant-owned-catalog-and-logistics.md
+    applies_to: [mss-shop]
+  - id: DEC-0010
+    title: Develop remotely and deploy into isolated mss-shop-dev
+    status: accepted
+    date: 2026-09-01
+    path: DEC-0010-remote-development-and-dev-reconciliation.md
+    applies_to: [mss-shop]
+  - id: DEC-0011
+    title: Use DNS-only ingress TLS for isolated Admin host cutover
+    status: accepted
+    date: 2026-09-02
+    path: DEC-0011-dns-only-admin-tls-and-host-cutover.md
+    applies_to: [mss-shop]
+  - id: DEC-0012
+    title: Refresh isolated Admin images from qualifying pull requests
+    status: accepted
+    date: 2026-09-02
+    path: DEC-0012-pr-head-admin-image-refresh.md
+    applies_to: [mss-shop]

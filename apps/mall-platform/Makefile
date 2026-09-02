@@ -17,6 +17,6 @@ frontend-test:
 	corepack pnpm@10.34.5 --dir web test
 
 frontend-build:
-	corepack pnpm@10.34.5 --dir web build
+	MSS_V6_TOTAL_JS_GZIP_BUDGET_KB=930 corepack pnpm@10.34.5 --dir web build
 
 verify: backend-test frontend-lint frontend-test frontend-build

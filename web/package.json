@@ -13,7 +13,7 @@
     "build": "mss-admin-web build"
   },
   "dependencies": {
-    "@mss-boot-io/admin-web": "1.3.6",
+    "@mss-boot-io/admin-web": "1.3.7",
     "@ant-design/icons": "6.3.2",
     "@tanstack/react-query": "5.101.4",
     "@umijs/max": "4.7.7",

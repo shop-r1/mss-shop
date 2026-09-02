@@ -1,5 +1,7 @@
 bin/
 *.db
+*.db-shm
+*.db-wal
 *.out
 .mss/reports/
 .mss/run/
@@ -9,6 +11,7 @@ logs/
 web/node_modules/
 web/.pnpm-store/
 web/dist/
+web/.turbopack/
 web/.umi/
 web/.umi-production/
 web/src/.umi/

@@ -6,7 +6,7 @@ database or deployment writes.
 ## Prerequisites
 
 - Go and Node versions declared by `.mss/project.yaml`.
-- Official `mss` and `mss-mcp` release binaries at `v1.3.6`.
+- Official `mss` and `mss-mcp` release binaries at `v1.3.7`.
 - pnpm version locked by `web/package.json`.
 
 ## Start the phase-zero Thin Host
@@ -41,11 +41,17 @@ GOTOOLCHAIN=go1.26.6 mss --root apps/tenant-platform verify --all
 GOTOOLCHAIN=go1.26.6 mss --root apps/mall-platform verify --all
 ```
 
-MSS 1.3.6 recursively treats nested generated modules as root modules, so do
-not use a current root `mss verify --all` result as final-host evidence. The
-root doctor covers the historical proof and each final host owns its full
-verification. These checks still do not prove future tenant isolation or
-legacy data migration.
+MSS 1.3.7 still discovers generated modules below nested Thin Hosts as root
+modules, so a root `mss verify --all` reports those files against the wrong
+specification root. The root proof uses strict doctor plus its explicit
+backend/frontend CI jobs; each final Host owns its complete verification.
+Success in one does not substitute for either of the others. These checks still
+do not prove future tenant isolation or legacy data migration.
+
+The 1.3.7 source upgrade does not authorize a database migration. Before any
+existing 1.3.3-1.3.6 database is migrated, stop writers, take a restorable
+backup, and complete the documented permission-collision review required by
+forward guard `20260830193000`. Never bypass or pre-mark that guard.
 
 ## Final Admin hosts
 
@@ -67,6 +73,62 @@ Each first setup prompts for its own local administrator password and creates
 an ignored SQLite file in that app. Do not invent or commit a default password.
 Container deployments may use the same internal ports because they have
 separate network namespaces.
+
+## Mall Admin local legacy UI fixture
+
+This fixture exists only to make the 50 reviewed mall Admin resource pages
+visible during local browser acceptance. It is not a legacy data migration,
+does not copy production data, does not prove tenant/schema isolation and does
+not close a system or business acceptance scenario. It never contacts
+Kubernetes or PostgreSQL and does not use GORM `AutoMigrate`.
+
+Run `mss setup` for `apps/mall-platform` first and choose the local
+administrator password through its hidden prompt. The fixture creates no user
+and has no default password. Stop the local backend before preparing the file,
+then run the following from the `apps/mall-platform` directory:
+
+```shell
+GOWORK=off GOTOOLCHAIN=go1.26.6 go run ./cmd/local-legacy-fixture \
+  --db "$PWD/mss-boot-admin-local.db" \
+  --legacy-tenant-id local-demo \
+  --confirm-local-ui-fixture
+```
+
+The command accepts only the existing `mss-boot-admin-local.db` regular file
+created by setup in the current mall-platform module root; it never creates the
+database file itself. The database path, demo tenant value and confirmation
+flag are all mandatory. Database URLs, DSNs, directories, symbolic links,
+files outside this module and non-SQLite files are rejected before database
+work. Existing reviewed tables must already contain
+the compiled columns; the command never alters them. Missing tables use
+forward-only `CREATE TABLE IF NOT EXISTS`, while demo rows use fixed primary
+keys and `ON CONFLICT DO NOTHING`, so rerunning the command neither replaces
+nor deletes existing rows.
+
+The fixture inserts non-sensitive examples for `function_circles`,
+`message_events`, `message_templates` and `show_categories`, plus examples
+covering goods, members, warehouses, orders and inventory. These seeded rows
+exist only to exercise lists, details and empty states: all 50 compatibility
+resources are read-only in the current Host. The other reviewed tables remain
+empty but structurally available for empty-state UI checks.
+
+Use the same fixed row scope when starting the local Host:
+
+```shell
+export R1SHOP_TENANT_ID=local-ui-control
+export R1SHOP_ADMIN_TENANT_ID=default
+export R1SHOP_LEGACY_TENANT_ID=local-demo
+export R1SHOP_BIZ_SCHEMA=main
+GOWORK=off GOTOOLCHAIN=go1.26.6 mss dev
+```
+
+Under DEC-0009 the seven product/logistics resources use the tenant business
+schema, so the mall runtime no longer accepts or depends on a shared product/
+logistics schema. Local SQLite readiness validates `main`; it does not prove
+the forward authorization migrations or tenant data conversion in PostgreSQL.
+Use disposable in-cluster tests against development PostgreSQL for system
+verification; never point this local command at a migration source or any
+production database.
 
 ## Storefront bootstrap and mobile H5
 

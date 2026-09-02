@@ -10,20 +10,80 @@
   plane bound to exactly one tenant and one fixed core/business schema pair;
   do not add request-time schema switching or allow a client to select a
   schema.
-- The reconciler is the only component allowed to create or mutate tenant
-  schemas, roles, credentials, and runtime resources. HTTP handlers only record
-  desired state.
+- The in-cluster reconciler is the only component allowed to create or mutate
+  tenant database roles, schemas, snapshots, compatibility views and grants.
+  It has no Kubernetes API identity. Fixed trusted operator commands own stage
+  application Secrets and workload objects after fail-closed collision checks;
+  HTTP handlers only record desired state.
 - Storefront clients use the dedicated `/app/v1` contract. They do not call the
   MSS Admin API and must never receive database or schema identifiers.
 - User-visible behavior is internationalized from the first change. Keep
   `zh-CN` and `en-US` complete today, use stable message/error keys, and follow
   `docs/architecture/internationalization.md` before adding a locale.
+- For legacy Admin work, treat `docs/migration/legacy-tables.yaml` as the
+  authoritative 54-table inventory and
+  `docs/migration/legacy-admin-acceptance-matrix.md` as the business coverage
+  baseline. Follow `.agents/skills/r1shop-legacy-module/SKILL.md`; never use a
+  generic editor as a substitute for order, inventory, payment, wallet,
+  promotion or import workflows.
+- Legacy compatibility ownership is 50 mall resources plus the one
+  tenant-platform `payments` resource. All 51 generic compatibility resources
+  are read-only. The checked-in
+  source includes forward-only ownership migrations, but they are not evidence
+  that any environment has applied or deployed them. Do not enable generic
+  mutation until one resource and operation has restored and proved its legacy
+  semantics. Never search, filter or sort a JSON column with declared nested
+  secrets, including `system_configs.metadata`.
 - `r1shop-prod` and its TimescaleDB/Redis are live. Production writes require
   explicit approval for the exact action in the current conversation. System
   verification runs in disposable Kubernetes Pods; never migrate production
   data while developing this repository.
+- The original `r1shop-dev` environment is immutable from this repository's
+  point of view. Never create, update or delete its application resources,
+  PostgreSQL objects or ACLs, Redis data/configuration, Secrets, Services,
+  Ingresses, roles or storage. The MSS stage uses the separate
+  `mss-shop-dev` namespace with its own PostgreSQL instance/PVC, Redis
+  instance/PVC, credentials and workloads as recorded by DEC-0010, with Admin
+  TLS and host cutover recorded separately by DEC-0011.
+  Legacy development data may enter that environment only through a bounded
+  read-only snapshot operation that makes no source-side change and copies no
+  `orders` or `order_goods` rows. The importer is the only one-time exception
+  to the reconciler's target-database mutation ownership: it may initialize
+  only an empty, exact-marker `mss_shop_dev` target, emits a receipt, and has
+  no Kubernetes API identity. Its source snapshot must match the exact
+  `plpgsql 1.0`/`pg_catalog` and `timescaledb 2.20.2`/`public` inventory,
+  91 object-level TimescaleDB `public` routine members, zero other routines,
+  zero standalone types and the reviewed instance-bound complete `pg_proc`
+  SHA-256 recorded in the migration contract. A restore, extension reinstall
+  or OID drift requires a new read-only review; never relax this at run time.
+  A deployment command must fail closed if it targets
+  `r1shop-dev`, `database/timescaledb-r1shop-dev`, or
+  `database/redis-r1shop-dev` for mutation.
+- The only automatic development deployment is the DEC-0012 image-only path.
+  After a same-repository `codex/**` pull request to `main` passes CI and
+  publishes all four images for its exact head SHA, the local reusable CD may
+  use the `mss-shop-dev` GitHub Environment credential to run `kubectl set
+  image` for only `mss-shop-tenant-admin` and
+  `mss-shop-mall-admin-aussibuy`, updating both `migrate` and `admin`. It must
+  not mutate configuration, databases, Secrets, networking, the original
+  development environment or production, and it is not acceptance evidence.
+  Its namespace identity is the fixed `mss-shop-dev-image-updater`
+  ServiceAccount/Role/RoleBinding/token Secret set; the Role permits only
+  `get`/`patch` on those two Deployments. Account these four DEC-0012 access
+  objects separately from DEC-0010's 24 infrastructure objects and six
+  foundation Secrets. The first verified execution is GitHub Actions run
+  `33574863356` for PR-head revision
+  `bf07098cb8a7c5f2c52993e28c69afc7712c4d98`; both Deployments reached
+  1/1 updated, ready and available with zero container restarts. This is CD
+  operation evidence only, not system or browser acceptance.
 - Work on `codex/...` branches. Do not push, deploy, merge to a production
   branch, or trigger a frontend release unless the user explicitly requests it.
+- The current project-owner sequence is development first, formal validation
+  and isolated rollout later. Until `docs/project/status.md` lifts that hold,
+  label new modules `source-implemented-unverified`, do not push merely to run
+  CI, and do not treat a loopback remote-server preview as test or acceptance
+  evidence. This sequencing rule does not waive any test; it defers the full
+  suite to the pre-PR clean-SHA checkpoint.
 - Do not commit credentials, DSNs, tokens, private keys, database files, logs,
   build caches, or machine-specific absolute paths.
 
@@ -71,8 +131,13 @@ configuration, deployment, tests, and generated composition glue.
   boundary.
 - Use the scoped `.agents/skills/mss-thin-host/SKILL.md` workflow for business
   changes.
+- Use `.agents/skills/r1shop-legacy-module/SKILL.md` in addition for a module
+  that reads or writes a legacy business table.
 - Run `mss doctor --strict` after setup and `mss verify --all` before opening a
   pull request.
+- Run `tools/check-project-memory.sh` whenever implementation status,
+  architecture, migration contracts, acceptance evidence, Skills or MCP
+  configuration change; documentation drift is a failing deliverable.
 
 ## Admin Web package
 
@@ -95,5 +160,5 @@ configuration, deployment, tests, and generated composition glue.
 - Apply only a conflict-free reviewed plan with `--apply --yes`; never upgrade
   the Go Admin Module and Admin Web package independently.
 
-Generated by `mss` v1.3.6 from the management-system Thin
+Generated by `mss` v1.3.7 from the management-system Thin
 Host Blueprint.

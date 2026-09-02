@@ -1,0 +1,1100 @@
+# Isolated, additive infrastructure for the MSS development stage.
+#
+# This manifest owns only resources in the new `mss-shop-dev` namespace. It
+# neither selects nor mutates any object in `r1shop-dev`. The sole reference to
+# the legacy development database is a NetworkPolicy peer that permits a
+# separately reviewed `legacy-import` Pod to make a source-side read-only
+# connection. Database privileges remain an independent import credential
+# contract.
+#
+# Do not apply this file directly. The trusted create-only infrastructure
+# operator owns this exact 24-object inventory. It persists NetworkPolicies,
+# creates two non-mounting scheduler binder Pods, and always ends that binding
+# invocation before any StatefulSet. If either PVC is Pending, it remains
+# stopped until provisioning completes. A later exact retry admits either
+# StatefulSet only after both PVs pass stable cluster-wide node/path exclusivity
+# checks.
+# Operator implementation and legacy snapshot import are separate delivery
+# gates.
+#
+# After that infrastructure stage, provision these namespace-local foundation
+# Secrets so the deliberately Pending datastore Pods can start. This file
+# contains no Secret values or Secret objects:
+#
+#   mss-shop-postgres-auth: username, password, database
+#   mss-shop-postgres-tls:  tls.crt, tls.key, ca.crt
+#   mss-shop-redis-auth:    password
+#   mss-shop-redis-tls:     tls.crt, tls.key, ca.crt
+#
+# TLS certificates must cover the corresponding short Service name and its
+# `mss-shop-dev.svc` / `mss-shop-dev.svc.cluster.local` DNS names.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-dev
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.32
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.32
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.32
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Namespace:mss-shop-dev
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mss-shop-dev-quota
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-dev-guardrails
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:ResourceQuota:mss-shop-dev-quota
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: 2Gi
+    requests.storage: 12Gi
+    requests.ephemeral-storage: 2Gi
+    limits.cpu: "4"
+    limits.memory: 6Gi
+    limits.ephemeral-storage: 4Gi
+    pods: "20"
+    services: "10"
+    persistentvolumeclaims: "2"
+    secrets: "20"
+    configmaps: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mss-shop-dev-defaults
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-dev-guardrails
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:LimitRange:mss-shop-dev-defaults
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 5m
+        memory: 32Mi
+        ephemeral-storage: 32Mi
+      default:
+        cpu: 500m
+        memory: 512Mi
+        ephemeral-storage: 256Mi
+      min:
+        cpu: 1m
+        memory: 8Mi
+        ephemeral-storage: 8Mi
+      max:
+        cpu: "2"
+        memory: 2Gi
+        ephemeral-storage: 1Gi
+    - type: PersistentVolumeClaim
+      min:
+        storage: 1Gi
+      max:
+        storage: 10Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mss-shop-postgres-config
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:ConfigMap:mss-shop-postgres-config
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+data:
+  pg_hba.conf: |
+    local   all   all                         trust
+    hostnossl all all 0.0.0.0/0               reject
+    hostnossl all all ::/0                    reject
+    hostssl all all 0.0.0.0/0                 scram-sha-256
+    hostssl all all ::/0                      scram-sha-256
+  # The official image runs this only while initializing a fresh PGDATA. A
+  # collision-safe operator must reject a pre-existing unbound PVC and must
+  # independently verify these ACLs before admitting application workloads.
+  init-security.sh: |
+    #!/bin/sh
+    set -eu
+
+    if [ "${POSTGRES_DB}" != "mss_shop_dev" ]; then
+      echo "refusing unexpected isolated database name" >&2
+      exit 1
+    fi
+
+    psql --no-password --set=ON_ERROR_STOP=1 --username "${POSTGRES_USER}" --dbname postgres <<'SQL'
+    REVOKE ALL ON DATABASE mss_shop_dev FROM PUBLIC;
+    REVOKE ALL ON DATABASE postgres FROM PUBLIC;
+    REVOKE ALL ON DATABASE template1 FROM PUBLIC;
+    COMMENT ON DATABASE mss_shop_dev IS 'r1shop.io/operator-binding=mss-shop-dev:PostgreSQL:mss_shop_dev;state=isolated-empty';
+    SQL
+
+    for database_name in mss_shop_dev postgres template1; do
+      psql --no-password --set=ON_ERROR_STOP=1 --set=bootstrap_user="${POSTGRES_USER}" --username "${POSTGRES_USER}" --dbname "${database_name}" <<'SQL'
+    REVOKE ALL ON SCHEMA public FROM PUBLIC;
+    ALTER SCHEMA public OWNER TO :"bootstrap_user";
+    SQL
+    done
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mss-shop-postgres-data
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:PersistentVolumeClaim:mss-shop-postgres-data
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mss-shop-postgres
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Service:mss-shop-postgres
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mss-shop-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+  ports:
+    - name: tls-postgres
+      protocol: TCP
+      port: 5432
+      targetPort: tls-postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mss-shop-redis-config
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-redis
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:ConfigMap:mss-shop-redis-config
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+data:
+  redis.conf: |
+    bind 0.0.0.0 ::
+    protected-mode yes
+    port 0
+    tls-port 6379
+    tls-cert-file /etc/redis/tls/tls.crt
+    tls-key-file /etc/redis/tls/tls.key
+    tls-ca-cert-file /etc/redis/tls/ca.crt
+    tls-auth-clients no
+    tls-protocols "TLSv1.2 TLSv1.3"
+    aclfile /run/redis/users.acl
+    dir /data
+    appendonly yes
+    appendfsync everysec
+    save 900 1
+    save 300 10
+    save 60 10000
+    maxmemory 192mb
+    maxmemory-policy noeviction
+    daemonize no
+    logfile ""
+    pidfile /tmp/redis.pid
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mss-shop-redis-data
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-redis
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:PersistentVolumeClaim:mss-shop-redis-data
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mss-shop-redis
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-redis
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Service:mss-shop-redis
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: mss-shop-redis
+    app.kubernetes.io/instance: mss-shop-dev
+  ports:
+    - name: tls-redis
+      protocol: TCP
+      port: 6379
+      targetPort: tls-redis
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: default-deny-ingress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:default-deny-ingress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: default-deny-egress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:default-deny-egress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-dns-egress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-dns-egress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        # This cluster's kubelet injects the Calico-compatible NodeLocal DNS
+        # listener below into Pod resolv.conf. The /32 is intentionally fixed;
+        # an operator preflight must fail if the cluster DNS address drifts.
+        - ipBlock:
+            cidr: 169.254.25.10/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx-to-admin
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-ingress-nginx-to-admin
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-ingress-nginx-to-admin
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: mss-shop
+      app.kubernetes.io/component: admin
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+              app.kubernetes.io/component: controller
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8001
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-admin-to-datastores-egress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-admin-to-datastores-egress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-admin-to-datastores-egress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: mss-shop
+    matchExpressions:
+      - key: r1shop.io/network-role
+        operator: In
+        values:
+          - admin
+          - isolated-readiness
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mss-shop-postgres
+              app.kubernetes.io/instance: mss-shop-dev
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mss-shop-redis
+              app.kubernetes.io/instance: mss-shop-dev
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-database-writers-to-postgres-egress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-database-writers-to-postgres-egress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-database-writers-to-postgres-egress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: mss-shop
+    matchExpressions:
+      - key: r1shop.io/network-role
+        operator: In
+        values:
+          - reconciler
+          - legacy-import
+          - isolated-readiness
+          - legacy-verifier
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mss-shop-postgres
+              app.kubernetes.io/instance: mss-shop-dev
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-platform-to-postgres-ingress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-platform-to-postgres-ingress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-platform-to-postgres-ingress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-postgres
+      app.kubernetes.io/instance: mss-shop-dev
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: mss-shop
+            matchExpressions:
+              - key: r1shop.io/network-role
+                operator: In
+                values:
+                  - admin
+                  - reconciler
+                  - legacy-import
+                  - isolated-readiness
+                  - legacy-verifier
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-platform-to-redis-ingress
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-platform-to-redis-ingress
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-platform-to-redis-ingress
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-redis
+      app.kubernetes.io/instance: mss-shop-dev
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: mss-shop
+            matchExpressions:
+              - key: r1shop.io/network-role
+                operator: In
+                values:
+                  - admin
+                  - isolated-readiness
+      ports:
+        - protocol: TCP
+          port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-legacy-import-to-source-postgres
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: allow-legacy-import-to-source-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:NetworkPolicy:allow-legacy-import-to-source-postgres
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: mss-shop
+      r1shop.io/network-role: legacy-import
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: database
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: timescaledb-r1shop-dev
+              app.kubernetes.io/part-of: r1shop-db-dev
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mss-shop-postgres-storage-binder
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-postgres-storage-binder
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: storage-binding
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+    r1shop.io/network-role: storage-binder
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Pod:mss-shop-postgres-storage-binder
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: storage-binder
+      image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+      imagePullPolicy: IfNotPresent
+      command:
+        - /bin/sh
+        - -c
+        - exit 0
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests:
+          cpu: 1m
+          memory: 8Mi
+          ephemeral-storage: 8Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+          ephemeral-storage: 32Mi
+  # Deliberately no volumeMounts: the scheduler sees the claim and triggers
+  # WaitForFirstConsumer provisioning, while the process cannot access data.
+  volumes:
+    - name: data-binding-only
+      persistentVolumeClaim:
+        claimName: mss-shop-postgres-data
+        readOnly: true
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mss-shop-redis-storage-binder
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-redis-storage-binder
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: storage-binding
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+    r1shop.io/network-role: storage-binder
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Pod:mss-shop-redis-storage-binder
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  automountServiceAccountToken: false
+  enableServiceLinks: false
+  restartPolicy: Never
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 70
+    runAsGroup: 70
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: storage-binder
+      image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+      imagePullPolicy: IfNotPresent
+      command:
+        - /bin/sh
+        - -c
+        - exit 0
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests:
+          cpu: 1m
+          memory: 8Mi
+          ephemeral-storage: 8Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+          ephemeral-storage: 32Mi
+  # Deliberately no volumeMounts: the scheduler sees the claim and triggers
+  # WaitForFirstConsumer provisioning, while the process cannot access data.
+  volumes:
+    - name: data-binding-only
+      persistentVolumeClaim:
+        claimName: mss-shop-redis-data
+        readOnly: true
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mss-shop-postgres
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:StatefulSet:mss-shop-postgres
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  serviceName: mss-shop-postgres
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-postgres
+      app.kubernetes.io/instance: mss-shop-dev
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-postgres
+        app.kubernetes.io/instance: mss-shop-dev
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/environment: dev
+        r1shop.io/network-role: postgres
+      annotations:
+        r1shop.io/workload-binding: mss-shop-dev:StatefulSet:mss-shop-postgres
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+          imagePullPolicy: IfNotPresent
+          args:
+            - postgres
+            - -c
+            - hba_file=/etc/postgresql/config/pg_hba.conf
+            - -c
+            - ssl=on
+            - -c
+            - ssl_cert_file=/etc/postgresql/tls/tls.crt
+            - -c
+            - ssl_key_file=/etc/postgresql/tls/tls.key
+            - -c
+            - ssl_ca_file=/etc/postgresql/tls/ca.crt
+            - -c
+            - ssl_min_protocol_version=TLSv1.2
+            - -c
+            - password_encryption=scram-sha-256
+            - -c
+            - listen_addresses=*
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: database
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-postgres-auth
+                  key: password
+          ports:
+            - name: tls-postgres
+              containerPort: 5432
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -q -d "host=127.0.0.1 port=5432 sslmode=require user=$POSTGRES_USER dbname=$POSTGRES_DB"
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -q -d "host=127.0.0.1 port=5432 sslmode=require user=$POSTGRES_USER dbname=$POSTGRES_DB"
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - pg_isready -q -d "host=127.0.0.1 port=5432 sslmode=require user=$POSTGRES_USER dbname=$POSTGRES_DB"
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+              ephemeral-storage: 16Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: config
+              mountPath: /etc/postgresql/config
+              readOnly: true
+            - name: init-security
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+            - name: tls
+              mountPath: /etc/postgresql/tls
+              readOnly: true
+            - name: socket
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mss-shop-postgres-data
+        - name: config
+          configMap:
+            name: mss-shop-postgres-config
+        - name: init-security
+          configMap:
+            name: mss-shop-postgres-config
+            defaultMode: 0555
+            items:
+              - key: init-security.sh
+                path: 010-security.sh
+        - name: tls
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0440
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+              - key: ca.crt
+                path: ca.crt
+        - name: socket
+          emptyDir:
+            sizeLimit: 16Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 32Mi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mss-shop-postgres
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-postgres
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:PodDisruptionBudget:mss-shop-postgres
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-postgres
+      app.kubernetes.io/instance: mss-shop-dev
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mss-shop-redis
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-redis
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:StatefulSet:mss-shop-redis
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  serviceName: mss-shop-redis
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-redis
+      app.kubernetes.io/instance: mss-shop-dev
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-redis
+        app.kubernetes.io/instance: mss-shop-dev
+        app.kubernetes.io/component: cache
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/environment: dev
+        r1shop.io/network-role: redis
+      annotations:
+        r1shop.io/workload-binding: mss-shop-dev:StatefulSet:mss-shop-redis
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:8.6.3-alpine@sha256:d146f83b1e0f02fc27c26a50cee39338c736674c5959db84363e6ae3cd9e02d2
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+          args:
+            - |
+              password_hash="$(printf '%s' "${REDISCLI_AUTH}" | sha256sum | awk '{print $1}')"
+              printf 'user default on ~* &* +@all #%s\n' "${password_hash}" > /run/redis/users.acl
+              unset password_hash REDISCLI_AUTH
+              exec redis-server /etc/redis/config/redis.conf
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-redis-auth
+                  key: password
+          ports:
+            - name: tls-redis
+              containerPort: 6379
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - redis-cli --tls --cacert /etc/redis/tls/ca.crt --sni mss-shop-redis.mss-shop-dev.svc -h 127.0.0.1 -p 6379 ping | grep -qx PONG
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - redis-cli --tls --cacert /etc/redis/tls/ca.crt --sni mss-shop-redis.mss-shop-dev.svc -h 127.0.0.1 -p 6379 ping | grep -qx PONG
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - redis-cli --tls --cacert /etc/redis/tls/ca.crt --sni mss-shop-redis.mss-shop-dev.svc -h 127.0.0.1 -p 6379 ping | grep -qx PONG
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 5m
+              memory: 16Mi
+              ephemeral-storage: 16Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+              ephemeral-storage: 128Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/redis/config
+              readOnly: true
+            - name: auth-runtime
+              mountPath: /run/redis
+            - name: tls
+              mountPath: /etc/redis/tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mss-shop-redis-data
+        - name: config
+          configMap:
+            name: mss-shop-redis-config
+        - name: auth-runtime
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+        - name: tls
+          secret:
+            secretName: mss-shop-redis-tls
+            defaultMode: 0440
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+              - key: ca.crt
+                path: ca.crt
+        - name: tmp
+          emptyDir:
+            sizeLimit: 32Mi
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mss-shop-redis
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-redis
+    app.kubernetes.io/instance: mss-shop-dev
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+    r1shop.io/environment: dev
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:PodDisruptionBudget:mss-shop-redis
+    r1shop.io/infrastructure-contract: isolated-dev-v1
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mss-shop-redis
+      app.kubernetes.io/instance: mss-shop-dev

@@ -16,25 +16,70 @@ invariants:
     decision: DEC-0005
     enforced_by: [exact-binding-directory, bootstrap-negative-tests, customer-session-verification]
   - id: REC-001
-    statement: Only the reconciler mutates tenant schemas, roles, credentials, or runtime resources.
-    owner: reconciler
-    decision: DEC-0001
-    enforced_by: [database-roles, deployment-rbac, audit-log]
+    statement: Only the one-time legacy importer mutates the initial isolated public-table snapshot; only the database reconciler mutates tenant roles, schemas, snapshots, views or grants; only fixed trusted operators mutate isolated Secrets or workload objects.
+    owner: legacy-importer-reconciler-and-stage-operator
+    decision: DEC-0010
+    enforced_by: [compiled-import-inventory, receipt-marker, trigger-disabled-database-preflight, exact-database-service-binding, database-roles, no-service-account-token, operator-collision-preflight, audit-log]
   - id: REC-002
-    statement: Tenant lifecycle convergence is idempotent and destruction is absent from the phase-one desired state model.
+    statement: Reconciliation requires the exact persisted import receipt marker and independent zero-row checks for orders and order_goods; missing or mismatched evidence fails closed.
     owner: reconciler
-    decision: DEC-0006
-    enforced_by: [ensure-step-tests, generation-cas, simulation-mode-guard]
+    decision: DEC-0010
+    enforced_by: [receipt-sha256-binding, disposable-pod-verification, single-transaction-plan, advisory-lock, fixed-development-target-guard]
+  - id: ENV-001
+    statement: The original r1shop-dev environment is immutable; the only development write target is mss-shop-dev with dedicated PostgreSQL, Redis, PVCs, TLS, credentials and network policy.
+    owner: platform-operations
+    decision: DEC-0010
+    enforced_by: [create-only-24-object-operator, network-policies-before-storage-binders, inert-storage-binders-before-statefulsets, exclusive-node-local-path-gate, six-immutable-foundation-secrets, fixed-namespace-guards, api-server-dry-run-by-default, explicit-create-or-apply]
+  - id: ENV-002
+    statement: Old-environment access is limited to the exact read-only legacy database source and GET of its credential and the exact GHCR pull Secret; old Redis and every old-environment write are forbidden.
+    owner: platform-operations
+    decision: DEC-0010
+    enforced_by: [fixed-source-endpoint, source-read-only-transaction, source-plaintext-exception, exact-source-egress-policy, exact-secret-get-allowlist, exact-extension-inventory, instance-bound-routine-catalog-fingerprint, zero-unreviewed-executable-objects-and-types]
+  - id: ENV-003
+    statement: Isolated Admin credentials are entered only after the DNS-only hosts complete the create-only TLS bootstrap, resourceVersion-bound runtime cutover, trusted exact-host HTTPS and HTTP-to-HTTPS redirect checks.
+    owner: platform-operations
+    decision: DEC-0011
+    enforced_by: [stage-admin-tls-create-only, exact-acme-solver-network-policy, stage-runtime-tls-prerequisite-gate, certificate-san-check, http-to-https-redirect-check, in-app-browser-password-gate]
+  - id: ENV-004
+    statement: Development CD admits only a successful same-repository codex/** pull request to main after its complete head SHA publishes all four delivery images, and may change only the admin and migrate image fields of the two fixed mss-shop-dev Admin Deployments.
+    owner: platform-operations
+    decision: DEC-0012
+    enforced_by: [same-repository-pr-gate, full-sha-four-image-publication-gate, local-reusable-dev-cd, github-environment-secret, namespace-service-account, resource-named-get-patch-role, exact-deployment-and-container-allowlist]
   - id: API-001
     statement: Storefront clients use /app/v1 and never use the MSS Admin API.
     owner: storefront-api
     decision: DEC-0003
     enforced_by: [openapi-contract, gateway-routes, client-build]
+  - id: DATA-001
+    statement: Legacy business tables are accessed only through startup-bound schema-qualified repositories and never through a request-selected or unqualified table name.
+    owner: mall-platform
+    decision: DEC-0007
+    enforced_by: [legacy-manifest, qualified-repository, readiness-fingerprint, schema-negative-tests]
+  - id: DATA-002
+    statement: The authoritative legacy inventory contains 54 tables; the isolated importer copies 51 business tables, keeps orders and order_goods target-empty, and does not copy roles, tenants or users.
+    owner: data-migration
+    decision: DEC-0010
+    enforced_by: [legacy-manifest, compiled-import-manifest, schema-inventory-test, receipt-row-count-and-hash-check, order-empty-check]
+  - id: DATA-003
+    statement: All generic legacy Admin compatibility resources are read-only, and JSON documents with declared nested secrets cannot be searched, filtered, or sorted.
+    owner: tenant-platform-and-mall-platform
+    decision: DEC-0007
+    enforced_by: [capability-manifest, mutation-negative-tests, nested-secret-query-negative-tests]
+  - id: DATA-004
+    statement: Product masters and logistics rules are tenant-owned data in each fixed mall business schema; the tenant platform owns no cross-tenant catalog or logistics writer.
+    owner: mall-platform
+    decision: DEC-0009
+    enforced_by: [legacy-manifest, ownership-contract-tests, fixed-schema-binding, migration-reconciliation]
+  - id: DATA-005
+    statement: A dedicated system_configs write uses a closed server-owned row and field allow-list, preserves every unapproved metadata value, never returns secrets or revives soft deletes, and serializes concurrent first creation.
+    owner: mall-platform
+    decision: DEC-0007
+    enforced_by: [mall-settings-feature-contract, fixed-schema-qualified-repository, typed-dto, postgres-advisory-lock, generic-mutation-lockdown]
   - id: I18N-001
-    statement: User-visible text is selected by a locale key, never used as a business or error code.
+    statement: User-visible text, including authorized dynamic menus, is selected by a locale key and never used as a business or error code.
     owner: all-ui
     decision: DEC-0004
-    enforced_by: [locale-catalog-check, review]
+    enforced_by: [locale-catalog-check, menu-runtime-contract, in-app-browser-review]
   - id: OPS-001
     statement: Production writes require explicit approval for the exact action.
     owner: platform-operations

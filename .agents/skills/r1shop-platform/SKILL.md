@@ -12,13 +12,21 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
 2. Identify the affected invariant and accepted decision. If the requested
    design contradicts one, add a superseding ADR and update the registry,
    architecture, invariants, migration plan and status in the same change.
-3. Keep the tenant platform as desired-state control plane and the reconciler
-   as the sole tenant-resource writer. Bind every mall runtime to one immutable
-   tenant and fixed core/business schema pair at startup; never accept a schema
-   selector from a client.
+3. Keep the tenant platform as desired-state control plane. The in-cluster
+   reconciler is the sole writer of tenant database roles, schemas, snapshots,
+   views and grants; it has no Kubernetes API identity. Fixed trusted operator
+   commands own the independent trigger-disabled database preflight, stage
+   Secrets and workload objects after fail-closed service/object/host collision
+   checks. The fixed development bootstrap may replay only before MSS migrates
+   either exact-empty core schema; it fails closed afterwards. Bind every mall
+   runtime to one immutable tenant and fixed
+   core/business schema pair at startup; never accept a schema selector from a
+   client.
 4. Keep MSS core unchanged. For a Thin Host business change also follow the
    narrower `mss-thin-host` Skill, edit specifications/business-owned files,
-   and run the MSS validations it requires.
+   and run the MSS validations it requires. If the change reads, writes,
+   exposes or migrates one of the 54 legacy tables, also follow the narrower
+   `r1shop-legacy-module` Skill and its delivery checklist.
 5. Treat `/app/v1` as the storefront boundary. Update the authoritative
    `contracts/app-v1` contract before implementation. Refresh every changed
    file as a byte-for-byte snapshot in `mss-shop-mobile`, record the committed
@@ -33,6 +41,27 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
 8. For repository-wide platform work, keep root services in the root Go module
    and the generated Admin hosts in their nested modules. Validate services
    with `GOWORK=off`, validate each host from its own root with the official
-   MSS 1.3.6 binary, and run `scripts/check-platform-boundaries.sh`. The
-   phase-one reconciler/worker are local simulations; do not present them as
-   production drivers.
+   MSS 1.3.7 binary, and run `scripts/check-platform-boundaries.sh`. The
+   reconciler has a real, fixed `mss-shop-dev` PostgreSQL driver. The original
+   `r1shop-dev` environment is immutable except for the importer's exact
+   read-only source connection, and production reconciliation remains
+   deliberately unavailable; the storefront worker is still a local
+   simulation.
+9. For create-only stage evidence, distinguish a new `created` resource from a
+   read-only `exactRetry` and from a failed-closed preflight. Only `created`
+   changes the resource count; neither exact retry nor rejection proves a new
+   workload execution. Keep the receipt ConfigMap immutable and bound to the
+   revision that created it. A later verifier revision must fail closed instead
+   of deleting, relabelling or replacing that evidence object.
+10. Trusted Kubernetes stage commands default to a non-persistent API-server
+    dry-run of the exact objects. A render or local preflight is not a dry-run.
+    Require an explicit `--create` or `--apply` for persistence and repeat the
+    complete collision, evidence and object preflight immediately before the
+    allowed write. This never authorizes a write outside `mss-shop-dev`.
+11. Read the current sequence in `docs/project/status.md` and
+    `docs/runbooks/remote-development-and-dev-acceptance.md` before starting
+    validation or rollout. While the development-first hold is active, keep
+    new modules explicitly `source-implemented-unverified`: do not reuse prior
+    CI receipts, local remote-server previews or old browser evidence as proof
+    for the working tree. Resume the acceptance run only from a new clean full
+    SHA and its exact immutable receipts.

@@ -1,0 +1,149 @@
+# Operator-reviewed mss-shop-dev database reconciliation Job.
+#
+# Do not substitute or apply this template manually. First run the trusted
+# operator-only command from the development server. The first invocation is a
+# non-persistent API-server dry-run of the exact app and receipt-bound bootstrap
+# Secrets:
+#
+#   go run ./services/reconciler/cmd/stage-reconciliation-secrets \
+#     --environment mss-shop-dev \
+#     --kubeconfig /absolute/operator/kubeconfig \
+#     --revision <complete-lowercase-git-sha> \
+#     --import-receipt-sha256 <verified-lowercase-receipt-sha256> \
+#     --receipt-evidence /absolute/repository/docs/evidence/legacy-import/<verified-lowercase-receipt-sha256>/receipt.json \
+#     --verification-evidence /absolute/repository/docs/evidence/legacy-import/<verified-lowercase-receipt-sha256>/verification.json
+#
+# After recording the successful dry-run and exact write declaration, repeat
+# the same command with `--create`. It repeats every preflight before persisting
+# only the three fixed Secrets in `mss-shop-dev`.
+#
+# Then run `stage-jobs` first without and then with `--create`, supplying the
+# exact reconciler digest from the same revision's immutable CI receipt. The
+# command renders every zero placeholder, validates all dependencies and
+# cluster-wide Job collisions, and its only persistent operation is Job Create.
+#
+#   go run ./services/reconciler/cmd/stage-jobs \
+#     --mode reconciler \
+#     --environment mss-shop-dev \
+#     --kubeconfig /absolute/operator/kubeconfig \
+#     --revision <complete-lowercase-git-sha> \
+#     --image-digest <exact-nonzero-ci-sha256-digest> \
+#     --import-receipt-sha256 <verified-lowercase-receipt-sha256> [--create]
+#
+# Never print or commit Secret values. The Job has no ServiceAccount token and
+# no Kubernetes API permission. Kubelet projects six exact bootstrap keys;
+# after the Job succeeds and evidence is captured, the trusted operator deletes
+# mss-shop-reconciler-bootstrap. The two application Secrets remain for the
+# operator-managed Admin workloads.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # 20-character prefix + 40-character SHA = 60, below the DNS-label limit.
+  name: mss-shop-reconciler-0000000000000000000000000000000000000000
+  namespace: mss-shop-dev
+  labels:
+    app.kubernetes.io/name: mss-shop-reconciler
+    app.kubernetes.io/part-of: mss-shop
+    app.kubernetes.io/managed-by: r1shop-operator
+  annotations:
+    r1shop.io/operator-binding: mss-shop-dev:Job:mss-shop-reconciler-0000000000000000000000000000000000000000
+    r1shop.io/full-git-sha: "0000000000000000000000000000000000000000"
+    r1shop.io/import-receipt-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+spec:
+  completions: 1
+  parallelism: 1
+  backoffLimit: 1
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mss-shop-reconciler
+        app.kubernetes.io/part-of: mss-shop
+        r1shop.io/network-role: reconciler
+      annotations:
+        r1shop.io/import-receipt-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      imagePullSecrets:
+        - name: mss-shop-ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: reconciler
+          image: ghcr.io/shop-r1/mss-shop-reconciler:0000000000000000000000000000000000000000@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: R1SHOP_RECONCILER_ENVIRONMENT
+              value: mss-shop-dev
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: R1SHOP_RECONCILER_DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-reconciler-bootstrap
+                  key: database-dsn
+            - name: R1SHOP_IMPORT_RECEIPT_SHA256
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-reconciler-bootstrap
+                  key: import-receipt-sha256
+            - name: R1SHOP_TENANT_MIGRATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-reconciler-bootstrap
+                  key: tenant-migrator-password
+            - name: R1SHOP_TENANT_RUNTIME_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-reconciler-bootstrap
+                  key: tenant-runtime-password
+            - name: R1SHOP_MALL_MIGRATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-reconciler-bootstrap
+                  key: mall-migrator-password
+            - name: R1SHOP_MALL_RUNTIME_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mss-shop-reconciler-bootstrap
+                  key: mall-runtime-password
+          volumeMounts:
+            - name: postgres-ca
+              mountPath: /etc/mss-shop/postgres-tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: postgres-ca
+          secret:
+            secretName: mss-shop-postgres-tls
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: tmp
+          emptyDir: {}

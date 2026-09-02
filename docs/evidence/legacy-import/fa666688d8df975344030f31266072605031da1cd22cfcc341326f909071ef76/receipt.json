@@ -1,0 +1,417 @@
+{
+  "version": "mss-shop-legacy-import/v1",
+  "targetDatabase": "mss_shop_dev",
+  "manifestSHA256": "c108b11543f41bbd8384540b7314909cd8056e3a141cc7447c443cb98c7e6e5b",
+  "schemaSHA256": "afd144a9654602a2452dc20e758b4cc3947a3e0748941ea58da7a53d2874a93a",
+  "tables": [
+    {
+      "name": "activities",
+      "mode": "copied",
+      "sourceRows": 621,
+      "targetRows": 621,
+      "sourceSHA256": "cab441cf233e0af1dab4ae36f0587f6868dac201668d88e511c20a8b4eecd01d",
+      "targetSHA256": "cab441cf233e0af1dab4ae36f0587f6868dac201668d88e511c20a8b4eecd01d"
+    },
+    {
+      "name": "activity_links",
+      "mode": "copied",
+      "sourceRows": 1142,
+      "targetRows": 1142,
+      "sourceSHA256": "6964d74a3a6859071d0868d986d7af6d5c3b6322d9bf8e14a2733e07a0a8cefe",
+      "targetSHA256": "6964d74a3a6859071d0868d986d7af6d5c3b6322d9bf8e14a2733e07a0a8cefe"
+    },
+    {
+      "name": "brands",
+      "mode": "copied",
+      "sourceRows": 423,
+      "targetRows": 423,
+      "sourceSHA256": "0d5b6f80dc5528e2debda77750c4b454802d96308477c8cb48c5cc2f46d65d2d",
+      "targetSHA256": "0d5b6f80dc5528e2debda77750c4b454802d96308477c8cb48c5cc2f46d65d2d"
+    },
+    {
+      "name": "categories",
+      "mode": "copied",
+      "sourceRows": 23,
+      "targetRows": 23,
+      "sourceSHA256": "d9d68307fe4ecb869aeb43bb1ad71ffacbb16e8dbd0f0e5bcf61ed5dd3bc1ff1",
+      "targetSHA256": "d9d68307fe4ecb869aeb43bb1ad71ffacbb16e8dbd0f0e5bcf61ed5dd3bc1ff1"
+    },
+    {
+      "name": "classes",
+      "mode": "copied",
+      "sourceRows": 0,
+      "targetRows": 0,
+      "sourceSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "collections",
+      "mode": "copied",
+      "sourceRows": 233,
+      "targetRows": 233,
+      "sourceSHA256": "dc451c54737a64e2e83d5f9ada9d5892835e38ad7bef0f5fbfa7104c1d2caf92",
+      "targetSHA256": "dc451c54737a64e2e83d5f9ada9d5892835e38ad7bef0f5fbfa7104c1d2caf92"
+    },
+    {
+      "name": "consignees",
+      "mode": "copied",
+      "sourceRows": 27700,
+      "targetRows": 27700,
+      "sourceSHA256": "0dd32cec6d1eb04df5bf07f7c11287831386d19f9985140121807ba1f3d46b4d",
+      "targetSHA256": "0dd32cec6d1eb04df5bf07f7c11287831386d19f9985140121807ba1f3d46b4d"
+    },
+    {
+      "name": "consumers",
+      "mode": "copied",
+      "sourceRows": 314,
+      "targetRows": 314,
+      "sourceSHA256": "b3e6e712e94794d3440e18f9a20a19fe4a224fd52f254cdef832177772132535",
+      "targetSHA256": "b3e6e712e94794d3440e18f9a20a19fe4a224fd52f254cdef832177772132535"
+    },
+    {
+      "name": "coupon_links",
+      "mode": "copied",
+      "sourceRows": 108266,
+      "targetRows": 108266,
+      "sourceSHA256": "e9ff60505c7dd9d850675e9a81edf37c713d8dda4be81f6e5074ebccba2732b8",
+      "targetSHA256": "e9ff60505c7dd9d850675e9a81edf37c713d8dda4be81f6e5074ebccba2732b8"
+    },
+    {
+      "name": "coupon_parents",
+      "mode": "copied",
+      "sourceRows": 42,
+      "targetRows": 42,
+      "sourceSHA256": "c7bfa93b6cc8c9a9fafbfdda1874097b43ecc38e816f1152ac871a83c9f6fb92",
+      "targetSHA256": "c7bfa93b6cc8c9a9fafbfdda1874097b43ecc38e816f1152ac871a83c9f6fb92"
+    },
+    {
+      "name": "coupons",
+      "mode": "copied",
+      "sourceRows": 2519,
+      "targetRows": 2519,
+      "sourceSHA256": "515de7088fa983bb6978f091121dc41cd21b7ae271dae2a89e6a0f7d657ec9fd",
+      "targetSHA256": "515de7088fa983bb6978f091121dc41cd21b7ae271dae2a89e6a0f7d657ec9fd"
+    },
+    {
+      "name": "courier_installs",
+      "mode": "copied",
+      "sourceRows": 273,
+      "targetRows": 273,
+      "sourceSHA256": "5ab4ea2be282ee3f3ed04202f2827dba9e65e4cb86904fe943becebee69d45de",
+      "targetSHA256": "5ab4ea2be282ee3f3ed04202f2827dba9e65e4cb86904fe943becebee69d45de"
+    },
+    {
+      "name": "courier_links",
+      "mode": "copied",
+      "sourceRows": 325,
+      "targetRows": 325,
+      "sourceSHA256": "574c7c5d796dc8857da284def1d35800ba3f7e0a6b6d82f12012d1a4136f347e",
+      "targetSHA256": "574c7c5d796dc8857da284def1d35800ba3f7e0a6b6d82f12012d1a4136f347e"
+    },
+    {
+      "name": "courier_pack_rules",
+      "mode": "copied",
+      "sourceRows": 66,
+      "targetRows": 66,
+      "sourceSHA256": "07a80ee02f9da3c4a986f5ced6f3dbbd182f00770436671533f53dbb0f5dff41",
+      "targetSHA256": "07a80ee02f9da3c4a986f5ced6f3dbbd182f00770436671533f53dbb0f5dff41"
+    },
+    {
+      "name": "courier_templates",
+      "mode": "copied",
+      "sourceRows": 78,
+      "targetRows": 78,
+      "sourceSHA256": "7a73f0557d639db18320345e958bd38e71056c8d24df922f6f2b30e957882846",
+      "targetSHA256": "7a73f0557d639db18320345e958bd38e71056c8d24df922f6f2b30e957882846"
+    },
+    {
+      "name": "couriers",
+      "mode": "copied",
+      "sourceRows": 21,
+      "targetRows": 21,
+      "sourceSHA256": "dd61fdd42f28bf5b46046fa8cfdff40c92ff05b4a546ffbf42c63f44871c59c8",
+      "targetSHA256": "dd61fdd42f28bf5b46046fa8cfdff40c92ff05b4a546ffbf42c63f44871c59c8"
+    },
+    {
+      "name": "finance_logs",
+      "mode": "copied",
+      "sourceRows": 6081,
+      "targetRows": 6081,
+      "sourceSHA256": "911249e65dab4e7e933151b352f3323a503e5d53b6ff0d6aeae36ee8eaf5c639",
+      "targetSHA256": "911249e65dab4e7e933151b352f3323a503e5d53b6ff0d6aeae36ee8eaf5c639"
+    },
+    {
+      "name": "finances",
+      "mode": "copied",
+      "sourceRows": 5296,
+      "targetRows": 5296,
+      "sourceSHA256": "678c3c6498967cf5f725982dde7745b059a518f38a09f85fcc9f17f35818daee",
+      "targetSHA256": "678c3c6498967cf5f725982dde7745b059a518f38a09f85fcc9f17f35818daee"
+    },
+    {
+      "name": "function_circles",
+      "mode": "copied",
+      "sourceRows": 125,
+      "targetRows": 125,
+      "sourceSHA256": "beb9885902099d6fc31b8287364b029a5d6230d523a6d2534090ea216da02b7b",
+      "targetSHA256": "beb9885902099d6fc31b8287364b029a5d6230d523a6d2534090ea216da02b7b"
+    },
+    {
+      "name": "gold_withdraws",
+      "mode": "copied",
+      "sourceRows": 14,
+      "targetRows": 14,
+      "sourceSHA256": "cfe43cec032bc7e06b5aaf5a454b3f936416f4a5a0d6b6a0f3412ed9b47abe78",
+      "targetSHA256": "cfe43cec032bc7e06b5aaf5a454b3f936416f4a5a0d6b6a0f3412ed9b47abe78"
+    },
+    {
+      "name": "goods",
+      "mode": "copied",
+      "sourceRows": 31950,
+      "targetRows": 31950,
+      "sourceSHA256": "11b5953209fe96e09284afa40ea33d8718f22b059519ccfd82c23e96ec5a1ba2",
+      "targetSHA256": "11b5953209fe96e09284afa40ea33d8718f22b059519ccfd82c23e96ec5a1ba2"
+    },
+    {
+      "name": "goods_assembles",
+      "mode": "copied",
+      "sourceRows": 510,
+      "targetRows": 510,
+      "sourceSHA256": "30c4989407375219c1f99864367d1b37e9a12362660cb0f4cfccb113cf1355a6",
+      "targetSHA256": "30c4989407375219c1f99864367d1b37e9a12362660cb0f4cfccb113cf1355a6"
+    },
+    {
+      "name": "goods_infos",
+      "mode": "copied",
+      "sourceRows": 2511,
+      "targetRows": 2511,
+      "sourceSHA256": "88e90ece15062ffb84b32651e198b7f8c51b814d6fb27e6544ec55ea127e0f81",
+      "targetSHA256": "88e90ece15062ffb84b32651e198b7f8c51b814d6fb27e6544ec55ea127e0f81"
+    },
+    {
+      "name": "goods_shipping_warehouses",
+      "mode": "copied",
+      "sourceRows": 12292,
+      "targetRows": 12292,
+      "sourceSHA256": "019741b6521e5850fd574fbf96fdafd5f4d8238ad9186d0d4ac1e313d921f383",
+      "targetSHA256": "019741b6521e5850fd574fbf96fdafd5f4d8238ad9186d0d4ac1e313d921f383"
+    },
+    {
+      "name": "goods_specifications",
+      "mode": "copied",
+      "sourceRows": 1319,
+      "targetRows": 1319,
+      "sourceSHA256": "df58b4148c675320f787c006146c6d55b72dd8af2e70d33aa838274abd3b38ed",
+      "targetSHA256": "df58b4148c675320f787c006146c6d55b72dd8af2e70d33aa838274abd3b38ed"
+    },
+    {
+      "name": "inventories",
+      "mode": "copied",
+      "sourceRows": 1181,
+      "targetRows": 1181,
+      "sourceSHA256": "ba18cbdcc7c4a5b67e55f0784c9796e7b00e49b48fa1dbf38133f5196a21da73",
+      "targetSHA256": "ba18cbdcc7c4a5b67e55f0784c9796e7b00e49b48fa1dbf38133f5196a21da73"
+    },
+    {
+      "name": "inventory_checks",
+      "mode": "copied",
+      "sourceRows": 0,
+      "targetRows": 0,
+      "sourceSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "inventory_tracks",
+      "mode": "copied",
+      "sourceRows": 46642,
+      "targetRows": 46642,
+      "sourceSHA256": "cedda3d44466156dd479a20705c9cac73602b92be0e50aed83fce86a02796413",
+      "targetSHA256": "cedda3d44466156dd479a20705c9cac73602b92be0e50aed83fce86a02796413"
+    },
+    {
+      "name": "member_goods",
+      "mode": "copied",
+      "sourceRows": 3226,
+      "targetRows": 3226,
+      "sourceSHA256": "aea893e944b7b34d5505751ad1158e07b78adac287cfd5095f01df872ee636d0",
+      "targetSHA256": "aea893e944b7b34d5505751ad1158e07b78adac287cfd5095f01df872ee636d0"
+    },
+    {
+      "name": "member_levels",
+      "mode": "copied",
+      "sourceRows": 52,
+      "targetRows": 52,
+      "sourceSHA256": "d4094d598f1b839639ae3c212c3e56bc81c2dd7f404d23d42aed1b116d520178",
+      "targetSHA256": "d4094d598f1b839639ae3c212c3e56bc81c2dd7f404d23d42aed1b116d520178"
+    },
+    {
+      "name": "members",
+      "mode": "copied",
+      "sourceRows": 7534,
+      "targetRows": 7534,
+      "sourceSHA256": "ae75c91a939a0ee09c6c216718d875d13a440b2d4d77204e4ab2898892037018",
+      "targetSHA256": "ae75c91a939a0ee09c6c216718d875d13a440b2d4d77204e4ab2898892037018"
+    },
+    {
+      "name": "message_events",
+      "mode": "copied",
+      "sourceRows": 16,
+      "targetRows": 16,
+      "sourceSHA256": "7b74ece0f735855fa52819aaa9d48a413696c3336ca9ab35cb9e0f958c116975",
+      "targetSHA256": "7b74ece0f735855fa52819aaa9d48a413696c3336ca9ab35cb9e0f958c116975"
+    },
+    {
+      "name": "message_templates",
+      "mode": "copied",
+      "sourceRows": 16,
+      "targetRows": 16,
+      "sourceSHA256": "6f1cee40c50eb99231192ff51549d61f840f8df711bf7da6fbacb0551e2078b2",
+      "targetSHA256": "6f1cee40c50eb99231192ff51549d61f840f8df711bf7da6fbacb0551e2078b2"
+    },
+    {
+      "name": "message_users",
+      "mode": "copied",
+      "sourceRows": 0,
+      "targetRows": 0,
+      "sourceSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "messages",
+      "mode": "copied",
+      "sourceRows": 0,
+      "targetRows": 0,
+      "sourceSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "order_goods",
+      "mode": "structure-only",
+      "sourceRows": 1170,
+      "targetRows": 0,
+      "sourceSHA256": "1d4e8d2962b6c24da9ed3d6f1b19154035711aefd38f7f4738deb6ce606bb0be",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "order_unit_packs",
+      "mode": "copied",
+      "sourceRows": 62603,
+      "targetRows": 62603,
+      "sourceSHA256": "4782a0dffa71cbd3a29c5bfdff2b377c7718df59548c21447fe7d7abae8cfe99",
+      "targetSHA256": "4782a0dffa71cbd3a29c5bfdff2b377c7718df59548c21447fe7d7abae8cfe99"
+    },
+    {
+      "name": "orders",
+      "mode": "structure-only",
+      "sourceRows": 14,
+      "targetRows": 0,
+      "sourceSHA256": "3bfb1c88a719708f08eb2e888065f76d0bd92f631a148cb9407716b5fb6f5d8d",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "payment_installs",
+      "mode": "copied",
+      "sourceRows": 257,
+      "targetRows": 257,
+      "sourceSHA256": "48c0ecf2c2401c36fdace9fe86834004c552578f3a75b84b6f6fb36bf8e90280",
+      "targetSHA256": "48c0ecf2c2401c36fdace9fe86834004c552578f3a75b84b6f6fb36bf8e90280"
+    },
+    {
+      "name": "payment_orders",
+      "mode": "copied",
+      "sourceRows": 43434,
+      "targetRows": 43434,
+      "sourceSHA256": "d17db19775652f3abf2650df820d53ad394354860eff4c148a212f532457a2bb",
+      "targetSHA256": "d17db19775652f3abf2650df820d53ad394354860eff4c148a212f532457a2bb"
+    },
+    {
+      "name": "payments",
+      "mode": "copied",
+      "sourceRows": 20,
+      "targetRows": 20,
+      "sourceSHA256": "45b5fe6f9e7cb352a076facda41e47f31d93681aa60a6cb3cd22e0ed4872e826",
+      "targetSHA256": "45b5fe6f9e7cb352a076facda41e47f31d93681aa60a6cb3cd22e0ed4872e826"
+    },
+    {
+      "name": "real_warehouses",
+      "mode": "copied",
+      "sourceRows": 4,
+      "targetRows": 4,
+      "sourceSHA256": "ebd1fb68eda453f76d097784be93a3386fc0ca4d925ba399a836483e0e1d6383",
+      "targetSHA256": "ebd1fb68eda453f76d097784be93a3386fc0ca4d925ba399a836483e0e1d6383"
+    },
+    {
+      "name": "receipt_goods",
+      "mode": "copied",
+      "sourceRows": 0,
+      "targetRows": 0,
+      "sourceSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "receipts",
+      "mode": "copied",
+      "sourceRows": 0,
+      "targetRows": 0,
+      "sourceSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02",
+      "targetSHA256": "62a74fd0e2d1e3a59b88b5b71c06ca8d43662c6787430c516b8e0bc28bbbda02"
+    },
+    {
+      "name": "sell_goods",
+      "mode": "copied",
+      "sourceRows": 61883,
+      "targetRows": 61883,
+      "sourceSHA256": "d92378e3feadb04baa2d38b224014722741ef274e136f17fb8ff186a6eeb350c",
+      "targetSHA256": "d92378e3feadb04baa2d38b224014722741ef274e136f17fb8ff186a6eeb350c"
+    },
+    {
+      "name": "sells",
+      "mode": "copied",
+      "sourceRows": 45212,
+      "targetRows": 45212,
+      "sourceSHA256": "ae4571c23b7f971ca7f0f4384ab9ea1d2209e029bdc107c2541e0b983cd0abd0",
+      "targetSHA256": "ae4571c23b7f971ca7f0f4384ab9ea1d2209e029bdc107c2541e0b983cd0abd0"
+    },
+    {
+      "name": "senders",
+      "mode": "copied",
+      "sourceRows": 2385,
+      "targetRows": 2385,
+      "sourceSHA256": "8f86fc5949c3fd397f6c250e4e1c13a71af7fa25b99bb5a5ecb78e39e8b27b02",
+      "targetSHA256": "8f86fc5949c3fd397f6c250e4e1c13a71af7fa25b99bb5a5ecb78e39e8b27b02"
+    },
+    {
+      "name": "shipping_warehouses",
+      "mode": "copied",
+      "sourceRows": 89,
+      "targetRows": 89,
+      "sourceSHA256": "d65c3880c6cc9c65f04067d5c3278214040a9f45ef0873041188b5de3c88df92",
+      "targetSHA256": "d65c3880c6cc9c65f04067d5c3278214040a9f45ef0873041188b5de3c88df92"
+    },
+    {
+      "name": "shopping_carts",
+      "mode": "copied",
+      "sourceRows": 1112,
+      "targetRows": 1112,
+      "sourceSHA256": "ae6c31a2a8d703803f5774d6451d3119db3c8a7c91bf9d54787c3a3160336cf7",
+      "targetSHA256": "ae6c31a2a8d703803f5774d6451d3119db3c8a7c91bf9d54787c3a3160336cf7"
+    },
+    {
+      "name": "show_categories",
+      "mode": "copied",
+      "sourceRows": 1618,
+      "targetRows": 1618,
+      "sourceSHA256": "da724044ccb576dab3d51cbfa17b8f3d6fe4318bfc3c2f7704d32ce3bb2a7e00",
+      "targetSHA256": "da724044ccb576dab3d51cbfa17b8f3d6fe4318bfc3c2f7704d32ce3bb2a7e00"
+    },
+    {
+      "name": "system_configs",
+      "mode": "copied",
+      "sourceRows": 17,
+      "targetRows": 17,
+      "sourceSHA256": "a49eea32162b5a85223bb67f078fd6eae722a8b7c443557aa7bb9f7bef6894fb",
+      "targetSHA256": "a49eea32162b5a85223bb67f078fd6eae722a8b7c443557aa7bb9f7bef6894fb"
+    }
+  ],
+  "sha256": "fa666688d8df975344030f31266072605031da1cd22cfcc341326f909071ef76"
+}

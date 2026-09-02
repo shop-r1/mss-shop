@@ -1,69 +1,258 @@
-name: Phase-zero Thin Host CI
+name: Test and Build Delivery Images
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
       - "codex/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+env:
+  GO_VERSION: 1.26.6
+  NODE_VERSION: 24.19.0
+  PNPM_VERSION: 10.34.5
+  MSS_VERSION: v1.3.7
+  DELIVERY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
 jobs:
+  backend-unit:
+    name: Go unit (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: platform
+            directory: .
+            go_sum: go.sum
+          - name: tenant-platform
+            directory: apps/tenant-platform
+            go_sum: apps/tenant-platform/go.sum
+          - name: mall-platform
+            directory: apps/mall-platform
+            go_sum: apps/mall-platform/go.sum
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: ${{ matrix.go_sum }}
+      - name: Run Go unit tests
+        working-directory: ${{ matrix.directory }}
+        run: GOWORK=off go test ./...
+
+  frontend-unit:
+    name: Admin Web unit (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: platform
+            directory: web
+          - name: tenant-platform
+            directory: apps/tenant-platform/web
+          - name: mall-platform
+            directory: apps/mall-platform/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: corepack enable
+      - name: Install exact frontend dependencies
+        run: corepack pnpm@${PNPM_VERSION} --dir "${{ matrix.directory }}" install --frozen-lockfile
+      - name: Generate Umi test metadata
+        run: corepack pnpm@${PNPM_VERSION} --dir "${{ matrix.directory }}" exec max setup
+      - name: Run frontend unit tests
+        run: corepack pnpm@${PNPM_VERSION} --dir "${{ matrix.directory }}" test
+
   contracts:
+    name: Contracts and project memory
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: 1.26.6
+          go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: go.sum
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24.13.1
-          registry-url: https://registry.npmjs.org
+          node-version: ${{ env.NODE_VERSION }}
       - run: corepack enable
-      - run: corepack pnpm@10.34.5 --dir web install --frozen-lockfile
-      - name: Install exact mss release tools
+      - run: corepack pnpm@${PNPM_VERSION} --dir web install --frozen-lockfile
+      - name: Install exact MSS release tools
         run: |
           curl --fail --location --silent --show-error \
             --output "${RUNNER_TEMP}/install-mss.sh" \
-            https://github.com/mss-boot-io/mss-boot-admin/releases/download/v1.3.6/install-mss.sh
+            "https://github.com/mss-boot-io/mss-boot-admin/releases/download/${MSS_VERSION}/install-mss.sh"
           bash "${RUNNER_TEMP}/install-mss.sh" \
-            --version v1.3.6 \
+            --version "${MSS_VERSION}" \
             --install-dir "${RUNNER_TEMP}/mss-bin"
           echo "${RUNNER_TEMP}/mss-bin" >> "${GITHUB_PATH}"
       - run: mss doctor --strict
-      # MSS 1.3.6 recursively interprets generated modules in nested Thin
-      # Hosts as if they belonged to this historical root proof. Full module
-      # verification therefore runs per final host in platform.yml.
+      - run: tools/check-project-memory.sh
+      - run: sh scripts/check-platform-boundaries.sh
 
-  backend:
+  verify-delivery-images:
+    name: Verify image (${{ matrix.name }})
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       (github.event.pull_request.head.repo.full_name != github.repository ||
+        !startsWith(github.event.pull_request.head.ref, 'codex/') ||
+        github.actor == 'dependabot[bot]'))
+    needs:
+      - backend-unit
+      - frontend-unit
+      - contracts
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tenant-platform
+            context: apps/tenant-platform
+            dockerfile: apps/tenant-platform/Dockerfile
+            image: mss-shop-tenant-platform
+          - name: mall-platform
+            context: apps/mall-platform
+            dockerfile: apps/mall-platform/Dockerfile
+            image: mss-shop-mall-platform
+          - name: reconciler
+            context: .
+            dockerfile: services/reconciler/Dockerfile
+            image: mss-shop-reconciler
+          - name: legacy-importer
+            context: .
+            dockerfile: services/legacy-importer/Dockerfile
+            image: mss-shop-legacy-importer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Verify delivery image builds
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          go-version: 1.26.6
-          cache: true
-      - run: GOWORK=off go test ./...
-      - run: GOWORK=off go vet ./...
-      - run: GOWORK=off go build ./cmd/server
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: false
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ env.DELIVERY_SHA }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.DELIVERY_SHA }}
+            org.opencontainers.image.version=${{ env.DELIVERY_SHA }}
+          cache-from: type=gha,scope=${{ matrix.image }}
 
-  frontend:
+  publish-delivery-images:
+    name: Publish image (${{ matrix.name }})
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.base.ref == 'main' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.event.pull_request.head.ref, 'codex/') &&
+       github.actor != 'dependabot[bot]')
+    needs:
+      - backend-unit
+      - frontend-unit
+      - contracts
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: web
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: tenant-platform
+            context: apps/tenant-platform
+            dockerfile: apps/tenant-platform/Dockerfile
+            image: mss-shop-tenant-platform
+          - name: mall-platform
+            context: apps/mall-platform
+            dockerfile: apps/mall-platform/Dockerfile
+            image: mss-shop-mall-platform
+          - name: reconciler
+            context: .
+            dockerfile: services/reconciler/Dockerfile
+            image: mss-shop-reconciler
+          - name: legacy-importer
+            context: .
+            dockerfile: services/legacy-importer/Dockerfile
+            image: mss-shop-legacy-importer
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 24.13.1
-          registry-url: https://registry.npmjs.org
-      - run: corepack enable
-      - run: corepack pnpm@10.34.5 install --frozen-lockfile
-      - run: corepack pnpm@10.34.5 lint
-      - run: corepack pnpm@10.34.5 test
-      - run: corepack pnpm@10.34.5 build
+          ref: ${{ env.DELIVERY_SHA }}
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      - name: Sign in to GHCR for branch builds
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build delivery image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ env.DELIVERY_SHA }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ env.DELIVERY_SHA }}
+            org.opencontainers.image.version=${{ env.DELIVERY_SHA }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          provenance: mode=max
+          sbom: true
+      - name: Write immutable image receipt
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          test -n "${IMAGE_DIGEST}"
+          printf '%s\n' "${IMAGE_DIGEST}" | grep -Eq '^sha256:[0-9a-f]{64}$'
+          test "${IMAGE_DIGEST}" != "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+          jq -n \
+            --arg repository "ghcr.io/${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" \
+            --arg revision "${DELIVERY_SHA}" \
+            --arg digest "${IMAGE_DIGEST}" \
+            --arg workflow "${GITHUB_WORKFLOW}" \
+            --arg runId "${GITHUB_RUN_ID}" \
+            --arg runAttempt "${GITHUB_RUN_ATTEMPT}" \
+            '{schemaVersion: 1, repository: $repository, revision: $revision, digest: $digest, reference: ($repository + ":" + $revision + "@" + $digest), platform: "linux/amd64", workflow: $workflow, runId: $runId, runAttempt: $runAttempt}' \
+            > "${IMAGE_NAME}-${DELIVERY_SHA}.json"
+      - name: Upload immutable image receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-receipt-${{ matrix.image }}-${{ env.DELIVERY_SHA }}
+          path: ${{ matrix.image }}-${{ env.DELIVERY_SHA }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  deploy-dev:
+    name: Deploy Admin images to dev
+    needs:
+      - publish-delivery-images
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'codex/') &&
+      github.actor != 'dependabot[bot]'
+    uses: ./.github/workflows/dev-cd.yml
+    with:
+      image_tag: ${{ github.event.pull_request.head.sha }}
+    secrets: inherit
