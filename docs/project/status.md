@@ -2,7 +2,7 @@
 
 Last verified: 2026-09-02
 
-Current tag-only development refresh: PR-head revision
+First verified tag-only development refresh: PR-head revision
 `bf07098cb8a7c5f2c52993e28c69afc7712c4d98` passed GitHub Actions run
 `33574863356`, published all four images, and completed the first automatic
 DEC-0012 CD. The tenant and mall Admin Deployments are each 1/1 updated, ready
