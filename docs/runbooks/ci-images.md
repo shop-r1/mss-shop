@@ -47,8 +47,9 @@ revision; published builds request maximum provenance and an SBOM.
 For each image, the workflow writes and uploads a 30-day immutable JSON
 receipt named `image-receipt-<package>-<full-sha>`. The receipt records the
 repository, revision, nonzero manifest digest, tag-plus-digest reference,
-`linux/amd64`, workflow and run identity. Deployment consumes the digest from
-the receipt and still retains the full-SHA tag for human traceability.
+`linux/amd64`, workflow and run identity. The narrow development CD waits for
+all four receipt-producing jobs, then updates the two Admin Deployments with
+the immutable full-SHA tag; it does not download or parse artifacts.
 
 All four receipts must belong to the same successful run and revision before
 isolated staging. A missing importer or reconciler receipt blocks deployment.
@@ -65,7 +66,11 @@ Kubernetes client configuration only from the Environment secret
 `MSS_SHOP_DEV_KUBECONFIG` on the ephemeral runner. The Environment and named
 secret are configured outside the repository; the value is never stored in
 Git, uploaded as an artifact or printed. Configuration alone cannot be
-reported as a successful deployment.
+reported as a successful deployment. The local reusable-workflow caller uses
+`secrets: inherit`, which is required for GitHub to propagate the secret
+context into the called job; the repository and organization currently expose
+no other Actions secrets, and the called workflow references only the named
+Environment secret.
 
 The kubeconfig represents the namespace-local
 `ServiceAccount/mss-shop-dev-image-updater`. Its Role and RoleBinding have the

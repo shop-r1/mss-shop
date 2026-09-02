@@ -316,13 +316,14 @@ func TestCIPublishesTrustedPRImagesBeforeCallingIsolatedDevCD(t *testing.T) {
 		"github.actor != 'dependabot[bot]'",
 		"uses: ./.github/workflows/dev-cd.yml",
 		"image_tag: ${{ github.event.pull_request.head.sha }}",
+		"secrets: inherit",
 	} {
 		if !strings.Contains(deploy, required) {
 			t.Fatalf("trusted Dev CD caller lacks %q", required)
 		}
 	}
-	if strings.Contains(deploy, "secrets:") {
-		t.Fatal("CI caller must not pass repository or organization secrets to Dev CD")
+	if strings.Count(deploy, "secrets: inherit") != 1 {
+		t.Fatal("CI caller must inherit the secret context exactly once for the reusable Environment job")
 	}
 	for _, forbidden := range []string{"kubectl ", "helm ", "kustomize ", "rollout ", "set image ", "apply -f"} {
 		if strings.Contains(strings.ToLower(content), forbidden) {

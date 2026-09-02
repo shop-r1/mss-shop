@@ -63,7 +63,11 @@ it must never be replaced with a cluster-admin, SSH or production credential.
   `mss-shop-dev`. Its Kubernetes client configuration is supplied at run time
   through the Environment secret `MSS_SHOP_DEV_KUBECONFIG`. The kubeconfig,
   client keys, tokens, certificates and Secret value are never committed,
-  uploaded as workflow artifacts or printed.
+  uploaded as workflow artifacts or printed. The local reusable-workflow call
+  uses GitHub's `secrets: inherit` hand-off so the called Environment job can
+  resolve its secret context; the repository and organization expose no other
+  Actions secrets to this workflow, and the called workflow references only
+  `MSS_SHOP_DEV_KUBECONFIG`.
 - The only Kubernetes mutations are the image changes made by `kubectl set
   image` to these existing objects in namespace `mss-shop-dev`:
 

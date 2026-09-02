@@ -157,6 +157,10 @@ only two `kubectl set image` commands: one for
 `Deployment/mss-shop-mall-admin-aussibuy`, both in `mss-shop-dev`. Each command
 sets the workload's `migrate` init container and `admin` container to the
 matching tenant or mall GHCR image tagged by the full PR-head SHA.
+The CI caller uses `secrets: inherit` for the local reusable-workflow boundary;
+the called Environment job still references only this one named secret, and
+the repository and organization currently expose no additional Actions
+secrets.
 
 The namespace-local access bootstrap contains exactly these four objects, all
 named `mss-shop-dev-image-updater`: ServiceAccount, Role, RoleBinding and a

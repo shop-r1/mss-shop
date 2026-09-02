@@ -255,3 +255,4 @@ jobs:
     uses: ./.github/workflows/dev-cd.yml
     with:
       image_tag: ${{ github.event.pull_request.head.sha }}
+    secrets: inherit
