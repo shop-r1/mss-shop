@@ -240,25 +240,40 @@ some resource overhead for clear blast-radius, migration and rollback
 boundaries.
 
 The CI workflow keeps the merge signal small and owns all four delivery-image
-builds. Pushes to `codex/**` and `main` publish the tenant-platform,
+builds. Pull requests to `main` run unprivileged validation after local
+development has produced a reviewable slice. Only a same-repository
+`codex/**` pull request may continue into publication and development CD. The
+backend, frontend and contract gates must pass before CI publishes the tenant-platform,
 mall-platform, fixed isolated database reconciler and one-time legacy importer
-`linux/amd64` images to GHCR. A same-repository `codex/**` pull request to
-`main` may also publish all four images for its complete head SHA, but only
-after the existing backend, frontend and contract gates pass. Every published
-image receives that same SHA tag and a digest-bound CI receipt. Forks and
-other pull-request shapes never receive package or deployment credentials.
+`linux/amd64` images to GHCR. Every published image receives the complete
+pull-request head SHA tag and a digest-bound CI receipt. A branch push without
+an open pull request and a push to `main` do not run this validation,
+publication or development-deployment pipeline. Forks and other pull-request
+shapes never receive package or deployment credentials.
 
 After the qualifying PR publication completes, CI may call the repository-
 local reusable `Dev CD` workflow. DEC-0012 limits that workflow to changing
 only the `migrate` and `admin` image fields of the existing tenant and mall
 Admin Deployments in `mss-shop-dev`, using the full PR-head SHA tag. Its
 Kubernetes configuration comes only from the `mss-shop-dev` GitHub Environment
-secret. It does not update configuration or annotations, touch a database,
-wait for rollout, run acceptance, or target the original development or
-production environments. The workflow is configured source, not evidence of
-execution. Its Environment secret is configured outside Git; the first
-qualifying successful run remains pending and no rollout or acceptance result
-is inferred from configuration.
+secret. It does not update configuration or annotations, issue a database
+command, wait for rollout, run acceptance, or target the original development
+or production environments. The image change recreates Pods and therefore runs
+the existing `migrate` init containers, so image-only describes the API mutation
+rather than zero database effect. The workflow is configured source, not
+evidence of execution, and no rollout or acceptance result is inferred from
+configuration or `set image` success.
+
+The deployed pull-request head is the development acceptance candidate. Run
+the applicable disposable-Pod system checks and in-app-browser review against
+that exact SHA. Pushing another commit creates a new candidate and invalidates
+every cluster or browser acceptance claim for the old head; the complete PR CI,
+image refresh and applicable verification repeat. Only the latest deployed and
+accepted head may be squash-merged. Bring the branch up to date with current
+`main` before that final cycle; the synchronization creates a new head that must
+pass again. Durable provenance links the pull request, accepted head SHA,
+resulting squash-main SHA, matching source tree and four image digests because
+the squash commit has a different identity.
 
 The CD identity is a separate namespace-local access bootstrap: one
 ServiceAccount, Role, RoleBinding and service-account token Secret, all named
@@ -268,9 +283,20 @@ four DEC-0012 objects are not part of DEC-0010's 24 infrastructure objects or
 six foundation Secrets.
 
 The root proof, storefront API and worker are not delivery images. Bootstrap,
-data, TLS and host changes remain deliberate operator stages, and every
-production write still needs explicit approval. The exact package, permission
-and deployment policy is in [`ci-images.md`](../runbooks/ci-images.md).
+data, TLS and host changes remain deliberate operator stages. Main performs no
+second validation, build or publication; a future production action may only
+promote the already accepted PR-head images. That promotion is not executable
+today: this repository has no reviewed `mss-shop` production namespace,
+Deployment/container allowlist, resource-named RBAC or GitHub Environment
+credential. The live `r1shop-prod` workloads are not placeholders and remain
+untouched. After those missing boundaries are separately reviewed, every exact
+image-only promotion must still pause for a human GitHub Environment approval;
+administrator bypass is disabled, the reviewer identity remains unavailable to
+automation, and an AI or agent cannot approve or bypass it. The review must
+include all containers and init containers, because changing an image recreates
+Pods and a `migrate` init container can indirectly change the production
+database. The exact package, permission and deployment policy is in
+[`ci-images.md`](../runbooks/ci-images.md) and DEC-0013.
 
 The isolated Admin review endpoints use DNS Only records for
 `tenant-admin.mss.r1shop.net` and `mall-admin.mss.r1shop.net`, resolving
@@ -331,9 +357,10 @@ and zero target rows in `orders` and `order_goods`. Source revision
 `3e64a57dae8bb3dd4d337a423015baae6c352b32` then reconciled the fixed schemas,
 roles, views and snapshots, proved the four-row Member Levels projection,
 deployed both Admin runtimes and passed disposable cluster HTTP/data-system
-verification. Confirmed-login browser review remains pending. The original
-`r1shop-dev` safe metadata fingerprint is unchanged, production is untouched,
-and the business matrix is still 0/31.
+verification. Confirmed-login workspace smoke subsequently passed on both
+trusted HTTPS hosts; detailed business-route acceptance remains separate. The
+original `r1shop-dev` safe metadata fingerprint is unchanged, production is
+untouched, and the business matrix is still 0/31.
 
 ## Mobile boundary
 

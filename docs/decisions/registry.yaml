@@ -72,3 +72,9 @@ decisions:
     date: 2026-09-02
     path: DEC-0012-pr-head-admin-image-refresh.md
     applies_to: [mss-shop]
+  - id: DEC-0013
+    title: Use the pull request as the development acceptance loop and gate production promotion on a human
+    status: accepted
+    date: 2026-09-02
+    path: DEC-0013-pr-acceptance-loop-and-human-gated-production-promotion.md
+    applies_to: [mss-shop]

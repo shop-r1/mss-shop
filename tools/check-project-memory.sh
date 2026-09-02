@@ -15,10 +15,14 @@ for memory_file in \
   docs/project/mall-settings-development.md \
   docs/project/member-levels-development.md \
   docs/governance/memory.md \
+  docs/decisions/DEC-0013-pr-acceptance-loop-and-human-gated-production-promotion.md \
   docs/migration/legacy-tables.yaml \
   docs/migration/legacy-admin-acceptance-matrix.md \
   docs/acceptance/mall-local-browser-acceptance.md \
   docs/runbooks/ci-images.md \
+  docs/runbooks/local-development.md \
+  docs/runbooks/remote-development-and-dev-acceptance.md \
+  .agents/skills/r1shop-platform/SKILL.md \
   .agents/skills/r1shop-legacy-module/SKILL.md
 do
   if [ ! -s "$memory_file" ]; then

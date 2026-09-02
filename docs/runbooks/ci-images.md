@@ -1,18 +1,20 @@
 # CI and delivery image runbook
 
-The authoritative CI workflow is `.github/workflows/ci.yml`. It keeps the
-merge signal deliberately small: backend unit tests, Admin Web unit tests,
-executable project/memory contracts, platform-boundary validation and
+The authoritative development CI workflow is `.github/workflows/ci.yml`. It
+keeps the merge signal deliberately small: backend unit tests, Admin Web unit
+tests, executable project/memory contracts, platform-boundary validation and
 buildability of the four delivery images. CI performs no direct Kubernetes
-command. For the one qualifying development pull-request shape, it may call
-the repository-local reusable `.github/workflows/dev-cd.yml` after successful
+command. For the one qualifying development pull-request shape, it calls the
+repository-local reusable `.github/workflows/dev-cd.yml` after successful
 four-image publication; DEC-0012 fixes that workflow to two Admin image
-updates in `mss-shop-dev`.
+updates in `mss-shop-dev`. DEC-0013 makes the deployed pull-request head the
+only acceptance candidate and keeps `main` out of validation, build and image
+publication.
 
 ## Triggers and gates
 
-Pull requests targeting `main`, workflow dispatches and pushes to `main` or
-`codex/**` run the same validation jobs:
+Pull requests targeting `main` run the validation jobs below. A branch push
+without an open pull request and a push to `main` do not trigger this workflow:
 
 1. `go test ./...` independently in the root module, tenant-platform and
    mall-platform;
@@ -21,15 +23,16 @@ Pull requests targeting `main`, workflow dispatches and pushes to `main` or
 3. strict MSS 1.3.7 diagnosis, `tools/check-project-memory.sh` and the platform
    boundary check.
 
-After those jobs pass, workflow dispatches and non-qualifying pull requests
-build all four images for `linux/amd64` without pushing. Pushes to `main` or
-`codex/**` publish all four images. A pull request also publishes all four
-images only when its head is in this repository, its head branch matches
-`codex/**`, its base is `main`, and it is not a Dependabot change. That
-publication is bound to the exact PR head SHA and must finish before the local
-reusable dev CD is called. Race checks, vet, lint, complete `mss verify --all`,
-cluster tests and browser acceptance remain milestone evidence rather than
-mandatory image-publish or CD gates.
+After those jobs pass, non-qualifying pull requests may build all four images
+for `linux/amd64` without pushing. A pull request publishes all four images only
+when its head is in this repository, its head branch matches `codex/**`, its
+base is `main`, and it is not a Dependabot change. That publication is bound to
+the exact PR head SHA and must finish before the local reusable dev CD is
+called. There is no second image build on `main`. Race checks, vet, lint,
+complete `mss verify --all`, cluster tests and browser acceptance remain
+milestone evidence rather than mandatory image-publish or CD gates, but the
+applicable cluster and browser checks must pass for the latest deployed head
+before squash merge.
 
 ## Four published images
 
@@ -101,6 +104,65 @@ cancelled midway.
 This tag-only refresh is a development convenience. Digest-bound manual
 staging remains authoritative for bootstrap, data reconciliation, TLS/host
 changes, evidence-bearing releases and any future production promotion.
+
+## Development acceptance and iteration loop
+
+1. Develop locally on a `codex/**` branch and run focused checks. Local runtime
+   output is not shared acceptance evidence.
+2. Push the completed slice. Open a same-repository pull request to `main` when
+   the accumulated work is ready for the shared environment.
+3. Wait for the pull-request CI, four full-head-SHA image publications and the
+   DEC-0012 Admin image refresh to complete. Confirm that the running Admin
+   containers use that exact head SHA before testing.
+4. Run the applicable system cases in disposable Pods in `mss-shop-dev`, then
+   use the in-app browser against `https://tenant-admin.mss.r1shop.net` and
+   `https://mall-admin.mss.r1shop.net`. Record the exact head SHA, routes,
+   operations, locales, console/network result and untested scope. Leave both
+   URLs available for owner review.
+5. If any problem is found, fix it on the same branch and push again. The new
+   head invalidates all deployment, cluster and browser acceptance for the old
+   head; repeat steps 3 and 4.
+6. Before the final cycle, require the branch to be current with `main`. If a
+   merge, rebase or conflict resolution changes the PR head, repeat steps 3 and
+   4 for that new SHA.
+7. Squash-merge only when the pull request's latest head is the exact deployed
+   and accepted revision. Record the pull request number, accepted head SHA,
+   resulting squash-main SHA, matching source-tree identity and the four image
+   digests.
+
+The squash-main SHA identifies source history, not a delivery image. Because
+main does not rebuild, a later promotion must use the accepted PR-head image
+tag/digests and must never substitute the squash-main SHA.
+
+## Planned human-gated production promotion
+
+No executable production CD workflow is authorized or defined by this runbook.
+The repository currently has no reviewed `mss-shop` production namespace,
+Deployment/container allowlist, resource-named RBAC or GitHub Environment
+credential. The live `r1shop-prod` workloads run the existing production
+system and must not be guessed as targets, relabelled, or used to trial an MSS
+image.
+
+After a separate reviewed change establishes those exact objects, the only
+permitted main-stage action is an image-only promotion of the already accepted
+PR-head tenant and mall images. It performs no tests, build, publication,
+manifest apply, direct migration invocation, configuration, Secret, RBAC,
+networking or business-data operation. Image-only is the API write boundary,
+not a promise of zero database effect: the image change recreates Pods and a
+reviewed Deployment may run a `migrate` init container. The production topology
+review must therefore enumerate all containers and init containers and approve
+migration ordering, forward compatibility and rollback before the workflow can
+exist. The job must pause on a dedicated GitHub Environment required-reviewer
+gate. That review is performed by a human; an AI or agent may report the waiting
+state but must never approve it, bypass it, simulate it or use a user's logged-
+in session to satisfy it. The Environment must disable administrator bypass,
+and its reviewer account, token and browser session must remain unavailable to
+Actions and agents.
+
+Configuration is not execution evidence. Even after the production topology is
+defined, record a promotion only after the human-approved run completes, with
+the pull request, accepted head SHA, squash-main SHA, exact image digests and
+exact changed resources. No current production promotion is claimed here.
 
 ### Historical evidence
 
@@ -301,8 +363,11 @@ committed.
 
 Publishing an image is not general deployment approval. DEC-0012 pre-approves
 only the exact qualifying PR call to the image-only reusable workflow described
-above. Production and the original `r1shop-dev` environment are not CI or CD
-targets, and every non-image `mss-shop-dev` change remains outside this path.
+above. The original `r1shop-dev` environment is not a CI or CD target, and every
+non-image `mss-shop-dev` change remains outside this path. DEC-0013 records only
+the future production promotion boundary; without the missing exact production
+inventory, least-privilege identity and human-protected Environment, there is
+no executable production target and no production write authority.
 
 Manual isolated rollout follows DEC-0010, the DEC-0011 DNS-only Admin TLS
 extension and the remote acceptance runbook:

@@ -122,8 +122,8 @@ spec:
       mallPlatform: confirmed-login-workplace-smoke-passed-detailed-business-review-pending
       tenantPlatform: confirmed-login-workplace-smoke-passed-detailed-business-review-pending
     kubernetesSystemAcceptance: passed-final-release-v3-runtime-cluster-verification
-    productionMigration: forbidden-without-explicit-approval
-    deliveryCI: four-image-publication-verified-https-cutover-f202b094-run-33565434916
+    productionMigration: forbidden-without-explicit-human-approval-and-reviewed-mss-prod-topology
+    deliveryCI: pr-final-four-image-publication-and-dev-cd-d850c6b-run-33575948422
     remoteDevelopmentPlan: https-cutover-deployed-isolated-confirmed-login-smoke-passed-business-review-pending
     isolatedInfrastructure: created-exact-24-objects
     foundationSecrets: created-exact-six-immutable
@@ -424,13 +424,26 @@ spec:
     deliveryImages:
       workflow: .github/workflows/ci.yml
       devCDWorkflow: .github/workflows/dev-cd.yml
+      trigger: pull-request-only
       pullRequestMode: same-repository-codex-to-main-publish-four-then-call-dev-cd
-      pushBranches: [main, "codex/**"]
+      pushBranches: []
       qualifyingPullRequest: same-repository-codex-branch-to-main-non-dependabot
       platform: linux/amd64
       immutableTag: full-git-sha
       immutableReceiptPerImage: true
-      currentFourImagePublication: verified-https-cutover-f202b094-deployed-isolated-dev
+      currentFourImagePublication: verified-final-pr-head-d850c6b-deployed-isolated-dev
+      currentDevPRDeployment:
+        pullRequest: 1
+        runID: 33575948422
+        revision: d850c6bcaa212293c1d1f51a169a2b94f350d3df
+        conclusion: success
+        publishedImages: 4
+        tenantUpdatedReadyAvailable: 1-1-1
+        mallUpdatedReadyAvailable: 1-1-1
+        containerRestarts: 0
+        acceptanceEvidence: false
+        squashMainRevision: 11b39efc86e155a09937941b80294f86e3b8872c
+        squashTreeMatchesPRHead: true
       verifiedRun:
         id: 33565434916
         revision: f202b094fd5b2839a9020ff38db833fec40be704
@@ -472,6 +485,19 @@ spec:
         mallUpdatedReadyAvailable: 1-1-1
         containerRestarts: 0
         acceptanceEvidence: false
+      productionPromotion:
+        status: blocked-pending-reviewed-mss-production-topology
+        executableWorkflowCommitted: false
+        githubEnvironmentConfigured: false
+        humanApprovalRequired: true
+        agentApprovalForbidden: true
+        currentLiveNamespace: r1shop-prod
+        currentLiveDeployment: shop
+        currentLiveImageFamily: shop-go
+        mssProductionNamespaceExists: false
+        mssProductionDeploymentsExist: false
+        exactImageTargetsReviewed: false
+        migrationAndRollbackReviewed: false
   sourcesOfTruth:
     architecture: docs/architecture/overall-solution.md
     invariants: docs/architecture/invariants.yaml
@@ -495,6 +521,7 @@ spec:
     memberLevelsDevelopment: docs/project/member-levels-development.md
     remoteDevelopmentDecision: docs/decisions/DEC-0010-remote-development-and-dev-reconciliation.md
     devCDDecision: docs/decisions/DEC-0012-pr-head-admin-image-refresh.md
+    deliveryLifecycleDecision: docs/decisions/DEC-0013-pr-acceptance-loop-and-human-gated-production-promotion.md
     remoteDevelopmentRunbook: docs/runbooks/remote-development-and-dev-acceptance.md
     catalogLogisticsDesignReview: docs/reviews/legacy-catalog-logistics-redesign.md
     originalDevelopmentEvidence: docs/evidence/original-dev/2026-09-01-import-boundary-6fed45f.json
@@ -533,5 +560,8 @@ spec:
     currentWorkingTreeTested: true
     currentWorkingTreeRemoteLocalPreviewHealthy: true
     currentWorkingTreeProductionBuilt: true
-    deployedSourceRevision: f202b094fd5b2839a9020ff38db833fec40be704
+    deployedSourceRevision: d850c6bcaa212293c1d1f51a169a2b94f350d3df
     deployedSourceRevisionCommitted: true
+    browserAcceptedSourceRevision: f202b094fd5b2839a9020ff38db833fec40be704
+    productionPromotionConfigured: false
+    productionPromotionExecuted: false

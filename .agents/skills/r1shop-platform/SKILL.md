@@ -58,10 +58,16 @@ description: Apply R1Shop's control-plane, per-tenant runtime, schema-isolation,
     Require an explicit `--create` or `--apply` for persistence and repeat the
     complete collision, evidence and object preflight immediately before the
     allowed write. This never authorizes a write outside `mss-shop-dev`.
-11. Read the current sequence in `docs/project/status.md` and
+11. Read the current sequence in `docs/project/status.md`, DEC-0013 and
     `docs/runbooks/remote-development-and-dev-acceptance.md` before starting
-    validation or rollout. While the development-first hold is active, keep
-    new modules explicitly `source-implemented-unverified`: do not reuse prior
-    CI receipts, local remote-server previews or old browser evidence as proof
-    for the working tree. Resume the acceptance run only from a new clean full
-    SHA and its exact immutable receipts.
+    validation or rollout. Develop locally, then use a same-repository
+    `codex/**` pull request as the only CI, image-publication and development-
+    deployment loop. Bind verification to the latest deployed PR head; a later
+    push invalidates prior cluster and browser acceptance. Bring the branch up
+    to date with `main` before the final cycle; that new head must pass again.
+    Squash-merge only the latest accepted head and record its mapping to the
+    resulting main SHA, matching source tree and image digests. Main does not
+    rebuild. Production promotion is not executable until exact `mss-shop`
+    production targets and minimum access are reviewed; stop at the required
+    human GitHub Environment review and never approve or bypass it. Do not reuse
+    prior receipts, previews or browser evidence as proof for a different head.

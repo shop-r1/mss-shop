@@ -9,6 +9,33 @@ database or deployment writes.
 - Official `mss` and `mss-mcp` release binaries at `v1.3.7`.
 - pnpm version locked by `web/package.json`.
 
+## Development handoff
+
+Use a `codex/**` branch. Local work owns source edits and focused checks; it
+does not deploy Kubernetes resources and it is not shared browser or business
+acceptance. Push a completed development slice to its branch, then open a
+same-repository pull request to `main` when the accumulated work is ready for
+the shared environment. The pull request is the only automatic CI, four-image
+publication and `mss-shop-dev` image-refresh path. A branch push without an open
+pull request and a push to `main` do not run that pipeline.
+
+After the latest PR head is deployed, perform system verification in disposable
+Pods and UI verification in the in-app browser. If a defect requires another
+push, the new head invalidates prior acceptance and the shared verification
+cycle repeats. Only the latest deployed and accepted head may be squash-merged;
+before the final cycle bring the branch up to date with `main`, then record the
+accepted head's mapping to the resulting main SHA, matching source tree and
+image digests.
+
+Main performs no validation, build or publication. Production promotion is
+only a future, human-gated image update: no reviewed `mss-shop` production
+namespace, Deployment, RBAC or GitHub Environment exists today. Do not create
+or guess one, do not touch the live `r1shop-prod` system, and never approve or
+bypass a production Environment review on behalf of a human. A future image
+change will recreate Pods and may execute a `migrate` init container; production
+container inventory, migration compatibility and rollback must be reviewed
+before any executable promotion exists.
+
 ## Start the phase-zero Thin Host
 
 ```shell

@@ -45,6 +45,11 @@ invariants:
     owner: platform-operations
     decision: DEC-0012
     enforced_by: [same-repository-pr-gate, full-sha-four-image-publication-gate, local-reusable-dev-cd, github-environment-secret, namespace-service-account, resource-named-get-patch-role, exact-deployment-and-container-allowlist]
+  - id: ENV-005
+    statement: The latest main-synchronized and deployed pull-request head is the only development acceptance candidate; a later push invalidates prior acceptance, only that latest accepted head with matching squash-main source tree may be squash-merged, and main performs no validation, image build or image publication.
+    owner: platform-operations
+    decision: DEC-0013
+    enforced_by: [pull-request-only-ci, up-to-date-with-main-gate, exact-head-development-deployment, disposable-pod-verification, in-app-browser-review, latest-head-merge-gate, squash-tree-provenance-record]
   - id: API-001
     statement: Storefront clients use /app/v1 and never use the MSS Admin API.
     owner: storefront-api
@@ -81,7 +86,7 @@ invariants:
     decision: DEC-0004
     enforced_by: [locale-catalog-check, menu-runtime-contract, in-app-browser-review]
   - id: OPS-001
-    statement: Production writes require explicit approval for the exact action.
+    statement: No executable mss-shop production promotion exists until exact production resources, container and init-container migration effects, rollback strategy and least-privilege access are reviewed; any future promotion reuses accepted pull-request-head images, changes only approved image fields, and requires a human GitHub Environment approval that no AI or agent may approve or bypass.
     owner: platform-operations
-    decision: null
-    enforced_by: [AGENTS.md, review]
+    decision: DEC-0013
+    enforced_by: [no-current-production-target, explicit-production-inventory, pod-recreation-and-migration-impact-review, forward-compatible-migration-and-rollback-plan, accepted-head-to-squash-provenance, exact-image-field-allowlist, human-environment-review, no-administrator-bypass, reviewer-credential-isolation, agent-approval-prohibition]

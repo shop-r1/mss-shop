@@ -2,6 +2,7 @@ package contracts_test
 
 import (
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -255,6 +256,12 @@ func TestCIPublishesTrustedPRImagesBeforeCallingIsolatedDevCD(t *testing.T) {
 	if !strings.Contains(content, "  pull_request:\n    branches:\n      - main") {
 		t.Fatal("CI pull requests must target main")
 	}
+	trigger := strings.SplitN(content, "permissions:", 2)[0]
+	for _, forbidden := range []string{"\n  push:", "\n  workflow_dispatch:"} {
+		if strings.Contains(trigger, forbidden) {
+			t.Fatalf("development CI must be pull-request-only and cannot retain trigger %q", strings.TrimSpace(forbidden))
+		}
+	}
 	images := []struct {
 		name, context, dockerfile, image string
 	}{
@@ -289,7 +296,7 @@ func TestCIPublishesTrustedPRImagesBeforeCallingIsolatedDevCD(t *testing.T) {
 		t.Fatal("CI must retain build-only verification and the gated publication matrix")
 	}
 	for _, required := range []string{
-		"DELIVERY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}",
+		"DELIVERY_SHA: ${{ github.event.pull_request.head.sha }}",
 		"github.event.pull_request.base.ref == 'main'",
 		"github.event.pull_request.head.repo.full_name == github.repository",
 		"startsWith(github.event.pull_request.head.ref, 'codex/')",
@@ -324,6 +331,11 @@ func TestCIPublishesTrustedPRImagesBeforeCallingIsolatedDevCD(t *testing.T) {
 	}
 	if strings.Count(deploy, "secrets: inherit") != 1 {
 		t.Fatal("CI caller must inherit the secret context exactly once for the reusable Environment job")
+	}
+	for _, forbidden := range []string{"github.event_name == 'push'", "github.sha"} {
+		if strings.Contains(content, forbidden) {
+			t.Fatalf("PR delivery must not publish or deploy a main/branch push revision through %q", forbidden)
+		}
 	}
 	for _, forbidden := range []string{"kubectl ", "helm ", "kustomize ", "rollout ", "set image ", "apply -f"} {
 		if strings.Contains(strings.ToLower(content), forbidden) {
@@ -405,6 +417,21 @@ func TestDevCDOnlyUpdatesTwoIsolatedAdminDeployments(t *testing.T) {
 		}
 	}
 	assertWorkflowActionsPinned(t, "Dev CD", content)
+}
+
+func TestProductionPromotionHasNoExecutableWorkflowBeforeItsTopologyIsReviewed(t *testing.T) {
+	paths, err := filepath.Glob("../.github/workflows/*")
+	if err != nil {
+		t.Fatalf("list workflows: %v", err)
+	}
+	for _, path := range paths {
+		content := readContractFile(t, path)
+		for _, forbidden := range []string{"mss-shop-prod", "MSS_SHOP_PROD", "--namespace r1shop-prod", "environment: production"} {
+			if strings.Contains(content, forbidden) {
+				t.Fatalf("workflow %s activates unresolved production target %q", filepath.Base(path), forbidden)
+			}
+		}
+	}
 }
 
 func assertWorkflowActionsPinned(t *testing.T, name, content string) {

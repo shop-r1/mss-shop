@@ -2,13 +2,22 @@
 
 Last verified: 2026-09-02
 
+Current routine development runtime: the final head of PR #1,
+`d850c6bcaa212293c1d1f51a169a2b94f350d3df`, passed GitHub Actions run
+`33575948422`, published all four images and refreshed both Admin Deployments
+to 1/1 updated, ready and available with zero restarts. PR #1 was then squash
+merged as main revision `11b39efc86e155a09937941b80294f86e3b8872c`;
+the two revisions have the same Git tree even though their commit IDs differ.
+No browser or business acceptance is inferred for `d850c6b`. The latest
+evidence-bearing browser smoke remains revision
+`f202b094fd5b2839a9020ff38db833fec40be704` from run `33565434916`.
+
 First verified tag-only development refresh: PR-head revision
 `bf07098cb8a7c5f2c52993e28c69afc7712c4d98` passed GitHub Actions run
 `33574863356`, published all four images, and completed the first automatic
 DEC-0012 CD. The tenant and mall Admin Deployments are each 1/1 updated, ready
 and available; both `migrate` and `admin` use the matching full-SHA tag, with
-zero restarts. The latest evidence-bearing browser smoke remains revision
-`f202b094fd5b2839a9020ff38db833fec40be704` from run `33565434916`, which cut
+zero restarts. The evidence-bearing browser revision above cut
 both Admin runtimes over to DNS-only trusted HTTPS hosts and reached their
 visible workspaces after login as `admin`. The canonical legacy import was not
 rerun: it remains the single 51-table snapshot bound to receipt
@@ -62,6 +71,15 @@ refresh; it grants no broader authority.
   Admin Deployments' `migrate` and `admin` image fields and has no production,
   old-development, database, configuration or acceptance authority. See
   DEC-0012.
+- Delivery lifecycle: local and branch pushes do not run delivery CI. The
+  complete gate starts on a PR to `main`, refreshes dev from the exact latest
+  PR head, and invalidates any earlier acceptance whenever that head changes.
+  After the final head is accepted, the PR is squash merged and production
+  must eventually promote that accepted PR-head image rather than the new
+  squash commit SHA. Production remains blocked until an MSS-specific target,
+  least-privilege identity and migration/rollback boundary are reviewed; every
+  future execution requires a GitHub Environment approval performed by a
+  human, and an agent must never approve or bypass it. See DEC-0013.
 - Tenant isolation: every mall runtime is configured with one immutable tenant
   identity and one core/business schema pair. There is no request-time schema
   switch.
@@ -188,18 +206,20 @@ refresh; it grants no broader authority.
   business acceptance scenarios open.
   Its create/update step was exploratory evidence against the superseded
   writable implementation and is not evidence of a current write capability.
-- A single, intentionally small CI workflow covering backend and Admin Web unit
-  tests for all three modules, exact MSS/project-memory and architecture
-  contracts, followed by Buildx verification. Push builds publish four
-  full-SHA images—tenant-platform, mall-platform, reconciler and
-  legacy-importer—with digest-bound receipts. A same-repository `codex/**` PR
-  to `main` may publish the same four-image set after all gates and then call a
+- A single, intentionally small PR-only CI workflow covering backend and Admin
+  Web unit tests for all three modules, exact MSS/project-memory and
+  architecture contracts, followed by Buildx verification. A
+  same-repository `codex/**` PR to `main` publishes four full-PR-head-SHA
+  images—tenant-platform, mall-platform, reconciler and legacy-importer—with
+  digest-bound receipts after all gates and then calls a
   reusable CD that only updates both existing Admin Deployments' `migrate` and
   `admin` image tags in `mss-shop-dev`. Forks and other PR shapes receive no
   package or deployment credential. Run `33574863356` is the first successful
   automatic execution: it deployed PR-head revision `bf07098...` and both
   Admin Deployments were observed 1/1 updated, ready and available with zero
-  restarts. This tag-only refresh is not acceptance evidence. Run
+  restarts. Final PR #1 run `33575948422` later deployed head `d850c6b...` with
+  the same health shape before its tree-equivalent squash merge
+  `11b39ef...`. This tag-only refresh is not acceptance evidence. Run
   `33494258866` supplied the
   successful import revision-A image; run `33497583981` supplied the revision-B
   verifier image; run `33500133380` validates the later stage-annotation
@@ -235,11 +255,14 @@ refresh; it grants no broader authority.
 
 ## Not implemented yet
 
-- The first operational DEC-0012 dev CD execution. Its repository workflow is
-  configured, its namespace access identity is present and the
-  `mss-shop-dev` GitHub Environment kubeconfig is provisioned outside Git, but
-  a qualifying PR run must complete before the status can change to deployed.
-  This pending execution is not a system or browser acceptance failure.
+- An executable production promotion. The live `r1shop-prod` namespace still
+  contains only the old `shop-go` `Deployment/shop`; there is no reviewed
+  `mss-shop-prod` namespace, tenant/mall Deployment, production image-updater
+  RBAC identity or protected `mss-shop-prod` GitHub Environment. No workflow
+  may guess those targets or point MSS images at the old Deployment. The
+  target containers, implicit `migrate` init-container behavior, forward
+  migration compatibility and rollback procedure must be approved before a
+  human-gated tag-only workflow is enabled.
 
 - A persistent control-plane repository, leases or observed-status integration
   between the tenant Admin module and reconciler.
@@ -290,13 +313,15 @@ refresh; it grants no broader authority.
 
 ## Current development sequence and later acceptance
 
-The HTTPS Admin runtime and confirmed-login smoke gate is complete for revision
-`f202b094...`; both isolated URLs remain available for owner inspection.
-The configured DEC-0012 workflow may refresh those two Admin images from a
-qualifying PR head after its CI publication, but it performs no rollout wait or
-acceptance. The Environment secret is configured, but until the first
-qualifying run succeeds, the deployed revision remains the historical
-`f202b094...` evidence above.
+The routine delivery loop is now local implementation, push to a `codex/**`
+branch, PR-only CI/image publication/dev refresh, then cluster and in-app
+browser acceptance against the exact latest PR head. Any later push invalidates
+the earlier acceptance and repeats the loop. Final accepted work is squash
+merged so `main` receives one commit. The current deployed head is `d850c6b...`;
+the browser evidence remains separately bound to `f202b094...` until the next
+unified review. A main push must not rerun tests, builds or image publication.
+Future production promotion remains blocked as described above and must never
+be approved or bypassed by an agent.
 Continue the detailed route/locale review and later domain work without
 treating these two read-only slices as full business restoration. Payment
 writes wait for
@@ -592,8 +617,10 @@ Historical verification evidence recorded on 2026-09-01:
 A successful bounded legacy snapshot import, independent receipt verification,
 receipt-bound reconciliation, Member Levels projection check, Admin runtime
 rollout and disposable cluster system verification have been performed only
-against `mss-shop-dev`. Confirmed-login browser review, production migration
-and production write have not been performed. These read-only migration and
+against `mss-shop-dev`. Confirmed-login workspace smoke was performed for
+`f202b094...`; detailed business acceptance for the current `d850c6b...`
+runtime, production migration and production write have not been performed.
+These read-only migration and
 runtime results are not complete business acceptance. The original
 `r1shop-dev` environment remains ready with the same selected safe metadata
 fingerprint. Accepted business scenarios remain 0/31.

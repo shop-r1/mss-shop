@@ -18,26 +18,36 @@ bounded one-time import; its canonical receipt is committed under
 preserved as historical evidence. Revision B
 `3eb4c72b485066e7b189446fab5b66a1047e66a2` supplied the immutable receipt
 ConfigMap and one successful disposable verifier Job; its exact output is now
-persisted beside the receipt. Final isolated Admin revision
-`3e64a57dae8bb3dd4d337a423015baae6c352b32` is running and has passed the
-bounded cluster-side health, datastore, TLS and least-privilege checks. The
-in-app-browser review and explicit business workflow acceptance remain
-separate; business acceptance is still 0/31.
+persisted beside the receipt. Evidence-bearing bootstrap Admin revision
+`3e64a57dae8bb3dd4d337a423015baae6c352b32` passed the bounded cluster-side
+health, datastore, TLS and least-privilege checks before later PR-head image
+refreshes. Confirmed-login workspace smoke passed separately; explicit business
+workflow acceptance remains open at 0/31.
 
-## Current authorized release sequence
+## Routine development and acceptance sequence
 
-The project owner has authorized the current release candidate to complete
-formal validation, CI publication, receipt-bound reconciliation, the bounded
-Member Levels projection test and Admin deployment in `mss-shop-dev`. The
-earlier development-first hold is lifted for this sequence only. Every ordered
-gate below remains mandatory, and all workload images must come from one new
-clean full SHA and its four fresh CI receipts.
+Local work is source development and focused checking on a `codex/**` branch.
+After a completed slice is pushed, open a same-repository pull request to
+`main` when the accumulated work is ready. Only that pull request runs shared
+CI, publishes its four complete-head-SHA images and refreshes the two existing
+Admin Deployments in `mss-shop-dev`. A branch push without an open pull request
+and a push to `main` do not run this development pipeline.
 
-This authorization does not permit writes to `r1shop-dev`, `r1shop-prod`, the
-legacy source database or either old Redis. It also does not enable Mall
-Settings or Member Levels business mutations: both runtime gates remain
-closed. A local-process preview and prior Revision C receipts remain
-non-deployment evidence and cannot replace any gate below.
+Treat the latest deployed PR head as the only acceptance candidate. Run the
+applicable disposable-Pod cases and in-app-browser business review against that
+exact revision. If a defect is found, push the fix to the same PR; the new head
+invalidates every acceptance claim for the old head and the CI, development
+refresh and applicable checks repeat. Only the latest deployed and accepted
+head may be squash-merged. Bring the branch up to date with current `main`
+before the final cycle; if that changes the head, repeat the cycle. Record the
+pull request, accepted head SHA, resulting squash-main SHA, matching source-tree
+identity and image digests.
+
+This sequence does not permit writes to `r1shop-dev`, `r1shop-prod`, the legacy
+source database or either old Redis. A local-process preview and prior image or
+browser evidence cannot replace the exact latest-head gates below. Main runs no
+validation, build or publication; DEC-0013 records production promotion only as
+a future human-gated boundary.
 
 ## 2026-09-02 isolated execution record
 
@@ -119,7 +129,7 @@ separately and business acceptance remains 0/31.
 | Item | Fixed value |
 | --- | --- |
 | Remote checkout | `/root/workspace/mss-shop` on `167.17.68.242` |
-| Branch | `codex/r1shop-platform` |
+| Branch | the current same-repository `codex/**` pull-request branch |
 | Write namespace | `mss-shop-dev` only |
 | Target PostgreSQL | PostgreSQL 17.6, `mss-shop-postgres.mss-shop-dev.svc:5432/mss_shop_dev` |
 | Target Redis | Redis 8.6.3, `mss-shop-redis.mss-shop-dev.svc:6379` |
@@ -129,8 +139,8 @@ separately and business acceptance remains 0/31.
 | Routine dev CD target | image fields of `mss-shop-dev/mss-shop-tenant-admin` and `mss-shop-dev/mss-shop-mall-admin-aussibuy` only |
 | Routine dev CD identity | four `mss-shop-dev-image-updater` access-bootstrap objects; Role allows only exact two-Deployment `get`/`patch` |
 | GitHub Environment | `mss-shop-dev`; kubeconfig supplied only by `MSS_SHOP_DEV_KUBECONFIG` |
-| Planned tenant Admin entry | `https://tenant-admin.mss.r1shop.net` |
-| Planned mall Admin entry | `https://mall-admin.mss.r1shop.net` |
+| Tenant Admin entry | `https://tenant-admin.mss.r1shop.net` |
+| Mall Admin entry | `https://mall-admin.mss.r1shop.net` |
 | Historical Revision `3e64a57` tenant evidence host | `http://tenant-admin.167.17.68.242.nip.io` |
 | Historical Revision `3e64a57` mall evidence host | `http://mall-admin.167.17.68.242.nip.io` |
 
@@ -172,29 +182,58 @@ of 24 infrastructure objects and six foundation Secrets. The reusable workflow
 does not create, update or delete them.
 
 This path does not apply a manifest, update configuration or annotations,
-touch a database, create a Job, wait for rollout, run a verification case or
-perform browser acceptance. The Pod-template change itself causes the matching
-`migrate` init container to run when Kubernetes replaces the Pod. The
-reconciler and importer images are published but not deployed. The original
-`r1shop-dev`, shared `database` namespace and production remain unchanged.
+issue a database command, create a Job, wait for rollout, run a verification
+case or perform browser acceptance. The Pod-template change itself causes the
+matching `migrate` init container to run when Kubernetes replaces the Pod, so
+the image-only API mutation can indirectly perform that container's database
+migration. The reconciler and importer images are published but not deployed.
+The original `r1shop-dev`, shared `database` namespace and production remain
+unchanged.
 
 The four access-bootstrap objects are present, their Role boundary is verified,
 and the GitHub Environment credential is configured outside the repository.
-The first qualifying run is still **pending**. Source configuration, image
-publication or a `set image` invocation alone must not be recorded as rollout
-health, system acceptance or business acceptance. The ordered procedure below
-remains authoritative for bootstrap and evidence-bearing releases; routine CD
-does not repeat or close any of its gates.
+The first qualifying run has completed successfully. Source configuration,
+image publication or a `set image` invocation alone still must not be recorded
+as system or business acceptance. Every later PR head requires its own deployed
+revision check and applicable disposable-Pod/browser review. The ordered
+procedure below remains authoritative for bootstrap and evidence-bearing
+releases; routine CD does not repeat or close any bootstrap gate.
 
-### Planned Admin host and HTTPS gate
+### Production is not a current target
+
+DEC-0013 defines the desired promotion boundary but authorizes no executable
+production workflow. There is no reviewed `mss-shop` production namespace,
+Deployment/container allowlist, resource-named RBAC or GitHub Environment
+credential. The live `r1shop-prod` workloads, TimescaleDB and Redis belong to
+the existing production system; do not infer names from development or use them
+as placeholders.
+
+Before any production CD source is added, a separate review must enumerate the
+exact Deployments, containers and init containers, minimum image-patch identity,
+Environment and secret. It must also account for the fact that an image update
+recreates Pods: if a `migrate` init container exists, it may change the database
+before the application becomes Ready. Approve migration ordering, forward
+compatibility, failure behavior and rollback before treating an image-only
+promotion as safe.
+
+Every eventual promotion must stop at a GitHub Environment required-reviewer
+gate. Only a human performs that review. An AI or agent may prepare and observe
+the waiting run, but never approves, bypasses or uses a user's session to
+satisfy the gate. Main performs no test, build or image publication; promotion
+must reuse the exact accepted PR-head images and record their mapping to the
+squash-main SHA. The future Environment must disable administrator bypass and
+keep the reviewer account, token and logged-in session unavailable to Actions
+and agents.
+
+### Established Admin host and HTTPS gate
 
 This gate implements DEC-0011 without rewriting the DEC-0010 isolated-stage
 history.
 
-The fixed browser-review targets are now
+The fixed browser-review targets are
 `https://tenant-admin.mss.r1shop.net` and
-`https://mall-admin.mss.r1shop.net`. This is a planned host cutover, not a
-claim that either new host has been deployed, routed or accepted. The
+`https://mall-admin.mss.r1shop.net`. The DNS-only host cutover and confirmed-
+login workspace smoke are recorded separately as executed evidence. The
 Revision `3e64a57dae8bb3dd4d337a423015baae6c352b32` runtime and disposable HTTP
 evidence above remain historical evidence for the two `nip.io` hosts recorded
 in the table; do not reinterpret or mechanically rewrite that evidence as a
@@ -202,12 +241,12 @@ new-domain result.
 
 A 2026-09-02 read-only check first found the new names behind the Cloudflare
 proxy without edge-certificate coverage for these multi-level subdomains. The
-project owner has since changed both records to **DNS Only**. They now resolve
-directly to `167.17.68.242`; this selects ingress-terminated, publicly trusted
-TLS and removes Cloudflare edge TLS from this development path. DNS-only
-selection is not evidence that an Issuer, Certificate, generated TLS Secret,
-new-host Ingress or trusted HTTPS route has been created. At this point those
-resources and the new-host rollout remain unrecorded.
+project owner then changed both records to **DNS Only**. They resolve directly
+to `167.17.68.242`; this selects ingress-terminated, publicly trusted TLS and
+removes Cloudflare edge TLS from this development path. DNS selection alone was
+not evidence of the later Issuer, Certificates, generated TLS Secrets, Ingress
+or trusted route; those results are supported only by their separate execution
+and browser records.
 
 Provisioning and cutover are deliberately split into two stages so the old
 Ingress does not have to serve a certificate for a host it does not yet own:

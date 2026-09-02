@@ -64,6 +64,9 @@ const (
 	adminHTTPSMallDigest               = "sha256:32e9497279393e7cd5bc0896e594f52697cb6092a939f61e1939cb5c86208b50"
 	adminHTTPSReconcilerDigest         = "sha256:9687e5706481c6d0f8372b3d884c699c2f03e6d78f18200815d239dbd7a1cbb3"
 	adminHTTPSImporterDigest           = "sha256:ea6caef74249251e349a736ceb56d15ee832cc11207963c6ba05ede54043e0ae"
+	currentDevPRRevision               = "d850c6bcaa212293c1d1f51a169a2b94f350d3df"
+	currentDevPRRun              int64 = 33575948422
+	currentMainRevision                = "11b39efc86e155a09937941b80294f86e3b8872c"
 )
 
 type legacyDeliveryRun struct {
@@ -298,9 +301,38 @@ type legacyRebuildStatus struct {
 				SuccessfulPostImportVerifier                bool   `yaml:"successfulPostImportVerifier"`
 			} `yaml:"currentSourceValidation"`
 			DeliveryImages struct {
-				CurrentFourImagePublication string            `yaml:"currentFourImagePublication"`
-				VerifiedRun                 legacyDeliveryRun `yaml:"verifiedRun"`
-				VerifierRun                 legacyDeliveryRun `yaml:"verifierRun"`
+				Trigger                     string   `yaml:"trigger"`
+				PushBranches                []string `yaml:"pushBranches"`
+				CurrentFourImagePublication string   `yaml:"currentFourImagePublication"`
+				CurrentDevPRDeployment      struct {
+					PullRequest                 int    `yaml:"pullRequest"`
+					RunID                       int64  `yaml:"runID"`
+					Revision                    string `yaml:"revision"`
+					Conclusion                  string `yaml:"conclusion"`
+					PublishedImages             int    `yaml:"publishedImages"`
+					TenantUpdatedReadyAvailable string `yaml:"tenantUpdatedReadyAvailable"`
+					MallUpdatedReadyAvailable   string `yaml:"mallUpdatedReadyAvailable"`
+					ContainerRestarts           int    `yaml:"containerRestarts"`
+					AcceptanceEvidence          bool   `yaml:"acceptanceEvidence"`
+					SquashMainRevision          string `yaml:"squashMainRevision"`
+					SquashTreeMatchesPRHead     bool   `yaml:"squashTreeMatchesPRHead"`
+				} `yaml:"currentDevPRDeployment"`
+				VerifiedRun         legacyDeliveryRun `yaml:"verifiedRun"`
+				VerifierRun         legacyDeliveryRun `yaml:"verifierRun"`
+				ProductionPromotion struct {
+					Status                        string `yaml:"status"`
+					ExecutableWorkflowCommitted   bool   `yaml:"executableWorkflowCommitted"`
+					GitHubEnvironmentConfigured   bool   `yaml:"githubEnvironmentConfigured"`
+					HumanApprovalRequired         bool   `yaml:"humanApprovalRequired"`
+					AgentApprovalForbidden        bool   `yaml:"agentApprovalForbidden"`
+					CurrentLiveNamespace          string `yaml:"currentLiveNamespace"`
+					CurrentLiveDeployment         string `yaml:"currentLiveDeployment"`
+					CurrentLiveImageFamily        string `yaml:"currentLiveImageFamily"`
+					MSSProductionNamespaceExists  bool   `yaml:"mssProductionNamespaceExists"`
+					MSSProductionDeploymentsExist bool   `yaml:"mssProductionDeploymentsExist"`
+					ExactImageTargetsReviewed     bool   `yaml:"exactImageTargetsReviewed"`
+					MigrationAndRollbackReviewed  bool   `yaml:"migrationAndRollbackReviewed"`
+				} `yaml:"productionPromotion"`
 			} `yaml:"deliveryImages"`
 		} `yaml:"localEvidence"`
 		SourcesOfTruth map[string]string `yaml:"sourcesOfTruth"`
@@ -321,6 +353,9 @@ type legacyRebuildStatus struct {
 			IsolatedBrowserAcceptanceExecuted       bool   `yaml:"isolatedBrowserAcceptanceExecuted"`
 			DeployedSourceRevision                  string `yaml:"deployedSourceRevision"`
 			DeployedSourceRevisionCommitted         bool   `yaml:"deployedSourceRevisionCommitted"`
+			BrowserAcceptedSourceRevision           string `yaml:"browserAcceptedSourceRevision"`
+			ProductionPromotionConfigured           bool   `yaml:"productionPromotionConfigured"`
+			ProductionPromotionExecuted             bool   `yaml:"productionPromotionExecuted"`
 		} `yaml:"safety"`
 	} `yaml:"spec"`
 }
@@ -713,8 +748,8 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 	evidence := status.Spec.EvidenceState
 	if evidence.IndexesConstraintsAndRowCounts != "import-and-independent-post-import-verifier-passed" ||
 		evidence.KubernetesSystemAcceptance != "passed-final-release-v3-runtime-cluster-verification" ||
-		evidence.ProductionMigration != "forbidden-without-explicit-approval" ||
-		evidence.DeliveryCI != "four-image-publication-verified-https-cutover-f202b094-run-33565434916" ||
+		evidence.ProductionMigration != "forbidden-without-explicit-human-approval-and-reviewed-mss-prod-topology" ||
+		evidence.DeliveryCI != "pr-final-four-image-publication-and-dev-cd-d850c6b-run-33575948422" ||
 		evidence.RemoteDevelopmentPlan != "https-cutover-deployed-isolated-confirmed-login-smoke-passed-business-review-pending" ||
 		evidence.IsolatedInfrastructure != "created-exact-24-objects" ||
 		evidence.FoundationSecrets != "created-exact-six-immutable" ||
@@ -1386,8 +1421,30 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		t.Fatalf("current isolated validation evidence drifted: %#v", validation)
 	}
 	images := status.Spec.LocalEvidence.DeliveryImages
+	if images.Trigger != "pull-request-only" || len(images.PushBranches) != 0 {
+		t.Fatalf("delivery trigger must be PR-only without push branches: %#v", images)
+	}
+	currentDev := images.CurrentDevPRDeployment
+	if currentDev.PullRequest != 1 || currentDev.RunID != currentDevPRRun ||
+		currentDev.Revision != currentDevPRRevision || currentDev.Conclusion != "success" ||
+		currentDev.PublishedImages != 4 || currentDev.TenantUpdatedReadyAvailable != "1-1-1" ||
+		currentDev.MallUpdatedReadyAvailable != "1-1-1" || currentDev.ContainerRestarts != 0 ||
+		currentDev.AcceptanceEvidence || currentDev.SquashMainRevision != currentMainRevision ||
+		!currentDev.SquashTreeMatchesPRHead {
+		t.Fatalf("current PR-to-dev delivery evidence drifted: %#v", currentDev)
+	}
+	promotion := images.ProductionPromotion
+	if promotion.Status != "blocked-pending-reviewed-mss-production-topology" ||
+		promotion.ExecutableWorkflowCommitted || promotion.GitHubEnvironmentConfigured ||
+		!promotion.HumanApprovalRequired || !promotion.AgentApprovalForbidden ||
+		promotion.CurrentLiveNamespace != "r1shop-prod" || promotion.CurrentLiveDeployment != "shop" ||
+		promotion.CurrentLiveImageFamily != "shop-go" || promotion.MSSProductionNamespaceExists ||
+		promotion.MSSProductionDeploymentsExist || promotion.ExactImageTargetsReviewed ||
+		promotion.MigrationAndRollbackReviewed {
+		t.Fatalf("production promotion must remain human-gated and blocked on reviewed MSS targets: %#v", promotion)
+	}
 	verifiedRun := images.VerifiedRun
-	if images.CurrentFourImagePublication != "verified-https-cutover-f202b094-deployed-isolated-dev" ||
+	if images.CurrentFourImagePublication != "verified-final-pr-head-d850c6b-deployed-isolated-dev" ||
 		verifiedRun.ID != adminHTTPSCIRun ||
 		verifiedRun.Revision != adminHTTPSRevision ||
 		verifiedRun.Conclusion != "success" ||
@@ -1431,7 +1488,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		"acceptanceMatrix", "implementationSkill", "deliveryChecklist",
 		"memoryGovernance", "memoryCheck", "mcpIntegration", "mcpConfiguration",
 		"mss137GenerationNotes", "localBrowserAcceptance",
-		"remoteDevelopmentDecision", "remoteDevelopmentRunbook", "catalogLogisticsDesignReview",
+		"remoteDevelopmentDecision", "devCDDecision", "deliveryLifecycleDecision", "remoteDevelopmentRunbook", "catalogLogisticsDesignReview",
 		"originalDevelopmentEvidence", "postVerifierOriginalDevelopmentEvidence",
 		"isolatedImportAttemptEvidence", "isolatedImportSuccessEvidence", "isolatedImportReceipt",
 		"isolatedVerifierEvidence", "isolatedVerification", "memberLevelsDevelopment",
@@ -1466,6 +1523,7 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		status.Spec.SourcesOfTruth["isolatedMemberLevelsProjectionEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-member-levels-projection-success.json" ||
 		status.Spec.SourcesOfTruth["isolatedRuntimeSystemAcceptanceEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-runtime-system-acceptance.yaml" ||
 		status.Spec.SourcesOfTruth["isolatedAdminHTTPSCutoverEvidence"] != "docs/evidence/mss-shop-dev/2026-09-02-admin-https-cutover.yaml" ||
+		status.Spec.SourcesOfTruth["deliveryLifecycleDecision"] != "docs/decisions/DEC-0013-pr-acceptance-loop-and-human-gated-production-promotion.md" ||
 		status.Spec.SourcesOfTruth["isolatedBrowserAcceptanceReport"] != "docs/acceptance/mss-shop-dev-2026-09-02-browser-acceptance.md" {
 		t.Fatalf("legacy decisions drifted: %#v", status.Spec.SourcesOfTruth)
 	}
@@ -1477,8 +1535,9 @@ func TestLegacyRebuildMemoryStaysAlignedWithExecutableContracts(t *testing.T) {
 		!safety.SystemTestsUseDisposableKubernetesPods || !safety.IsolatedInfrastructureStaged ||
 		!safety.IsolatedAdminRuntimeDeployed || safety.LegacyImportAttempts != 3 ||
 		!safety.LegacyImportSucceeded || !safety.PostImportVerifierSucceeded ||
-		!safety.IsolatedBrowserAcceptanceExecuted || safety.DeployedSourceRevision != adminHTTPSRevision ||
-		!safety.DeployedSourceRevisionCommitted {
+		!safety.IsolatedBrowserAcceptanceExecuted || safety.DeployedSourceRevision != currentDevPRRevision ||
+		!safety.DeployedSourceRevisionCommitted || safety.BrowserAcceptedSourceRevision != adminHTTPSRevision ||
+		safety.ProductionPromotionConfigured || safety.ProductionPromotionExecuted {
 		t.Fatalf("unsafe legacy verification memory: %#v", status.Spec.Safety)
 	}
 }

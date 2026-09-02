@@ -108,6 +108,20 @@
 - Record bounded local browser evidence under `docs/acceptance/`, including the
   fixture/environment, exact operations, untested items and scenario count.
   A local compatibility smoke review never closes a workflow row implicitly.
+- For shared acceptance, record the complete deployed pull-request head SHA.
+  Any later push invalidates the earlier cluster and browser result; wait for
+  the new PR CI and development refresh, then repeat the applicable disposable-
+  Pod and in-app-browser checks. Bring the branch up to date with `main` before
+  the final cycle, rerun if the head changes, and squash-merge only the latest
+  accepted head. Preserve its mapping to the resulting main SHA, matching source
+  tree and image digests.
+- Do not run validation, builds or image publication again on `main`. A future
+  production promotion may reuse only the accepted PR-head images and must stop
+  at a human GitHub Environment review. An AI or agent never approves or
+  bypasses that gate. Until the exact `mss-shop` production resources, container
+  inventory, migration effects, rollback strategy and minimum RBAC exist, do
+  not create an executable production workflow or infer targets from the live
+  `r1shop-prod` system.
 - Record only executed evidence in project status; mark remaining acceptance
   rows honestly rather than treating a build as business completion.
 - Run `go test ./contracts` after updating the table manifest, coverage counts,

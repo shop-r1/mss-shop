@@ -4,11 +4,6 @@ on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - main
-      - "codex/**"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,7 +13,7 @@ env:
   NODE_VERSION: 24.19.0
   PNPM_VERSION: 10.34.5
   MSS_VERSION: v1.3.7
-  DELIVERY_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  DELIVERY_SHA: ${{ github.event.pull_request.head.sha }}
 
 jobs:
   backend-unit:
@@ -105,11 +100,9 @@ jobs:
   verify-delivery-images:
     name: Verify image (${{ matrix.name }})
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       (github.event.pull_request.head.repo.full_name != github.repository ||
-        !startsWith(github.event.pull_request.head.ref, 'codex/') ||
-        github.actor == 'dependabot[bot]'))
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      !startsWith(github.event.pull_request.head.ref, 'codex/') ||
+      github.actor == 'dependabot[bot]'
     needs:
       - backend-unit
       - frontend-unit
@@ -155,12 +148,10 @@ jobs:
   publish-delivery-images:
     name: Publish image (${{ matrix.name }})
     if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.base.ref == 'main' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       startsWith(github.event.pull_request.head.ref, 'codex/') &&
-       github.actor != 'dependabot[bot]')
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'codex/') &&
+      github.actor != 'dependabot[bot]'
     needs:
       - backend-unit
       - frontend-unit
@@ -247,7 +238,6 @@ jobs:
     needs:
       - publish-delivery-images
     if: >-
-      github.event_name == 'pull_request' &&
       github.event.pull_request.base.ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       startsWith(github.event.pull_request.head.ref, 'codex/') &&

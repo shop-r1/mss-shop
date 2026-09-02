@@ -56,6 +56,10 @@ redacted by construction, and is reviewed before commit.
   evidence. Record a development CD as pending until its GitHub Environment
   credential exists and one qualifying run completes; never infer rollout,
   health, system verification or browser acceptance from `kubectl set image`.
+- A pull-request acceptance claim is bound to one complete head SHA and its
+  actually deployed images. Any later push invalidates that claim. Record the
+  new CI/deployment result and repeat the applicable disposable-Pod and browser
+  checks before merge; do not carry acceptance forward by branch name.
 - An API change starts in the authoritative contract, then updates downstream
   snapshots and generated clients with compatibility evidence.
 - A new locale updates catalogs, negotiation, formatting tests and capability
@@ -66,11 +70,11 @@ redacted by construction, and is reviewed before commit.
   contract when applicable, acceptance rows, bilingual catalogs, verification
   evidence and project status in the same commit. Code completion alone does
   not close a business-acceptance row.
-- When the project owner defers validation until a later development
-  checkpoint, record every new slice as `source-implemented-unverified`, name
-  the last actually verified revision, and keep tests, migrations, deployment
-  and acceptance independently false. A running local or remote-process
-  preview is not durable verification evidence.
+- Local development and focused checks remain implementation evidence. Shared
+  deployment and acceptance begin with the pull request. Until the latest PR
+  head completes CI, image publication, `mss-shop-dev` refresh and the
+  applicable verification, record the slice as unverified. A running local or
+  remote-process preview is not durable verification evidence.
 - A compatibility mutation is recorded as unavailable until one resource and
   operation has dedicated evidence for legacy validation, relationships/tenant
   scope, hooks, authorization and deletion semantics. Historical exploratory
@@ -94,7 +98,23 @@ redacted by construction, and is reviewed before commit.
 - Browser acceptance is a separate human-visible layer. Do not infer it from
   HTTP 200 checks, screenshots of an unauthenticated page or a successful API
   Job; record the exact environment, confirmed login, routes/locales reviewed,
-  browser errors and the scope left for owner inspection.
+  browser errors, complete PR-head SHA and the scope left for owner inspection.
+- A squash merge records two different source identities. Preserve the pull
+  request number, accepted head SHA, resulting squash-main SHA, matching source-
+  tree identity and immutable image digests. Require the PR to be current with
+  `main` before its final acceptance cycle; synchronization creates a new head
+  and invalidates older evidence. Main does not rebuild, so never claim that an
+  image tagged by the accepted head was built from the squash-main SHA.
+- Production workflow source is only planned configuration until the exact
+  `mss-shop` production resources, resource-named RBAC, protected GitHub
+  Environment and credential are reviewed and one human-approved run executes.
+  The Environment disables administrator bypass and keeps the reviewer account,
+  token and browser session unavailable to Actions and agents. An AI or agent
+  must never approve or bypass that review. An image update also recreates Pods;
+  if a Deployment has a `migrate` init container, the update can indirectly
+  execute database migrations. Record the reviewed container inventory,
+  forward-compatibility and rollback strategy before any executable production
+  promotion is added.
 - Every trusted stage command that can persist a Kubernetes object defaults to
   a non-persistent API-server dry-run. "Dry-run" means the exact Create or
   Update is submitted with `DryRunAll`; a local render or collision preflight
@@ -136,11 +156,13 @@ Before a milestone is committed, review these artifacts as one change set:
    create-only, with NetworkPolicies before two inert storage binders and a
    stable, cluster-wide node/local-path exclusivity gate before StatefulSets;
    the six foundation Secrets are immutable and namespace-local; old Redis is
-   not shared; CI publishes four full-SHA images; and the separate dev CD can
-   change only the two fixed Admin Deployments' `migrate` and `admin` image
-   fields after a qualifying same-repository PR succeeds. The four namespace-
-   local CD access-bootstrap objects are recorded separately and never folded
-   into the historical 24 infrastructure plus six foundation-Secret counts.
+   not shared; PR-only CI publishes four full-head-SHA images; and the separate
+   dev CD can change only the two fixed Admin Deployments' `migrate` and `admin`
+   image fields after a qualifying same-repository PR succeeds. The four
+   namespace-local CD access-bootstrap objects are recorded separately and
+   never folded into the historical 24 infrastructure plus six foundation-
+   Secret counts. Latest-head acceptance, squash provenance and the absence of
+   any current executable production target are recorded independently.
 6. `tools/check-project-memory.sh` passes. It checks required project memory,
    runs the executable contracts, validates all repository Skills with the
    exact MSS tool and rejects whitespace errors. The contracts prove that the

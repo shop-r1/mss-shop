@@ -34,10 +34,20 @@
   mutation until one resource and operation has restored and proved its legacy
   semantics. Never search, filter or sort a JSON column with declared nested
   secrets, including `system_configs.metadata`.
-- `r1shop-prod` and its TimescaleDB/Redis are live. Production writes require
-  explicit approval for the exact action in the current conversation. System
-  verification runs in disposable Kubernetes Pods; never migrate production
-  data while developing this repository.
+- `r1shop-prod` and its TimescaleDB/Redis are live. This repository currently
+  has no `mss-shop` production namespace, Deployment, resource-named RBAC or
+  GitHub Environment credential. Do not infer those targets, create an
+  executable production CD path, or point an MSS image at the existing
+  `r1shop-prod` workloads. A future exact image-only promotion requires the
+  production boundary to be reviewed first and must pause for a GitHub
+  Environment approval performed by a human. An AI or agent must never approve,
+  bypass, simulate or use a user's session to satisfy that review. Production
+  topology review must include every container and init container: changing an
+  image recreates Pods and can indirectly run a `migrate` init container, so
+  forward compatibility and rollback must be approved even for an image-only
+  change. Production writes still require explicit approval for the exact
+  action. System verification runs in disposable Kubernetes Pods; never migrate
+  production data while developing this repository.
 - The original `r1shop-dev` environment is immutable from this repository's
   point of view. Never create, update or delete its application resources,
   PostgreSQL objects or ACLs, Redis data/configuration, Secrets, Services,
@@ -76,14 +86,29 @@
   `bf07098cb8a7c5f2c52993e28c69afc7712c4d98`; both Deployments reached
   1/1 updated, ready and available with zero container restarts. This is CD
   operation evidence only, not system or browser acceptance.
-- Work on `codex/...` branches. Do not push, deploy, merge to a production
-  branch, or trigger a frontend release unless the user explicitly requests it.
-- The current project-owner sequence is development first, formal validation
-  and isolated rollout later. Until `docs/project/status.md` lifts that hold,
-  label new modules `source-implemented-unverified`, do not push merely to run
-  CI, and do not treat a loopback remote-server preview as test or acceptance
-  evidence. This sequencing rule does not waive any test; it defers the full
-  suite to the pre-PR clean-SHA checkpoint.
+- Work on `codex/...` branches and never push directly to `main`. Local work is
+  code development and focused checks only. Push a completed development slice
+  to its branch, and open a same-repository pull request to `main` when the
+  accumulated work is ready for the shared development cycle. The pull request
+  is the only automatic CI, four-image publication and `mss-shop-dev` deployment
+  path; a branch push without an open pull request and a push to `main` must not
+  run that pipeline.
+- Bind cluster and in-app-browser verification to the latest complete pull-
+  request head SHA actually deployed by DEC-0012. Any subsequent push changes
+  the head, invalidates the prior deployment/acceptance claim, and requires CI,
+  development image refresh and the applicable disposable-Pod and browser checks
+  again. Keep iterating on the same pull request until its latest head passes and
+  leave the two development URLs running for owner review.
+- Only the latest accepted pull-request head may be squash-merged to `main`,
+  producing one new main commit. Before the final CI/acceptance cycle, bring the
+  branch up to date with current `main`; that synchronization creates a new head
+  and invalidates older evidence. Record the pull request, accepted head SHA,
+  resulting squash-main SHA, matching source tree and image digests because the
+  two commit SHAs differ. Main performs no tests, builds or image publication. A
+  future production promotion must reuse the already accepted pull-request-head
+  images, change only exact approved image fields, account for Pod-restart and
+  init-container migration effects, and remain blocked on human GitHub
+  Environment review; the agent must stop at that gate.
 - Do not commit credentials, DSNs, tokens, private keys, database files, logs,
   build caches, or machine-specific absolute paths.
 

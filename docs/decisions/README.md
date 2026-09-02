@@ -25,3 +25,6 @@ in the same change.
   ingress TLS bootstrap and isolated Admin host cutover
 - [DEC-0012](DEC-0012-pr-head-admin-image-refresh.md): qualifying pull-request
   Admin image refresh in isolated development
+- [DEC-0013](DEC-0013-pr-acceptance-loop-and-human-gated-production-promotion.md):
+  pull-request development acceptance loop, squash provenance and human-gated
+  production promotion

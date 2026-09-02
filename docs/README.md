@@ -33,6 +33,10 @@ only to the isolated `mss-shop-dev` namespace with dedicated datastores,
 storage, TLS and credentials; see DEC-0010 before any cluster operation and
 DEC-0011 for the DNS-only Admin TLS/host-cutover gate. DEC-0012 defines the
 separate image-only development CD boundary for qualifying pull requests.
+DEC-0013 makes the latest deployed PR head the acceptance candidate, requires
+acceptance to repeat after every push, records its mapping to the squash-main
+commit and keeps production promotion planned behind a human GitHub Environment
+review. No executable `mss-shop` production target exists yet.
 
 The root application remains an MSS 1.3.7 Thin Host proof of concept. The two
 delivery Hosts live under `apps/tenant-platform` and `apps/mall-platform`, with
